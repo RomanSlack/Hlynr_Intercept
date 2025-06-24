@@ -1,0 +1,16 @@
+# Core dependencies for AegisIntercept Phase-1
+gymnasium>=0.29
+numpy
+pygame
+cleanrl>=2.4
+torch
+stable-baselines3
+
+# Testing dependencies
+pytest
+pytest-cov
+
+# Development dependencies
+black
+flake8
+mypy
