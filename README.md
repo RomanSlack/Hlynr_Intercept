@@ -81,10 +81,10 @@ MIT License (see LICENSE file)
 
 When using this work in research, please cite:
 ```
-@misc{aegis_intercept_2024,
+@misc{aegis_intercept_2025,
   title={AegisIntercept: Nuclear-Defense Path-Finding Simulator},
   author={Slack, Roman and Hasse, Quinn},
-  year={2024},
-  url={https://github.com/rslack/aegis-intercept}
+  year={2025},
+  url={https://github.com/rslack/aegis_intercept}
 }
 ```
