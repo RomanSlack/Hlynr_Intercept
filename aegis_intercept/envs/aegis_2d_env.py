@@ -17,7 +17,7 @@ class Aegis2DInterceptEnv(gym.Env):
     the defended point at the origin.
     """
     
-    metadata = {"render_modes": ["human"], "render_fps": 30}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
     
     def __init__(
         self,
@@ -185,6 +185,8 @@ class Aegis2DInterceptEnv(gym.Env):
     def render(self):
         if self.render_mode == "human":
             return self._render_human()
+        elif self.render_mode == "rgb_array":
+            return self._render_rgb_array()
         
     def _render_human(self):
         if self.screen is None:
@@ -228,6 +230,50 @@ class Aegis2DInterceptEnv(gym.Env):
         
         pygame.display.flip()
         self.clock.tick(self.metadata["render_fps"])
+    
+    def _render_rgb_array(self):
+        import numpy as np
+        
+        # Initialize pygame if needed
+        if self.screen is None:
+            pygame.init()
+            self.screen = pygame.display.set_mode((self.screen_size, self.screen_size))
+        
+        # Clear screen
+        self.screen.fill((0, 0, 0))
+        
+        # Convert world coordinates to screen coordinates
+        def world_to_screen(pos):
+            x = int((pos[0] + self.world_size) / (2 * self.world_size) * self.screen_size)
+            y = int((pos[1] + self.world_size) / (2 * self.world_size) * self.screen_size)
+            return x, y
+        
+        # Draw defended point as green circle
+        defended_screen = world_to_screen(self.defended_point)
+        pygame.draw.circle(self.screen, (0, 255, 0), defended_screen, 12)
+        
+        # Draw missile as red circle
+        missile_screen = world_to_screen(self.missile_pos)
+        pygame.draw.circle(self.screen, (255, 0, 0), missile_screen, 8)
+        
+        # Draw missile velocity vector
+        missile_vel_end = self.missile_pos + self.missile_vel * 2
+        missile_vel_screen = world_to_screen(missile_vel_end)
+        pygame.draw.line(self.screen, (255, 100, 100), missile_screen, missile_vel_screen, 2)
+        
+        # Draw interceptor as blue circle
+        interceptor_screen = world_to_screen(self.interceptor_pos)
+        pygame.draw.circle(self.screen, (0, 0, 255), interceptor_screen, 8)
+        
+        # Draw interceptor velocity vector
+        interceptor_vel_end = self.interceptor_pos + self.interceptor_vel * 2
+        interceptor_vel_screen = world_to_screen(interceptor_vel_end)
+        pygame.draw.line(self.screen, (100, 100, 255), interceptor_screen, interceptor_vel_screen, 2)
+        
+        # Convert pygame surface to numpy array
+        frame = pygame.surfarray.array3d(self.screen)
+        frame = np.transpose(frame, (1, 0, 2))  # Swap x,y axes for correct orientation
+        return frame
     
     def close(self):
         if self.screen is not None:
