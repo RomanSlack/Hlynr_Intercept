@@ -1,10 +1,11 @@
 # Core dependencies for AegisIntercept Phase-1
-gymnasium>=0.29
+gymnasium>=0.29, <1.1
+gym==0.23.1
 numpy
-pygame
-cleanrl>=2.4
+pygame==2.1.0
+cleanrl==1.2.0
 torch
-stable-baselines3
+stable-baselines3==1.2.0
 
 # Testing dependencies
 pytest
