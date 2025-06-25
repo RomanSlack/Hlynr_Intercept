@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Phase-1 PPO Training Script for AegisIntercept
-
 Simple training script using CleanRL PPO implementation for the 2D missile intercept environment.
 """
 
