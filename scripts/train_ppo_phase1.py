@@ -18,17 +18,16 @@ from torch.distributions.normal import Normal
 from aegis_intercept.envs import Aegis2DInterceptEnv
 
 
-def make_env(env_id: str, idx: int, capture_video: bool, run_name: str) -> Callable:
+def make_env(env_id: str, idx: int, enable_render: bool) -> Callable:
     """Create environment factory function."""
     def thunk():
         if env_id == "Aegis2D":
-            env = Aegis2DInterceptEnv(render_mode="human" if capture_video and idx == 0 else None)
+            render_mode = "human" if enable_render and idx == 0 else None
+            env = Aegis2DInterceptEnv(render_mode=render_mode)
         else:
             env = gym.make(env_id)
         
         env = gym.wrappers.RecordEpisodeStatistics(env)
-        if capture_video and idx == 0:
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
         return env
     return thunk
 
@@ -80,7 +79,7 @@ class Agent(nn.Module):
         return action, probs.log_prob(action).sum(1), probs.entropy().sum(1), self.critic(x)
 
 
-def train_ppo(enable_visualization=False, save_interval=50):
+def train_ppo(enable_visualization=False, save_interval=50, resume_from_checkpoint=True):
     """Main training function."""
     
     # Hyperparameters
@@ -92,20 +91,20 @@ def train_ppo(enable_visualization=False, save_interval=50):
     # Environment parameters
     env_id = "Aegis2D"
     num_envs = 8
-    num_steps = 128
-    total_timesteps = 100000
+    num_steps = 256  # Increased rollout length for better training
+    total_timesteps = 250000  # Increased for better convergence
     
     # PPO parameters
     learning_rate = 3e-4
     anneal_lr = True
     gamma = 0.99
     gae_lambda = 0.95
-    num_minibatches = 4
+    num_minibatches = 8  # Increased for better gradient estimates
     update_epochs = 4
     norm_adv = True
     clip_coef = 0.2
     clip_vloss = True
-    ent_coef = 0.01
+    ent_coef = 0.01  # Maintain exploration
     vf_coef = 0.5
     max_grad_norm = 0.5
     
@@ -114,8 +113,7 @@ def train_ppo(enable_visualization=False, save_interval=50):
     minibatch_size = int(batch_size // num_minibatches)
     num_iterations = total_timesteps // batch_size
     
-    # Setup
-    run_name = f"{exp_name}__{seed}__{int(time.time())}"
+    # Setup complete
     
     # Seeding
     np.random.seed(seed)
@@ -126,12 +124,28 @@ def train_ppo(enable_visualization=False, save_interval=50):
     
     # Environment setup
     envs = gym.vector.SyncVectorEnv([
-        make_env(env_id, i, enable_visualization and i == 0, run_name) for i in range(num_envs)
+        make_env(env_id, i, enable_visualization) for i in range(num_envs)
     ])
     
     # Agent setup
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=learning_rate, eps=1e-5)
+    
+    # Load checkpoint if resuming
+    start_iteration = 1
+    if resume_from_checkpoint:
+        model_path = "models/phase1_ppo.pt"
+        if os.path.exists(model_path):
+            print(f"Loading checkpoint from {model_path}")
+            agent.load_state_dict(torch.load(model_path, map_location=device))
+            # Find the latest checkpoint to determine iteration
+            checkpoints = [f for f in os.listdir("models") if f.startswith("checkpoint_iter_") and f.endswith(".pt")]
+            if checkpoints:
+                latest_checkpoint = max(checkpoints, key=lambda x: int(x.split("_")[2].split(".")[0]))
+                start_iteration = int(latest_checkpoint.split("_")[2].split(".")[0]) + 1
+                print(f"Resuming from iteration {start_iteration}")
+        else:
+            print("No checkpoint found, starting fresh training")
     
     # Storage setup
     obs = torch.zeros((num_steps, num_envs) + envs.single_observation_space.shape).to(device)
@@ -150,7 +164,7 @@ def train_ppo(enable_visualization=False, save_interval=50):
     
     print(f"Starting training for {num_iterations} iterations ({total_timesteps} total timesteps)")
     
-    for iteration in range(1, num_iterations + 1):
+    for iteration in range(start_iteration, num_iterations + 1):
         # Annealing the rate if instructed to do so
         if anneal_lr:
             frac = 1.0 - (iteration - 1.0) / num_iterations
@@ -176,11 +190,17 @@ def train_ppo(enable_visualization=False, save_interval=50):
             rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(next_done).to(device)
             
+            # Render if visualization enabled
+            if enable_visualization:
+                envs.render()
+            
             # Logging
             if "final_info" in infos:
                 for info in infos["final_info"]:
                     if info is not None:
-                        print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
+                        episode_reward = info['episode']['r']
+                        episode_length = info['episode']['l']
+                        print(f"Episode: reward={episode_reward:.2f}, length={episode_length}, global_step={global_step}")
         
         # Bootstrap value if not done
         with torch.no_grad():
@@ -260,13 +280,17 @@ def train_ppo(enable_visualization=False, save_interval=50):
         var_y = np.var(y_true)
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
         
-        print(f"Iteration {iteration}")
+        # Get the final values from the last minibatch
+        loss_val = loss.item()
+        pg_loss_val = pg_loss.item()
+        v_loss_val = v_loss.item()
+        entropy_val = entropy_loss.item()
+        
+        print(f"Iteration {iteration}/{num_iterations}")
         print(f"  SPS: {int(global_step / (time.time() - start_time))}")
-        print(f"  Loss: {loss.item():.4f}")
-        print(f"  Policy Loss: {pg_loss.item():.4f}")
-        print(f"  Value Loss: {v_loss.item():.4f}")
-        print(f"  Entropy: {entropy_loss.item():.4f}")
-        print(f"  Explained Variance: {explained_var:.4f}")
+        print(f"  Loss: {loss_val:.4f} | Policy: {pg_loss_val:.4f} | Value: {v_loss_val:.4f}")
+        print(f"  Entropy: {entropy_val:.4f} | Explained Var: {explained_var:.4f}")
+        print(f"  Avg Reward: {rewards.mean().item():.3f} | Avg Value: {values.mean().item():.3f}")
         print("")
         
         # Save checkpoint at specified intervals
@@ -295,13 +319,13 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Train PPO agent for AegisIntercept Phase-1")
     parser.add_argument("--visualize", action="store_true", 
-                       help="Enable visualization for first environment")
+                       help="Enable real-time visualization (slows down training)")
     parser.add_argument("--save-interval", type=int, default=50,
                        help="Save checkpoint every N iterations (default: 50)")
     
     args = parser.parse_args()
     
-    print(f"Starting training with visualization={'ON' if args.visualize else 'OFF'}")
+    print(f"Starting training with visualization={'ON (slower)' if args.visualize else 'OFF (headless)'}")
     print(f"Checkpoints will be saved every {args.save_interval} iterations")
     
-    train_ppo(enable_visualization=args.visualize, save_interval=args.save_interval)
+    train_ppo(enable_visualization=args.visualize, save_interval=args.save_interval, resume_from_checkpoint=True)
