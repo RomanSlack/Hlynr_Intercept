@@ -48,7 +48,7 @@ models/
 logs/
 runs/
 wandb/
-
+models
 # Test coverage
 .coverage
 htmlcov/
