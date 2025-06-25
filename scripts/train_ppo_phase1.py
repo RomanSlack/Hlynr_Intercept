@@ -80,7 +80,7 @@ class Agent(nn.Module):
         return action, probs.log_prob(action).sum(1), probs.entropy().sum(1), self.critic(x)
 
 
-def train_ppo():
+def train_ppo(enable_visualization=False, save_interval=50):
     """Main training function."""
     
     # Hyperparameters
@@ -126,7 +126,7 @@ def train_ppo():
     
     # Environment setup
     envs = gym.vector.SyncVectorEnv([
-        make_env(env_id, i, False, run_name) for i in range(num_envs)
+        make_env(env_id, i, enable_visualization and i == 0, run_name) for i in range(num_envs)
     ])
     
     # Agent setup
@@ -268,6 +268,19 @@ def train_ppo():
         print(f"  Entropy: {entropy_loss.item():.4f}")
         print(f"  Explained Variance: {explained_var:.4f}")
         print("")
+        
+        # Save checkpoint at specified intervals
+        if iteration % save_interval == 0:
+            checkpoint_path = f"models/checkpoint_iter_{iteration}.pt"
+            os.makedirs("models", exist_ok=True)
+            torch.save({
+                'iteration': iteration,
+                'global_step': global_step,
+                'agent_state_dict': agent.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': loss.item(),
+            }, checkpoint_path)
+            print(f"Checkpoint saved: {checkpoint_path}")
     
     # Save model
     os.makedirs("models", exist_ok=True)
@@ -278,4 +291,17 @@ def train_ppo():
 
 
 if __name__ == "__main__":
-    train_ppo()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Train PPO agent for AegisIntercept Phase-1")
+    parser.add_argument("--visualize", action="store_true", 
+                       help="Enable visualization for first environment")
+    parser.add_argument("--save-interval", type=int, default=50,
+                       help="Save checkpoint every N iterations (default: 50)")
+    
+    args = parser.parse_args()
+    
+    print(f"Starting training with visualization={'ON' if args.visualize else 'OFF'}")
+    print(f"Checkpoints will be saved every {args.save_interval} iterations")
+    
+    train_ppo(enable_visualization=args.visualize, save_interval=args.save_interval)
