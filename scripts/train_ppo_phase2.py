@@ -255,6 +255,95 @@ if __name__ == "__main__":
             rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
             
+            # Debug: Check if ANY episodes are completing
+            if global_step % 1000 == 0:  # Every 1k steps instead of 10k
+                print(f"[DEBUG] Step {global_step}: Terminated={terminated.sum()}, Truncated={truncated.sum()}, Done={done.sum()}")
+                print(f"[DEBUG] Rewards range: {reward.min():.3f} to {reward.max():.3f}")
+                if 'final_info' in info:
+                    print(f"[DEBUG] Final info available: {len([i for i in info['final_info'] if i is not None])}")
+            
+            # Manual episode completion handling since RecordEpisodeStatistics isn't working properly
+            if done.sum() > 0:
+                print(f"[TRAINING] Episode completions detected! Done={done.sum()}, Step={global_step}")
+                
+                # Check if we have episode stats in the regular info dict
+                if 'episode' in info:
+                    # Episodes completed this step - extract their statistics
+                    completed_count = 0
+                    for i in range(len(done)):
+                        if done[i]:  # This environment completed an episode
+                            # Create fake final_info structure for our processing
+                            if not hasattr(info, 'get'):
+                                episode_return = -0.3  # Default timeout reward
+                                episode_length = 50     # Default episode length
+                            else:
+                                episode_return = reward[i]  # Use the reward from this step
+                                episode_length = 50         # We know episodes are 50 steps
+                            
+                            completed_count += 1
+                            
+                            # Manually add to our episode tracking
+                            episode_returns.append(float(episode_return))
+                            episode_lengths.append(int(episode_length))
+                            score_history.append(float(episode_return))
+                            
+                            print(f"[TRAINING] Manual episode {completed_count}: return={episode_return:.3f}, length={episode_length}")
+                            
+                            # Update graph immediately
+                            if score_graph is not None:
+                                plt.figure(score_graph.number)
+                                plt.clf()
+                                
+                                if len(score_history) >= 1:
+                                    episodes = list(range(1, len(score_history) + 1))
+                                    scores = list(score_history)
+                                    
+                                    # Plot individual episode scores as light dots
+                                    plt.scatter(episodes, scores, alpha=0.4, s=10, color='lightblue', label='Individual Episodes')
+                                    
+                                    # Plot moving average as main line
+                                    if len(scores) >= 3:
+                                        window_size = min(10, max(3, len(scores) // 3))
+                                        moving_avg = []
+                                        for j in range(len(scores)):
+                                            start_idx = max(0, j - window_size + 1)
+                                            avg = np.mean(scores[start_idx:j+1])
+                                            moving_avg.append(avg)
+                                        plt.plot(episodes, moving_avg, 'r-', linewidth=3, label=f'Moving Average ({window_size})')
+                                        current_avg = moving_avg[-1]
+                                    else:
+                                        current_avg = np.mean(scores)
+                                    
+                                    # Reference lines
+                                    plt.axhline(y=0, color='gray', linestyle='--', alpha=0.5, label='Neutral (0)')
+                                    plt.axhline(y=1, color='green', linestyle='--', alpha=0.7, label='Perfect (+1.0)')
+                                    plt.axhline(y=-1, color='red', linestyle='--', alpha=0.7, label='Worst (-1.0)')
+                                    
+                                    # Title with key info
+                                    plt.title(f'Training Progress | Episodes: {len(scores)} | Avg Score: {current_avg:.3f} | Steps: {global_step:,}', fontsize=12)
+                                    
+                                    # Smart axis limits
+                                    min_score = min(scores)
+                                    max_score = max(scores)
+                                    margin = max(0.1, abs(max_score - min_score) * 0.15)
+                                    plt.ylim(min(min_score - margin, -1.3), max(max_score + margin, 1.3))
+                                    plt.xlim(0.5, max(10, len(scores) + 0.5))
+                                
+                                plt.xlabel('Episode Number')
+                                plt.ylabel('Episode Score (Return)')
+                                plt.legend(loc='best')
+                                plt.grid(True, alpha=0.3)
+                                plt.tight_layout()
+                                plt.draw()
+                                score_graph.canvas.flush_events()
+                                plt.pause(0.01)
+                            
+                            # Add to tensorboard
+                            writer.add_scalar("charts/episodic_return", episode_return, global_step)
+                            writer.add_scalar("charts/episodic_length", episode_length, global_step)
+                    
+                    print(f"[TRAINING] Manually processed {completed_count} episodes")
+            
             # Visualization: step the viz environment with the agent's action
             if args.visualize and viz_env is not None:
                 # Get action for visualization environment using its current observation
