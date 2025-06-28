@@ -13,15 +13,15 @@ class Aegis3DInterceptEnv(gym.Env):
 
     def __init__(
         self,
-        world_size: float = 100.0,
-        max_steps: int = 500,
+        world_size: float = 150.0,  # Reduced from 200 for faster episodes
+        max_steps: int = 300,  # Reduced from 500 for faster episodes
         dt: float = 0.05,
-        intercept_threshold: float = 2.0,
-        miss_threshold: float = 5.0,
+        intercept_threshold: float = 3.0,  # Slightly larger for easier intercepts
+        miss_threshold: float = 8.0,  # Larger target area
         max_velocity: float = 15.0,
         max_accel: float = 5.0,
         drag_coefficient: float = 0.1,
-        missile_speed: float = 10.0,
+        missile_speed: float = 12.0,  # Faster missile
         evasion_freq: int = 10,
         evasion_magnitude: float = 5.0,
         render_mode: Optional[str] = None,
@@ -70,12 +70,35 @@ class Aegis3DInterceptEnv(gym.Env):
         super().reset(seed=seed)
         self.step_count = 0
 
-        self.interceptor_pos = np.array([self.np_random.uniform(-self.world_size * 0.8, -self.world_size * 0.4), self.np_random.uniform(-self.world_size * 0.3, self.world_size * 0.3), self.np_random.uniform(10, 50)], dtype=np.float32)
-        self.interceptor_vel = np.zeros(3, dtype=np.float32)
+        # Target position (what we're defending) - on ground plane
+        self.target_pos = np.array([
+            self.np_random.uniform(-self.world_size * 0.1, self.world_size * 0.1),
+            self.np_random.uniform(-self.world_size * 0.1, self.world_size * 0.1),
+            0.0  # Ground level
+        ], dtype=np.float32)
+        
+        # Interceptor starts at ground level near target (launch site)
+        interceptor_offset = self.np_random.uniform(5, 15)  # 5-15 units from target
+        interceptor_angle = self.np_random.uniform(0, 2 * np.pi)
+        self.interceptor_pos = self.target_pos + np.array([
+            interceptor_offset * np.cos(interceptor_angle),
+            interceptor_offset * np.sin(interceptor_angle),
+            0.0  # Start at ground level
+        ], dtype=np.float32)
+        # Start with small upward velocity (launch)
+        self.interceptor_vel = np.array([0.0, 0.0, 2.0], dtype=np.float32)
 
-        missile_start_pos = np.array([self.np_random.uniform(self.world_size * 0.4, self.world_size * 0.8), self.np_random.uniform(-self.world_size * 0.3, self.world_size * 0.3), self.np_random.uniform(10, 50)], dtype=np.float32)
-        self.missile_pos = missile_start_pos
-        direction = (self.target_pos - missile_start_pos) / np.linalg.norm(self.target_pos - missile_start_pos)
+        # Missile starts at medium distance for reasonable episode length
+        missile_distance = self.np_random.uniform(self.world_size * 0.5, self.world_size * 0.7)
+        missile_angle = self.np_random.uniform(0, 2 * np.pi)
+        self.missile_pos = self.target_pos + np.array([
+            missile_distance * np.cos(missile_angle),
+            missile_distance * np.sin(missile_angle),
+            self.np_random.uniform(20, 60)
+        ], dtype=np.float32)
+        
+        # Missile heads toward target
+        direction = (self.target_pos - self.missile_pos) / np.linalg.norm(self.target_pos - self.missile_pos)
         self.missile_vel = direction * self.missile_speed
 
         return self._get_observation(), self._get_info()
