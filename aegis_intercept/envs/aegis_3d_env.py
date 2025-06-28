@@ -14,7 +14,7 @@ class Aegis3DInterceptEnv(gym.Env):
     def __init__(
         self,
         world_size: float = 300.0,  # New coordinate system 0-600
-        max_steps: int = 300,  # Reasonable time for intercept attempts
+        max_steps: int = 50,  # Very short episodes to force completion
         dt: float = 0.05,
         intercept_threshold: float = 8.0,  # Reasonable intercept distance
         miss_threshold: float = 3.0,  # Tighter target protection
@@ -104,6 +104,12 @@ class Aegis3DInterceptEnv(gym.Env):
         return self._get_observation(), self._get_info()
 
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict]:
+        # Debug: Print step count occasionally to see if environment is running
+        if self.step_count == 0:
+            print(f"[ENV] Starting new episode")
+        elif self.step_count == 25:
+            print(f"[ENV] Halfway through episode (step {self.step_count})")
+            
         action = np.clip(action, -1.0, 1.0)
         thrust = action * self.max_accel
 
@@ -144,7 +150,10 @@ class Aegis3DInterceptEnv(gym.Env):
         out_of_bounds = above_ceiling or outside_horizontal  # Remove ground check since we prevent it
         max_steps_reached = self.step_count >= self.max_steps
 
-        terminated = intercepted or missile_hit or out_of_bounds or max_steps_reached
+        # Separate terminated (episode done due to success/failure) from truncated (timeout)
+        terminated = intercepted or missile_hit or out_of_bounds
+        truncated = max_steps_reached and not terminated  # Only truncate if not already terminated
+        
         reward = 0.0
         if intercepted:
             reward = 1.0
@@ -152,8 +161,8 @@ class Aegis3DInterceptEnv(gym.Env):
             reward = -1.0
         elif out_of_bounds:
             reward = -0.5
-        elif max_steps_reached:
-            reward = -0.3  # Different penalty for timeout
+        elif truncated:
+            reward = -0.3  # Penalty for timeout
         else:
             reward = -0.01
             prev_dist = distance(self.interceptor_pos - self.interceptor_vel * self.dt, self.missile_pos - self.missile_vel * self.dt)
@@ -162,21 +171,18 @@ class Aegis3DInterceptEnv(gym.Env):
 
         self.step_count += 1
         
-        # Debug: Print termination reason occasionally  
-        if terminated and self.step_count % 100 == 0:  # Much less spam
+        # Debug: Print important terminations (reduced spam)
+        if terminated or truncated:
             if intercepted:
-                print(f"[ENV DEBUG] INTERCEPTED! Reward: {reward}")
+                print(f"[ENV] INTERCEPTED! Reward: {reward}, Steps: {self.step_count}")
             elif missile_hit:
-                print(f"[ENV DEBUG] MISSILE HIT TARGET! Reward: {reward}")  
+                print(f"[ENV] MISSILE HIT TARGET! Reward: {reward}, Steps: {self.step_count}")  
             elif out_of_bounds:
-                if above_ceiling:
-                    print(f"[ENV DEBUG] OUT OF BOUNDS (ABOVE CEILING)")
-                elif outside_horizontal:
-                    print(f"[ENV DEBUG] OUT OF BOUNDS (OUTSIDE HORIZONTAL)")
-            elif max_steps_reached:
-                print(f"[ENV DEBUG] TIMEOUT after {self.max_steps} steps")
+                print(f"[ENV] OUT OF BOUNDS, Steps: {self.step_count}")
+            elif truncated:  # Always print timeouts for debugging
+                print(f"[ENV] TRUNCATED after {self.max_steps} steps (step {self.step_count})")
                 
-        return self._get_observation(), reward, terminated, False, self._get_info()
+        return self._get_observation(), reward, terminated, truncated, self._get_info()
 
     def _get_observation(self) -> np.ndarray:
         time_remaining = (self.max_steps - self.step_count) / self.max_steps
