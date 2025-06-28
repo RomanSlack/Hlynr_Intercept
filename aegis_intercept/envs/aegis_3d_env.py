@@ -16,8 +16,8 @@ class Aegis3DInterceptEnv(gym.Env):
         world_size: float = 300.0,  # New coordinate system 0-600
         max_steps: int = 400,  # Much longer episodes (20 seconds) 
         dt: float = 0.05,
-        intercept_threshold: float = 8.0,  # Reasonable intercept distance
-        miss_threshold: float = 3.0,  # Tighter target protection
+        intercept_threshold: float = 15.0,  # Easier intercepts to learn from
+        miss_threshold: float = 8.0,  # Reasonable target protection
         max_velocity: float = 30.0,  # Much faster interceptor
         max_accel: float = 15.0,  # Much more responsive
         drag_coefficient: float = 0.05,  # Less drag
@@ -88,13 +88,20 @@ class Aegis3DInterceptEnv(gym.Env):
         # Start with strong upward launch velocity and prevent ground collision
         self.interceptor_vel = np.array([0.0, 0.0, 8.0], dtype=np.float32)
 
-        # Missile starts high in the sky (z=600) and comes down
-        missile_x = self.np_random.uniform(50, self.world_size * 2 - 50)
-        missile_y = self.np_random.uniform(50, self.world_size * 2 - 50)
+        # Missile starts closer to target for easier learning
+        missile_distance_from_target = self.np_random.uniform(150, 250)  # Closer range
+        missile_angle = self.np_random.uniform(0, 2 * np.pi)
+        missile_x = self.target_pos[0] + missile_distance_from_target * np.cos(missile_angle)
+        missile_y = self.target_pos[1] + missile_distance_from_target * np.sin(missile_angle)
+        
+        # Clamp to world bounds
+        missile_x = np.clip(missile_x, 50, self.world_size * 2 - 50)
+        missile_y = np.clip(missile_y, 50, self.world_size * 2 - 50)
+        
         self.missile_pos = np.array([
             missile_x,
             missile_y,
-            self.world_size * 2  # Start at top (z=600)
+            self.np_random.uniform(400, 500)  # Start at medium altitude, not maximum
         ], dtype=np.float32)
         
         # Missile heads toward target
@@ -154,33 +161,67 @@ class Aegis3DInterceptEnv(gym.Env):
         terminated = intercepted or missile_hit or out_of_bounds
         truncated = max_steps_reached and not terminated  # Only truncate if not already terminated
         
+        # Rich reward function for better learning
         reward = 0.0
+        
         if intercepted:
-            reward = 1.0
+            reward = 10.0  # Big reward for successful intercept
         elif missile_hit:
-            reward = -1.0
+            reward = -10.0  # Big penalty for mission failure
         elif out_of_bounds:
-            reward = -0.5
+            reward = -5.0  # Penalty for going out of bounds
         elif truncated:
-            reward = -0.3  # Penalty for timeout
+            reward = -2.0  # Moderate penalty for timeout
         else:
-            reward = -0.01
-            prev_dist = distance(self.interceptor_pos - self.interceptor_vel * self.dt, self.missile_pos - self.missile_vel * self.dt)
+            # Dense reward shaping during episode
+            
+            # 1. Distance-based reward (get closer to missile)
+            max_possible_dist = np.sqrt(3) * self.world_size * 2  # Diagonal of world
+            normalized_dist = intercept_dist / max_possible_dist
+            proximity_reward = 0.5 * (1.0 - normalized_dist)  # 0 to 0.5 based on proximity
+            
+            # 2. Altitude reward (interceptor should climb toward missile)
+            target_altitude = self.missile_pos[2]
+            altitude_diff = abs(self.interceptor_pos[2] - target_altitude)
+            altitude_reward = 0.2 * (1.0 - min(altitude_diff / self.world_size, 1.0))
+            
+            # 3. Progress reward (getting closer over time)
+            prev_intercept_pos = self.interceptor_pos - self.interceptor_vel * self.dt
+            prev_dist = distance(prev_intercept_pos, self.missile_pos - self.missile_vel * self.dt)
             if intercept_dist < prev_dist:
-                reward += 0.001
+                progress_reward = 0.1  # Good progress
+            else:
+                progress_reward = -0.05  # Moving away is bad
+            
+            # 4. Missile threat urgency (closer missile to target = more urgent)
+            threat_dist = distance(self.missile_pos, self.target_pos)
+            threat_urgency = 1.0 - min(threat_dist / (self.world_size * 2), 1.0)
+            urgency_bonus = 0.2 * threat_urgency * proximity_reward  # More reward when threat is close
+            
+            # 5. Time penalty (encourage faster interception)
+            time_penalty = -0.01 * (self.step_count / self.max_steps)
+            
+            reward = proximity_reward + altitude_reward + progress_reward + urgency_bonus + time_penalty
 
         self.step_count += 1
         
-        # Debug: Print important terminations (reduced spam)
+        # Debug: Print important terminations and progress info
         if terminated or truncated:
             if intercepted:
-                print(f"[ENV] INTERCEPTED! Reward: {reward}, Steps: {self.step_count}")
+                print(f"[ENV] ✅ INTERCEPTED! Distance: {intercept_dist:.1f}, Reward: {reward:.1f}, Steps: {self.step_count}")
             elif missile_hit:
-                print(f"[ENV] MISSILE HIT TARGET! Reward: {reward}, Steps: {self.step_count}")  
+                print(f"[ENV] ❌ MISSILE HIT TARGET! Distance: {miss_dist:.1f}, Reward: {reward:.1f}, Steps: {self.step_count}")  
             elif out_of_bounds:
-                print(f"[ENV] OUT OF BOUNDS, Steps: {self.step_count}")
-            elif truncated:  # Always print timeouts for debugging
-                print(f"[ENV] TRUNCATED after {self.max_steps} steps (step {self.step_count})")
+                print(f"[ENV] 🚫 OUT OF BOUNDS, Steps: {self.step_count}, Position: {self.interceptor_pos}")
+            elif truncated:
+                final_distance = distance(self.interceptor_pos, self.missile_pos)
+                print(f"[ENV] ⏱️ TIMEOUT - Final distance: {final_distance:.1f}, Reward: {reward:.1f}, Steps: {self.step_count}")
+        
+        # Occasional progress updates during episodes
+        elif self.step_count % 100 == 0:
+            current_distance = distance(self.interceptor_pos, self.missile_pos)
+            missile_to_target = distance(self.missile_pos, self.target_pos)
+            print(f"[ENV] Step {self.step_count}: Distance to missile: {current_distance:.1f}, Missile to target: {missile_to_target:.1f}, Reward: {reward:.2f}")
                 
         return self._get_observation(), reward, terminated, truncated, self._get_info()
 
