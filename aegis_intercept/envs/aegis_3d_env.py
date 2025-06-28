@@ -13,17 +13,17 @@ class Aegis3DInterceptEnv(gym.Env):
 
     def __init__(
         self,
-        world_size: float = 150.0,  # Reduced from 200 for faster episodes
-        max_steps: int = 300,  # Reduced from 500 for faster episodes
+        world_size: float = 300.0,  # New coordinate system 0-600
+        max_steps: int = 150,  # Much shorter episodes
         dt: float = 0.05,
-        intercept_threshold: float = 3.0,  # Slightly larger for easier intercepts
-        miss_threshold: float = 8.0,  # Larger target area
-        max_velocity: float = 15.0,
-        max_accel: float = 5.0,
-        drag_coefficient: float = 0.1,
-        missile_speed: float = 12.0,  # Faster missile
-        evasion_freq: int = 10,
-        evasion_magnitude: float = 5.0,
+        intercept_threshold: float = 5.0,  # Easier intercepts
+        miss_threshold: float = 10.0,  # Larger target area
+        max_velocity: float = 20.0,  # Faster interceptor
+        max_accel: float = 8.0,  # More responsive
+        drag_coefficient: float = 0.05,  # Less drag
+        missile_speed: float = 18.0,  # Much faster missile
+        evasion_freq: int = 15,
+        evasion_magnitude: float = 3.0,
         render_mode: Optional[str] = None,
     ):
         super().__init__()
@@ -43,8 +43,8 @@ class Aegis3DInterceptEnv(gym.Env):
 
         # State: [interceptor_pos(3), interceptor_vel(3), missile_pos(3), missile_vel(3), time_remaining]
         self.observation_space = spaces.Box(
-            low=-world_size,
-            high=world_size,
+            low=0.0,  # New coordinate system starts at 0
+            high=world_size * 2,  # Goes from 0 to 600
             shape=(13,),
             dtype=np.float32
         )
@@ -70,31 +70,31 @@ class Aegis3DInterceptEnv(gym.Env):
         super().reset(seed=seed)
         self.step_count = 0
 
-        # Target position (what we're defending) - on ground plane
+        # Target position (what we're defending) - at ground level in center
         self.target_pos = np.array([
-            self.np_random.uniform(-self.world_size * 0.1, self.world_size * 0.1),
-            self.np_random.uniform(-self.world_size * 0.1, self.world_size * 0.1),
-            0.0  # Ground level
+            self.world_size + self.np_random.uniform(-20, 20),  # Center around 300
+            self.world_size + self.np_random.uniform(-20, 20),  # Center around 300
+            0.0  # Ground level (z=0)
         ], dtype=np.float32)
         
         # Interceptor starts at ground level near target (launch site)
-        interceptor_offset = self.np_random.uniform(5, 15)  # 5-15 units from target
+        interceptor_offset = self.np_random.uniform(10, 30)
         interceptor_angle = self.np_random.uniform(0, 2 * np.pi)
         self.interceptor_pos = self.target_pos + np.array([
             interceptor_offset * np.cos(interceptor_angle),
             interceptor_offset * np.sin(interceptor_angle),
             0.0  # Start at ground level
         ], dtype=np.float32)
-        # Start with small upward velocity (launch)
-        self.interceptor_vel = np.array([0.0, 0.0, 2.0], dtype=np.float32)
+        # Start with upward launch velocity
+        self.interceptor_vel = np.array([0.0, 0.0, 5.0], dtype=np.float32)
 
-        # Missile starts at medium distance for reasonable episode length
-        missile_distance = self.np_random.uniform(self.world_size * 0.5, self.world_size * 0.7)
-        missile_angle = self.np_random.uniform(0, 2 * np.pi)
-        self.missile_pos = self.target_pos + np.array([
-            missile_distance * np.cos(missile_angle),
-            missile_distance * np.sin(missile_angle),
-            self.np_random.uniform(20, 60)
+        # Missile starts high in the sky (z=600) and comes down
+        missile_x = self.np_random.uniform(50, self.world_size * 2 - 50)
+        missile_y = self.np_random.uniform(50, self.world_size * 2 - 50)
+        self.missile_pos = np.array([
+            missile_x,
+            missile_y,
+            self.world_size * 2  # Start at top (z=600)
         ], dtype=np.float32)
         
         # Missile heads toward target
@@ -129,7 +129,8 @@ class Aegis3DInterceptEnv(gym.Env):
 
         intercepted = intercept_dist < self.intercept_threshold
         missile_hit = miss_dist < self.miss_threshold
-        out_of_bounds = np.abs(self.interceptor_pos).max() > self.world_size
+        # Check bounds for 0-600 coordinate system
+        out_of_bounds = (self.interceptor_pos < 0).any() or (self.interceptor_pos > self.world_size * 2).any()
         max_steps_reached = self.step_count >= self.max_steps
 
         terminated = intercepted or missile_hit or out_of_bounds or max_steps_reached
@@ -166,11 +167,11 @@ class Aegis3DInterceptEnv(gym.Env):
             "distance_to_missile": distance(self.interceptor_pos, self.missile_pos),
         }
 
-    def render(self):
+    def render(self, intercepted: bool = False):
         if self.render_mode == "human":
             if self.viewer is None:
                 self.viewer = Viewer3D(self.world_size)
-            self.viewer.render(self.interceptor_pos, self.missile_pos, self.target_pos)
+            self.viewer.render(self.interceptor_pos, self.missile_pos, self.target_pos, intercepted)
 
     def close(self):
         if self.viewer:

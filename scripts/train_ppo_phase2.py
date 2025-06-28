@@ -14,6 +14,8 @@ import gymnasium as gym
 from torch.utils.tensorboard import SummaryWriter
 from gymnasium.vector import AsyncVectorEnv as SubprocVecEnv
 from distutils.util import strtobool
+import matplotlib.pyplot as plt
+from collections import deque
 
 from aegis_intercept.envs.aegis_3d_env import Aegis3DInterceptEnv
 
@@ -176,6 +178,14 @@ if __name__ == "__main__":
     episode_returns = []
     episode_lengths = []
     last_progress_update = 0
+    
+    # Real-time score graphing setup
+    score_graph = None
+    score_history = deque(maxlen=100)  # Keep last 100 episodes
+    if not args.visualize:  # Only show score graph when not showing 3D viz
+        plt.ion()
+        score_graph = plt.figure(figsize=(10, 6))
+        plt.show(block=False)
     next_obs = torch.Tensor(next_obs).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
     num_updates = args.total_timesteps // args.batch_size
@@ -219,7 +229,7 @@ if __name__ == "__main__":
                 # Render at reduced frequency to maintain performance
                 viz_step_counter += 1
                 if viz_step_counter % viz_render_every == 0:
-                    viz_env.render()
+                    viz_env.render(viz_terminated and viz_reward > 0.5)  # Pass intercept success
                 
                 # Reset viz environment if episode ends
                 if viz_terminated or viz_truncated:
@@ -234,6 +244,33 @@ if __name__ == "__main__":
                         # Track episodes for progress monitoring
                         episode_returns.append(episode_return)
                         episode_lengths.append(episode_length)
+                        score_history.append(episode_return)
+                        
+                        # Update real-time score graph
+                        if score_graph is not None and len(score_history) > 1:
+                            plt.figure(score_graph.number)
+                            plt.clf()
+                            episodes = list(range(len(score_history)))
+                            scores = list(score_history)
+                            
+                            plt.plot(episodes, scores, 'b-', alpha=0.7, linewidth=1, label='Episode Scores')
+                            if len(scores) >= 10:
+                                # Moving average
+                                window_size = min(10, len(scores))
+                                moving_avg = [np.mean(scores[max(0, i-window_size+1):i+1]) for i in range(len(scores))]
+                                plt.plot(episodes, moving_avg, 'r-', linewidth=2, label=f'Moving Avg ({window_size})')
+                            
+                            plt.axhline(y=0, color='k', linestyle='--', alpha=0.3)
+                            plt.axhline(y=1, color='g', linestyle='--', alpha=0.5, label='Perfect Score (+1.0)')
+                            plt.axhline(y=-1, color='r', linestyle='--', alpha=0.5, label='Worst Score (-1.0)')
+                            
+                            plt.xlabel('Episode')
+                            plt.ylabel('Score (Return)')
+                            plt.title(f'Training Progress - Last {len(score_history)} Episodes')
+                            plt.legend()
+                            plt.grid(True, alpha=0.3)
+                            plt.draw()
+                            plt.pause(0.01)
                         
                         # Enhanced logging for training progress
                         if not args.visualize:  # More detailed output when not visualizing
