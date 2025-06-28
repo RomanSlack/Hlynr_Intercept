@@ -182,10 +182,44 @@ if __name__ == "__main__":
     # Real-time score graphing setup
     score_graph = None
     score_history = deque(maxlen=100)  # Keep last 100 episodes
-    if not args.visualize:  # Only show score graph when not showing 3D viz
+    # Always show score graph unless explicitly visualizing 3D
+    if not args.visualize:
         plt.ion()
+        plt.rcParams['figure.raise_window'] = True  # Try to bring window to front
         score_graph = plt.figure(figsize=(10, 6))
+        score_graph.suptitle("Training Progress - Waiting for Episodes...")
+        
+        # Create initial empty plot
+        plt.subplot(111)
+        plt.xlabel("Episode")
+        plt.ylabel("Score (Return)")
+        plt.grid(True, alpha=0.3)
+        plt.axhline(y=0, color='k', linestyle='--', alpha=0.3, label='Neutral')
+        plt.axhline(y=1, color='g', linestyle='--', alpha=0.5, label='Perfect (+1.0)')
+        plt.axhline(y=-1, color='r', linestyle='--', alpha=0.5, label='Worst (-1.0)')
+        plt.legend()
+        plt.ylim(-1.5, 1.5)
+        plt.xlim(0, 10)
+        
+        # Force window to show and come to front
         plt.show(block=False)
+        plt.pause(0.1)
+        try:
+            # Try to bring window to front (platform dependent)
+            score_graph.canvas.manager.window.wm_attributes('-topmost', 1)
+            score_graph.canvas.manager.window.wm_attributes('-topmost', 0)
+        except:
+            try:
+                # Alternative for different window managers
+                score_graph.canvas.manager.window.raise_()
+            except:
+                pass  # If all fails, just continue
+        plt.draw()
+        score_graph.canvas.flush_events()
+        print("=== SCORE GRAPH WINDOW OPENED ===")
+        print("Look for a matplotlib window titled 'Training Progress'")
+        print("If you don't see it, check your taskbar or run: 'python -c \"import matplotlib; print(matplotlib.get_backend())\"'")
+        print("=======================================")
     next_obs = torch.Tensor(next_obs).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
     num_updates = args.total_timesteps // args.batch_size
@@ -385,7 +419,10 @@ if __name__ == "__main__":
                 avg_length = np.mean(episode_lengths[-50:] if len(episode_lengths) >= 50 else episode_lengths)
                 print(f"Update {update:4d} | Steps: {global_step:7,} | Episodes: {len(episode_returns):4d} | Avg Return: {avg_return:+6.2f} | Avg Length: {avg_length:6.1f} | SPS: {current_sps:4d}")
             elif update % 5 == 0:  # Show basic progress every 5 updates
-                print(f"Update {update:4d} | Steps: {global_step:7,} | Episodes: {len(episode_returns):4d} | SPS: {current_sps:4d}")
+                if len(episode_returns) == 0:
+                    print(f"Update {update:4d} | Steps: {global_step:7,} | Episodes: {len(episode_returns):4d} | SPS: {current_sps:4d} | [Waiting for first episode to complete...]")
+                else:
+                    print(f"Update {update:4d} | Steps: {global_step:7,} | Episodes: {len(episode_returns):4d} | SPS: {current_sps:4d}")
         else:
             print("SPS:", current_sps)
             
