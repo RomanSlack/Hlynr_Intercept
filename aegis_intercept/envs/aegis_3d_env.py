@@ -14,16 +14,18 @@ class Aegis3DInterceptEnv(gym.Env):
     def __init__(
         self,
         world_size: float = 300.0,  # New coordinate system 0-600
-        max_steps: int = 300,  # Shorter episodes for faster learning cycles
+        max_steps: int = 200,  # Shorter episodes for quicker intercepts
         dt: float = 0.05,
-        intercept_threshold: float = 25.0,  # Much easier intercepts
+        intercept_threshold: float = 30.0,  # Slightly easier intercepts
         miss_threshold: float = 10.0,  # Reasonable target protection  
-        max_velocity: float = 40.0,  # Even faster interceptor
-        max_accel: float = 20.0,  # Much more responsive
-        drag_coefficient: float = 0.05,  # Less drag
-        missile_speed: float = 18.0,  # Much faster missile
-        evasion_freq: int = 15,
-        evasion_magnitude: float = 3.0,
+        max_velocity: float = 50.0,  # Very fast interceptor
+        max_accel: float = 25.0,  # High acceleration
+        drag_coefficient: float = 0.03,  # Low drag for missile-like behavior
+        missile_speed: float = 20.0,  # Fast incoming missile
+        evasion_freq: int = 20,  # Less frequent evasion
+        evasion_magnitude: float = 2.0,  # Smaller evasion
+        max_fuel: float = 100.0,  # Limited fuel for interceptor
+        fuel_burn_rate: float = 0.5,  # Fuel consumed per acceleration
         render_mode: Optional[str] = None,
     ):
         super().__init__()
@@ -39,16 +41,19 @@ class Aegis3DInterceptEnv(gym.Env):
         self.missile_speed = missile_speed
         self.evasion_freq = evasion_freq
         self.evasion_magnitude = evasion_magnitude
+        self.max_fuel = max_fuel
+        self.fuel_burn_rate = fuel_burn_rate
         self.render_mode = render_mode
 
-        # State: [interceptor_pos(3), interceptor_vel(3), missile_pos(3), missile_vel(3), time_remaining]
-        # Fix observation bounds: positions [0, world*2], velocities [-max_vel, +max_vel], time [0, 1]
+        # State: [interceptor_pos(3), interceptor_vel(3), missile_pos(3), missile_vel(3), time_remaining, fuel_remaining]
+        # Fix observation bounds: positions [0, world*2], velocities [-max_vel, +max_vel], time [0, 1], fuel [0, 1]
         low = np.array(
             [0, 0, 0] +  # interceptor_pos
             [-max_velocity, -max_velocity, -max_velocity] +  # interceptor_vel
             [0, 0, 0] +  # missile_pos
             [-missile_speed, -missile_speed, -missile_speed] +  # missile_vel
-            [0],  # time_remaining
+            [0] +  # time_remaining
+            [0],  # fuel_remaining
             dtype=np.float32
         )
         high = np.array(
@@ -56,7 +61,8 @@ class Aegis3DInterceptEnv(gym.Env):
             [max_velocity, max_velocity, max_velocity] +  # interceptor_vel
             [world_size * 2, world_size * 2, world_size * 2] +  # missile_pos
             [missile_speed, missile_speed, missile_speed] +  # missile_vel
-            [1],  # time_remaining
+            [1] +  # time_remaining
+            [1],  # fuel_remaining
             dtype=np.float32
         )
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
@@ -99,6 +105,9 @@ class Aegis3DInterceptEnv(gym.Env):
         ], dtype=np.float32)
         # Start with strong upward launch velocity and prevent ground collision
         self.interceptor_vel = np.array([0.0, 0.0, 8.0], dtype=np.float32)
+        
+        # Initialize fuel
+        self.fuel_remaining = self.max_fuel
 
         # Missile starts much closer to target for easier learning
         missile_distance_from_target = self.np_random.uniform(80, 150)  # Much closer
@@ -126,27 +135,33 @@ class Aegis3DInterceptEnv(gym.Env):
         # Debug: Print step count occasionally to see if environment is running
         if self.step_count == 0:
             print(f"[ENV] Starting new episode")
-        elif self.step_count == 200:
+        elif self.step_count == 100:
             print(f"[ENV] Halfway through episode (step {self.step_count})")
             
         action = np.clip(action, -1.0, 1.0)
-        thrust = action * self.max_accel
+        
+        # Calculate fuel consumption based on thrust magnitude
+        thrust_magnitude = np.linalg.norm(action)
+        fuel_consumed = thrust_magnitude * self.fuel_burn_rate * self.dt
+        self.fuel_remaining = max(0.0, self.fuel_remaining - fuel_consumed)
+        
+        # Apply thrust only if fuel is available
+        if self.fuel_remaining > 0:
+            thrust = action * self.max_accel
+        else:
+            thrust = np.zeros(3, dtype=np.float32)  # No thrust without fuel
 
+        # Apply physics - drag and thrust
         drag = linear_drag(self.interceptor_vel, self.drag_coefficient)
         self.interceptor_vel += (thrust + drag) * self.dt
+        
+        # Velocity limits
         vel_mag = np.linalg.norm(self.interceptor_vel)
         if vel_mag > self.max_velocity:
             self.interceptor_vel = self.interceptor_vel / vel_mag * self.max_velocity
         
-        # Update position
-        new_pos = self.interceptor_pos + self.interceptor_vel * self.dt
-        
-        # Prevent going through ground - bounce or stop at ground level
-        if new_pos[2] < 0:
-            new_pos[2] = 0.0  # Keep at ground level
-            self.interceptor_vel[2] = max(0.0, self.interceptor_vel[2])  # Stop downward velocity
-        
-        self.interceptor_pos = new_pos
+        # Update position - allow going underground (realistic for intercept)
+        self.interceptor_pos = self.interceptor_pos + self.interceptor_vel * self.dt
 
         if self.step_count % self.evasion_freq == 0:
             evasion_offset = np.random.randn(3)
@@ -165,27 +180,36 @@ class Aegis3DInterceptEnv(gym.Env):
         missile_hit = miss_dist < self.miss_threshold
         
         # Check if interceptor went above the missile (punishment condition)
-        interceptor_above_missile = self.interceptor_pos[2] > self.missile_pos[2] + 10.0  # 10m buffer
+        interceptor_above_missile = self.interceptor_pos[2] > self.missile_pos[2] + 15.0  # 15m buffer
         
-        # Check bounds for 0-600 coordinate system (no ground penetration allowed)
+        # Check if interceptor ran out of fuel
+        out_of_fuel = self.fuel_remaining <= 0
+        
+        # Check bounds for 0-600 coordinate system
         above_ceiling = self.interceptor_pos[2] > self.world_size * 2
         outside_horizontal = (self.interceptor_pos[0] < 0) or (self.interceptor_pos[0] > self.world_size * 2) or (self.interceptor_pos[1] < 0) or (self.interceptor_pos[1] > self.world_size * 2)
-        out_of_bounds = above_ceiling or outside_horizontal  # Remove ground check since we prevent it
+        # Allow going underground now (realistic for intercepts)
+        out_of_bounds = above_ceiling or outside_horizontal
         max_steps_reached = self.step_count >= self.max_steps
 
         # Separate terminated (episode done due to success/failure) from truncated (timeout)
-        terminated = intercepted or missile_hit or out_of_bounds or interceptor_above_missile
+        terminated = intercepted or missile_hit or out_of_bounds or interceptor_above_missile or out_of_fuel
         truncated = max_steps_reached and not terminated  # Only truncate if not already terminated
         
-        # Scaled reward function to prevent exploding returns
+        # Improved reward function for realistic intercept behavior
         reward = 0.0
         
         if intercepted:
-            reward = 10.0  # Good reward for successful intercept
+            # Bonus for intercepting early (more fuel remaining = better)
+            fuel_bonus = (self.fuel_remaining / self.max_fuel) * 5.0
+            time_bonus = (self.max_steps - self.step_count) / self.max_steps * 3.0
+            reward = 15.0 + fuel_bonus + time_bonus  # 15-23 based on efficiency
         elif missile_hit:
-            reward = -5.0  # Penalty for mission failure
+            reward = -8.0  # Big penalty for mission failure
         elif interceptor_above_missile:
-            reward = -3.0  # Punishment for going above the missile
+            reward = -4.0  # Punishment for going above the missile
+        elif out_of_fuel:
+            reward = -3.0  # Penalty for running out of fuel
         elif out_of_bounds:
             reward = -2.0  # Penalty for going out of bounds
         elif truncated:
@@ -193,39 +217,43 @@ class Aegis3DInterceptEnv(gym.Env):
             final_distance_reward = max(0, 5.0 - intercept_dist / 100.0)  # 0-5 based on final distance
             reward = final_distance_reward - 1.0  # -1 to +4 based on performance
         else:
-            # Simple distance-based reward each step
-            max_dist = 600.0  # Approximate max distance in world
-            distance_reward = max(0, 1.0 * (1.0 - intercept_dist / max_dist))  # 0-1 based on distance
+            # Time pressure - small penalty each step to encourage quick action
+            time_penalty = -0.02  # Small time pressure
             
-            # Directional reward: bonus for pointing toward the missile
-            if np.linalg.norm(self.interceptor_vel) > 1.0:  # Only if moving
-                # Vector from interceptor to missile
+            # Fuel efficiency reward/penalty
+            fuel_efficiency = -0.01 if self.fuel_remaining < self.max_fuel * 0.9 else 0.0
+            
+            # Distance-based reward (smaller than before)
+            max_dist = 400.0
+            distance_reward = max(0, 0.5 * (1.0 - intercept_dist / max_dist))  # 0-0.5 based on distance
+            
+            # Approach velocity reward - reward for moving toward missile at high speed
+            if np.linalg.norm(self.interceptor_vel) > 5.0:  # Only if moving fast
                 to_missile = self.missile_pos - self.interceptor_pos
                 if np.linalg.norm(to_missile) > 0:
                     to_missile_normalized = to_missile / np.linalg.norm(to_missile)
                     vel_normalized = self.interceptor_vel / np.linalg.norm(self.interceptor_vel)
                     
-                    # Dot product gives cosine of angle (-1 to 1)
+                    # Reward for high speed approach
                     alignment = np.dot(vel_normalized, to_missile_normalized)
-                    # Convert to 0-1 range and scale
-                    alignment_reward = max(0, alignment) * 0.3  # 0-0.3 bonus for good direction
-                    distance_reward += alignment_reward
+                    speed_factor = min(1.0, np.linalg.norm(self.interceptor_vel) / 30.0)
+                    approach_reward = max(0, alignment) * speed_factor * 0.4
+                    distance_reward += approach_reward
             
-            # Small bonus for getting very close
-            if intercept_dist < 50:
-                distance_reward += 0.5
-            if intercept_dist < 25:
-                distance_reward += 1.0
+            # Penalty for being too close without intercepting (discourages following)
+            if intercept_dist < 40 and self.step_count > 50:
+                distance_reward -= 0.2  # Penalty for hanging around
                 
-            # Progress bonus/penalty
+            # Progress bonus (smaller than before)
             if hasattr(self, 'prev_distance'):
                 if intercept_dist < self.prev_distance:
-                    distance_reward += 0.2  # Good progress
+                    progress_reward = min(0.1, (self.prev_distance - intercept_dist) / 10.0)
+                    distance_reward += progress_reward
                 else:
-                    distance_reward -= 0.1  # Moving away
+                    distance_reward -= 0.05  # Penalty for moving away
             
             self.prev_distance = intercept_dist
-            reward = distance_reward
+            reward = time_penalty + fuel_efficiency + distance_reward
 
         self.step_count += 1
         
@@ -237,6 +265,8 @@ class Aegis3DInterceptEnv(gym.Env):
                 print(f"[ENV] ❌ MISSILE HIT TARGET! Distance: {miss_dist:.1f}, Reward: {reward:.1f}, Steps: {self.step_count}")  
             elif interceptor_above_missile:
                 print(f"[ENV] ⬆️ INTERCEPTOR WENT ABOVE MISSILE! Interceptor Z: {self.interceptor_pos[2]:.1f}, Missile Z: {self.missile_pos[2]:.1f}, Reward: {reward:.1f}, Steps: {self.step_count}")
+            elif out_of_fuel:
+                print(f"[ENV] ⛽ OUT OF FUEL! Fuel: {self.fuel_remaining:.1f}, Reward: {reward:.1f}, Steps: {self.step_count}")
             elif out_of_bounds:
                 print(f"[ENV] 🚫 OUT OF BOUNDS, Steps: {self.step_count}, Position: {self.interceptor_pos}")
             elif truncated:
@@ -247,18 +277,21 @@ class Aegis3DInterceptEnv(gym.Env):
         elif self.step_count % 100 == 0:
             current_distance = distance(self.interceptor_pos, self.missile_pos)
             missile_to_target = distance(self.missile_pos, self.target_pos)
-            print(f"[ENV] Step {self.step_count}: Distance to missile: {current_distance:.1f}, Missile to target: {missile_to_target:.1f}, Reward: {reward:.2f}")
+            fuel_pct = (self.fuel_remaining / self.max_fuel) * 100
+            print(f"[ENV] Step {self.step_count}: Distance to missile: {current_distance:.1f}, Missile to target: {missile_to_target:.1f}, Fuel: {fuel_pct:.0f}%, Reward: {reward:.2f}")
                 
         return self._get_observation(), reward, terminated, truncated, self._get_info()
 
     def _get_observation(self) -> np.ndarray:
         time_remaining = (self.max_steps - self.step_count) / self.max_steps
+        fuel_remaining = self.fuel_remaining / self.max_fuel  # Normalize fuel to 0-1
         return np.concatenate([
             self.interceptor_pos,
             self.interceptor_vel,
             self.missile_pos,
             self.missile_vel,
-            [time_remaining]
+            [time_remaining],
+            [fuel_remaining]
         ]).astype(np.float32)
 
     def _get_info(self) -> Dict[str, Any]:
