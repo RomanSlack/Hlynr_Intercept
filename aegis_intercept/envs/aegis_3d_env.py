@@ -14,10 +14,10 @@ class Aegis3DInterceptEnv(gym.Env):
     def __init__(
         self,
         world_size: float = 300.0,  # New coordinate system 0-600
-        max_steps: int = 150,  # Much shorter episodes
+        max_steps: int = 300,  # Reasonable time for intercept attempts
         dt: float = 0.05,
-        intercept_threshold: float = 5.0,  # Easier intercepts
-        miss_threshold: float = 10.0,  # Larger target area
+        intercept_threshold: float = 8.0,  # Reasonable intercept distance
+        miss_threshold: float = 3.0,  # Tighter target protection
         max_velocity: float = 20.0,  # Faster interceptor
         max_accel: float = 8.0,  # More responsive
         drag_coefficient: float = 0.05,  # Less drag
@@ -129,8 +129,11 @@ class Aegis3DInterceptEnv(gym.Env):
 
         intercepted = intercept_dist < self.intercept_threshold
         missile_hit = miss_dist < self.miss_threshold
-        # Check bounds for 0-600 coordinate system
-        out_of_bounds = (self.interceptor_pos < 0).any() or (self.interceptor_pos > self.world_size * 2).any()
+        # Check bounds for 0-600 coordinate system (with small tolerance for ground)
+        below_ground = self.interceptor_pos[2] < -1.0  # Small tolerance for ground contact
+        above_ceiling = (self.interceptor_pos > self.world_size * 2).any()
+        outside_horizontal = (self.interceptor_pos[0] < 0) or (self.interceptor_pos[0] > self.world_size * 2) or (self.interceptor_pos[1] < 0) or (self.interceptor_pos[1] > self.world_size * 2)
+        out_of_bounds = below_ground or above_ceiling or outside_horizontal
         max_steps_reached = self.step_count >= self.max_steps
 
         terminated = intercepted or missile_hit or out_of_bounds or max_steps_reached
@@ -139,8 +142,10 @@ class Aegis3DInterceptEnv(gym.Env):
             reward = 1.0
         elif missile_hit:
             reward = -1.0
-        elif out_of_bounds or max_steps_reached:
+        elif out_of_bounds:
             reward = -0.5
+        elif max_steps_reached:
+            reward = -0.3  # Different penalty for timeout
         else:
             reward = -0.01
             prev_dist = distance(self.interceptor_pos - self.interceptor_vel * self.dt, self.missile_pos - self.missile_vel * self.dt)
@@ -148,6 +153,18 @@ class Aegis3DInterceptEnv(gym.Env):
                 reward += 0.001
 
         self.step_count += 1
+        
+        # Debug: Print termination reason occasionally
+        if terminated and self.step_count % 50 == 0:  # Only print occasionally to avoid spam
+            if intercepted:
+                print(f"[ENV DEBUG] Episode {self.step_count}: INTERCEPTED! Reward: {reward}")
+            elif missile_hit:
+                print(f"[ENV DEBUG] Episode {self.step_count}: MISSILE HIT TARGET! Reward: {reward}")
+            elif out_of_bounds:
+                print(f"[ENV DEBUG] Episode {self.step_count}: OUT OF BOUNDS! Interceptor at {self.interceptor_pos}")
+            elif max_steps_reached:
+                print(f"[ENV DEBUG] Episode {self.step_count}: TIMEOUT after {self.max_steps} steps")
+                
         return self._get_observation(), reward, terminated, False, self._get_info()
 
     def _get_observation(self) -> np.ndarray:
