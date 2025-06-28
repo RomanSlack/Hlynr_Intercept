@@ -85,8 +85,8 @@ class Aegis3DInterceptEnv(gym.Env):
             interceptor_offset * np.sin(interceptor_angle),
             0.0  # Start at ground level
         ], dtype=np.float32)
-        # Start with upward launch velocity
-        self.interceptor_vel = np.array([0.0, 0.0, 5.0], dtype=np.float32)
+        # Start with strong upward launch velocity and prevent ground collision
+        self.interceptor_vel = np.array([0.0, 0.0, 8.0], dtype=np.float32)
 
         # Missile starts high in the sky (z=600) and comes down
         missile_x = self.np_random.uniform(50, self.world_size * 2 - 50)
@@ -112,7 +112,16 @@ class Aegis3DInterceptEnv(gym.Env):
         vel_mag = np.linalg.norm(self.interceptor_vel)
         if vel_mag > self.max_velocity:
             self.interceptor_vel = self.interceptor_vel / vel_mag * self.max_velocity
-        self.interceptor_pos += self.interceptor_vel * self.dt
+        
+        # Update position
+        new_pos = self.interceptor_pos + self.interceptor_vel * self.dt
+        
+        # Prevent going through ground - bounce or stop at ground level
+        if new_pos[2] < 0:
+            new_pos[2] = 0.0  # Keep at ground level
+            self.interceptor_vel[2] = max(0.0, self.interceptor_vel[2])  # Stop downward velocity
+        
+        self.interceptor_pos = new_pos
 
         if self.step_count % self.evasion_freq == 0:
             evasion_offset = np.random.randn(3)
@@ -129,11 +138,10 @@ class Aegis3DInterceptEnv(gym.Env):
 
         intercepted = intercept_dist < self.intercept_threshold
         missile_hit = miss_dist < self.miss_threshold
-        # Check bounds for 0-600 coordinate system (with small tolerance for ground)
-        below_ground = self.interceptor_pos[2] < -1.0  # Small tolerance for ground contact
-        above_ceiling = (self.interceptor_pos > self.world_size * 2).any()
+        # Check bounds for 0-600 coordinate system (no ground penetration allowed)
+        above_ceiling = self.interceptor_pos[2] > self.world_size * 2
         outside_horizontal = (self.interceptor_pos[0] < 0) or (self.interceptor_pos[0] > self.world_size * 2) or (self.interceptor_pos[1] < 0) or (self.interceptor_pos[1] > self.world_size * 2)
-        out_of_bounds = below_ground or above_ceiling or outside_horizontal
+        out_of_bounds = above_ceiling or outside_horizontal  # Remove ground check since we prevent it
         max_steps_reached = self.step_count >= self.max_steps
 
         terminated = intercepted or missile_hit or out_of_bounds or max_steps_reached
@@ -154,16 +162,19 @@ class Aegis3DInterceptEnv(gym.Env):
 
         self.step_count += 1
         
-        # Debug: Print termination reason occasionally
-        if terminated and self.step_count % 50 == 0:  # Only print occasionally to avoid spam
+        # Debug: Print termination reason occasionally  
+        if terminated and self.step_count % 100 == 0:  # Much less spam
             if intercepted:
-                print(f"[ENV DEBUG] Episode {self.step_count}: INTERCEPTED! Reward: {reward}")
+                print(f"[ENV DEBUG] INTERCEPTED! Reward: {reward}")
             elif missile_hit:
-                print(f"[ENV DEBUG] Episode {self.step_count}: MISSILE HIT TARGET! Reward: {reward}")
+                print(f"[ENV DEBUG] MISSILE HIT TARGET! Reward: {reward}")  
             elif out_of_bounds:
-                print(f"[ENV DEBUG] Episode {self.step_count}: OUT OF BOUNDS! Interceptor at {self.interceptor_pos}")
+                if above_ceiling:
+                    print(f"[ENV DEBUG] OUT OF BOUNDS (ABOVE CEILING)")
+                elif outside_horizontal:
+                    print(f"[ENV DEBUG] OUT OF BOUNDS (OUTSIDE HORIZONTAL)")
             elif max_steps_reached:
-                print(f"[ENV DEBUG] Episode {self.step_count}: TIMEOUT after {self.max_steps} steps")
+                print(f"[ENV DEBUG] TIMEOUT after {self.max_steps} steps")
                 
         return self._get_observation(), reward, terminated, False, self._get_info()
 

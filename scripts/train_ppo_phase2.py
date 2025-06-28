@@ -140,6 +140,12 @@ if __name__ == "__main__":
     torch.backends.cudnn.deterministic = args.torch_deterministic
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
+    print(f"Using device: {device}")
+    if device.type == 'cuda':
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"CUDA Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+    else:
+        print("WARNING: Using CPU instead of GPU - training will be slower")
 
     # env setup
     envs = SubprocVecEnv([
@@ -280,30 +286,61 @@ if __name__ == "__main__":
                         episode_lengths.append(episode_length)
                         score_history.append(episode_return)
                         
-                        # Update real-time score graph
-                        if score_graph is not None and len(score_history) > 1:
+                        # Update real-time score graph  
+                        if score_graph is not None:
                             plt.figure(score_graph.number)
                             plt.clf()
-                            episodes = list(range(len(score_history)))
-                            scores = list(score_history)
                             
-                            plt.plot(episodes, scores, 'b-', alpha=0.7, linewidth=1, label='Episode Scores')
-                            if len(scores) >= 10:
-                                # Moving average
-                                window_size = min(10, len(scores))
-                                moving_avg = [np.mean(scores[max(0, i-window_size+1):i+1]) for i in range(len(scores))]
-                                plt.plot(episodes, moving_avg, 'r-', linewidth=2, label=f'Moving Avg ({window_size})')
+                            if len(score_history) >= 1:
+                                episodes = list(range(1, len(score_history) + 1))
+                                scores = list(score_history)
+                                
+                                # Plot individual episode scores as light dots
+                                plt.scatter(episodes, scores, alpha=0.4, s=10, color='lightblue', label='Individual Episodes')
+                                
+                                # Plot moving average as main line
+                                if len(scores) >= 3:
+                                    window_size = min(10, max(3, len(scores) // 3))
+                                    moving_avg = []
+                                    for i in range(len(scores)):
+                                        start_idx = max(0, i - window_size + 1)
+                                        avg = np.mean(scores[start_idx:i+1])
+                                        moving_avg.append(avg)
+                                    plt.plot(episodes, moving_avg, 'r-', linewidth=3, label=f'Moving Average ({window_size})')
+                                    current_avg = moving_avg[-1]
+                                else:
+                                    current_avg = np.mean(scores)
+                                
+                                # Reference lines
+                                plt.axhline(y=0, color='gray', linestyle='--', alpha=0.5, label='Neutral (0)')
+                                plt.axhline(y=1, color='green', linestyle='--', alpha=0.7, label='Perfect (+1.0)')
+                                plt.axhline(y=-1, color='red', linestyle='--', alpha=0.7, label='Worst (-1.0)')
+                                
+                                # Title with key info
+                                plt.title(f'Training Progress | Episodes: {len(scores)} | Avg Score: {current_avg:.3f} | Training Steps: {global_step:,}', fontsize=12)
+                                
+                                # Smart axis limits
+                                min_score = min(scores)
+                                max_score = max(scores)
+                                margin = max(0.1, abs(max_score - min_score) * 0.15)
+                                plt.ylim(min(min_score - margin, -1.3), max(max_score + margin, 1.3))
+                                plt.xlim(0.5, max(10, len(scores) + 0.5))
+                                
+                            else:
+                                plt.title(f'Waiting for First Episode | Training Steps: {global_step:,}', fontsize=12)
+                                plt.ylim(-1.3, 1.3)
+                                plt.xlim(0, 10)
+                                plt.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
+                                plt.axhline(y=1, color='green', linestyle='--', alpha=0.7)
+                                plt.axhline(y=-1, color='red', linestyle='--', alpha=0.7)
                             
-                            plt.axhline(y=0, color='k', linestyle='--', alpha=0.3)
-                            plt.axhline(y=1, color='g', linestyle='--', alpha=0.5, label='Perfect Score (+1.0)')
-                            plt.axhline(y=-1, color='r', linestyle='--', alpha=0.5, label='Worst Score (-1.0)')
-                            
-                            plt.xlabel('Episode')
-                            plt.ylabel('Score (Return)')
-                            plt.title(f'Training Progress - Last {len(score_history)} Episodes')
-                            plt.legend()
+                            plt.xlabel('Episode Number')
+                            plt.ylabel('Episode Score (Return)')
+                            plt.legend(loc='best')
                             plt.grid(True, alpha=0.3)
+                            plt.tight_layout()
                             plt.draw()
+                            score_graph.canvas.flush_events()
                             plt.pause(0.01)
                         
                         # Enhanced logging for training progress
