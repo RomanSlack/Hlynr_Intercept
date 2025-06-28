@@ -183,6 +183,7 @@ if __name__ == "__main__":
     # Episode tracking for progress monitoring
     episode_returns = []
     episode_lengths = []
+    successful_intercepts = 0
     last_progress_update = 0
     
     # Real-time score graphing setup
@@ -287,6 +288,10 @@ if __name__ == "__main__":
                             episode_lengths.append(int(episode_length))
                             score_history.append(float(episode_return))
                             
+                            # Track successful intercepts (reward > 5 indicates successful intercept)
+                            if episode_return > 5.0:
+                                successful_intercepts += 1
+                            
                             print(f"[TRAINING] Manual episode {completed_count}: return={episode_return:.3f}, length={episode_length}")
                             
                             # Update graph immediately
@@ -319,8 +324,9 @@ if __name__ == "__main__":
                                     plt.axhline(y=1, color='green', linestyle='--', alpha=0.7, label='Perfect (+1.0)')
                                     plt.axhline(y=-1, color='red', linestyle='--', alpha=0.7, label='Worst (-1.0)')
                                     
-                                    # Title with key info
-                                    plt.title(f'Training Progress | Episodes: {len(scores)} | Avg Score: {current_avg:.3f} | Steps: {global_step:,}', fontsize=12)
+                                    # Title with key info including intercept count
+                                    intercept_rate = (successful_intercepts / len(scores)) * 100 if len(scores) > 0 else 0
+                                    plt.title(f'Training Progress | Episodes: {len(scores)} | Avg Score: {current_avg:.3f} | Intercepts: {successful_intercepts} ({intercept_rate:.1f}%) | Steps: {global_step:,}', fontsize=11)
                                     
                                     # Smart axis limits
                                     min_score = min(scores)
