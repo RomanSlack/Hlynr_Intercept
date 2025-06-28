@@ -12,7 +12,7 @@ import torch.optim as optim
 import numpy as np
 import gymnasium as gym
 from torch.utils.tensorboard import SummaryWriter
-from cleanrl.common.vec_env import SubprocVecEnv
+from gymnasium.vector import AsyncVectorEnv as SubprocVecEnv
 
 from aegis_intercept.envs.aegis_3d_env import Aegis3DInterceptEnv
 
