@@ -42,12 +42,24 @@ class Aegis3DInterceptEnv(gym.Env):
         self.render_mode = render_mode
 
         # State: [interceptor_pos(3), interceptor_vel(3), missile_pos(3), missile_vel(3), time_remaining]
-        self.observation_space = spaces.Box(
-            low=0.0,  # New coordinate system starts at 0
-            high=world_size * 2,  # Goes from 0 to 600
-            shape=(13,),
+        # Fix observation bounds: positions [0, world*2], velocities [-max_vel, +max_vel], time [0, 1]
+        low = np.array(
+            [0, 0, 0] +  # interceptor_pos
+            [-max_velocity, -max_velocity, -max_velocity] +  # interceptor_vel
+            [0, 0, 0] +  # missile_pos
+            [-missile_speed, -missile_speed, -missile_speed] +  # missile_vel
+            [0],  # time_remaining
             dtype=np.float32
         )
+        high = np.array(
+            [world_size * 2, world_size * 2, world_size * 2] +  # interceptor_pos
+            [max_velocity, max_velocity, max_velocity] +  # interceptor_vel
+            [world_size * 2, world_size * 2, world_size * 2] +  # missile_pos
+            [missile_speed, missile_speed, missile_speed] +  # missile_vel
+            [1],  # time_remaining
+            dtype=np.float32
+        )
+        self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
 
         # Action: [accel_x, accel_y, accel_z]
         self.action_space = spaces.Box(
@@ -161,36 +173,36 @@ class Aegis3DInterceptEnv(gym.Env):
         terminated = intercepted or missile_hit or out_of_bounds
         truncated = max_steps_reached and not terminated  # Only truncate if not already terminated
         
-        # Simpler, more effective reward function
+        # Scaled reward function to prevent exploding returns
         reward = 0.0
         
         if intercepted:
-            reward = 100.0  # HUGE reward for successful intercept
+            reward = 10.0  # Good reward for successful intercept
         elif missile_hit:
-            reward = -50.0  # Big penalty for mission failure
+            reward = -5.0  # Penalty for mission failure
         elif out_of_bounds:
-            reward = -20.0  # Penalty for going out of bounds
+            reward = -2.0  # Penalty for going out of bounds
         elif truncated:
             # Final reward based on how close we got
-            final_distance_reward = max(0, 50 - intercept_dist)  # 0-50 based on final distance
-            reward = final_distance_reward - 10  # -10 to +40 based on performance
+            final_distance_reward = max(0, 5.0 - intercept_dist / 100.0)  # 0-5 based on final distance
+            reward = final_distance_reward - 1.0  # -1 to +4 based on performance
         else:
             # Simple distance-based reward each step
             max_dist = 600.0  # Approximate max distance in world
-            distance_reward = max(0, 10 * (1.0 - intercept_dist / max_dist))  # 0-10 based on distance
+            distance_reward = max(0, 1.0 * (1.0 - intercept_dist / max_dist))  # 0-1 based on distance
             
-            # Big bonus for getting very close
+            # Small bonus for getting very close
             if intercept_dist < 50:
-                distance_reward += 5.0
+                distance_reward += 0.5
             if intercept_dist < 25:
-                distance_reward += 10.0
+                distance_reward += 1.0
                 
             # Progress bonus/penalty
             if hasattr(self, 'prev_distance'):
                 if intercept_dist < self.prev_distance:
-                    distance_reward += 2.0  # Good progress
+                    distance_reward += 0.2  # Good progress
                 else:
-                    distance_reward -= 1.0  # Moving away
+                    distance_reward -= 0.1  # Moving away
             
             self.prev_distance = intercept_dist
             reward = distance_reward

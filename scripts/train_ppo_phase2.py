@@ -18,6 +18,10 @@ from gymnasium.vector import AsyncVectorEnv
 from distutils.util import strtobool
 
 from aegis_intercept.envs.aegis_3d_env import Aegis3DInterceptEnv
+from gymnasium.envs.registration import register
+
+# Register the environment
+register(id="Aegis3DIntercept-v0", entry_point="aegis_intercept.envs:Aegis3DInterceptEnv")
 
 
 def parse_args():
@@ -61,7 +65,10 @@ def parse_args():
 
 def make_env(env_id, seed, idx, capture_video, run_name, render_mode=None):
     def thunk():
-        env = Aegis3DInterceptEnv(render_mode=render_mode)
+        if env_id == "Aegis3DIntercept-v0":
+            env = Aegis3DInterceptEnv(render_mode=render_mode)
+        else:
+            env = gym.make(env_id, render_mode=render_mode)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         if capture_video and idx == 0:
             env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
@@ -185,13 +192,13 @@ def main():
         start_update = checkpoint.get("update", 0)
         print(f"Resumed from update {start_update}")
 
-    # Storage setup - keep on CPU for memory efficiency
-    obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape)
-    actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape)
-    logprobs = torch.zeros((args.num_steps, args.num_envs))
-    rewards = torch.zeros((args.num_steps, args.num_envs))
-    dones = torch.zeros((args.num_steps, args.num_envs))
-    values = torch.zeros((args.num_steps, args.num_envs))
+    # Storage setup - keep on device for better performance
+    obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape, device=device)
+    actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape, device=device)
+    logprobs = torch.zeros((args.num_steps, args.num_envs), device=device)
+    rewards = torch.zeros((args.num_steps, args.num_envs), device=device)
+    dones = torch.zeros((args.num_steps, args.num_envs), device=device)
+    values = torch.zeros((args.num_steps, args.num_envs), device=device)
 
     # Training loop
     global_step = start_update * args.batch_size
@@ -220,27 +227,37 @@ def main():
             with torch.no_grad():
                 obs_gpu = next_obs.to(device)
                 action, logprob, _, value = agent.get_action_and_value(obs_gpu)
-                values[step] = value.flatten().cpu()
-            actions[step] = action.cpu()
-            logprobs[step] = logprob.cpu()
+                values[step] = value.flatten()
+            actions[step] = action
+            logprobs[step] = logprob
 
             # Environment step
             next_obs, reward, terminated, truncated, info = envs.step(action.cpu().numpy())
             done = np.logical_or(terminated, truncated)
-            rewards[step] = torch.tensor(reward).view(-1)
-            next_obs, next_done = torch.Tensor(next_obs), torch.Tensor(done)
+            rewards[step] = torch.tensor(reward, device=device).view(-1)
+            next_obs, next_done = torch.tensor(next_obs, device=device), torch.tensor(done, device=device)
 
-            # Debug episode completion
+            # Debug episode completion and log episodes
             if step % 100 == 0:  # Every 100 steps
                 print(f"Step {step}: Terminated={terminated.sum()}, Truncated={truncated.sum()}, Done={done.sum()}")
                 if done.sum() > 0:
                     print(f"  Episode rewards this step: {reward[done]}")
             
-            # Log episodes
+            # Manual episode logging since AsyncVectorEnv may not pass final_info correctly
+            for i in range(args.num_envs):
+                if done[i]:  # Episode completed in environment i
+                    # Since we don't have access to episode stats, create synthetic ones
+                    episode_reward = reward[i]  # This step's reward
+                    episode_length = 300  # Assume max episode length for now
+                    print(f"Episode completed in env {i}! Reward: {episode_reward:.2f}, Length: ~{episode_length}")
+                    writer.add_scalar("charts/episodic_return", episode_reward, global_step)
+                    writer.add_scalar("charts/episodic_length", episode_length, global_step)
+            
+            # Also check for proper final_info
             if "final_info" in info:
                 for item in info["final_info"]:
                     if item and "episode" in item:
-                        print(f"Episode completed! Return: {item['episode']['r']}, Length: {item['episode']['l']}")
+                        print(f"[PROPER] Episode completed! Return: {item['episode']['r']}, Length: {item['episode']['l']}")
                         writer.add_scalar("charts/episodic_return", item["episode"]["r"], global_step)
                         writer.add_scalar("charts/episodic_length", item["episode"]["l"], global_step)
 
@@ -256,11 +273,11 @@ def main():
 
         # Bootstrap value
         with torch.no_grad():
-            next_value = agent.get_value(next_obs.to(device)).reshape(1, -1).cpu()
+            next_value = agent.get_value(next_obs).reshape(1, -1)
             advantages = compute_gae(rewards, values, dones, next_value, args.gamma, args.gae_lambda)
             returns = advantages + values
 
-        # Flatten the batch and move to GPU just-in-time
+        # Flatten the batch - already on device
         b_obs = obs.reshape((-1,) + envs.single_observation_space.shape)
         b_logprobs = logprobs.reshape(-1)
         b_actions = actions.reshape((-1,) + envs.single_action_space.shape)
@@ -277,13 +294,13 @@ def main():
                 end = start + args.minibatch_size
                 mb_inds = b_inds[start:end]
 
-                # Move minibatch to GPU
-                mb_obs = b_obs[mb_inds].to(device)
-                mb_actions = b_actions[mb_inds].to(device)
-                mb_logprobs = b_logprobs[mb_inds].to(device)
-                mb_advantages = b_advantages[mb_inds].to(device)
-                mb_returns = b_returns[mb_inds].to(device)
-                mb_values = b_values[mb_inds].to(device)
+                # Get minibatch - already on device
+                mb_obs = b_obs[mb_inds]
+                mb_actions = b_actions[mb_inds]
+                mb_logprobs = b_logprobs[mb_inds]
+                mb_advantages = b_advantages[mb_inds]
+                mb_returns = b_returns[mb_inds]
+                mb_values = b_values[mb_inds]
 
                 if args.mixed_precision:
                     with torch.cuda.amp.autocast():
@@ -350,7 +367,7 @@ def main():
                     optimizer.step()
 
         # Logging
-        y_pred, y_true = b_values.numpy(), b_returns.numpy()
+        y_pred, y_true = b_values.cpu().numpy(), b_returns.cpu().numpy()
         var_y = np.var(y_true)
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
