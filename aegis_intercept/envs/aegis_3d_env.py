@@ -163,6 +163,10 @@ class Aegis3DInterceptEnv(gym.Env):
 
         intercepted = intercept_dist < self.intercept_threshold
         missile_hit = miss_dist < self.miss_threshold
+        
+        # Check if interceptor went above the missile (punishment condition)
+        interceptor_above_missile = self.interceptor_pos[2] > self.missile_pos[2] + 10.0  # 10m buffer
+        
         # Check bounds for 0-600 coordinate system (no ground penetration allowed)
         above_ceiling = self.interceptor_pos[2] > self.world_size * 2
         outside_horizontal = (self.interceptor_pos[0] < 0) or (self.interceptor_pos[0] > self.world_size * 2) or (self.interceptor_pos[1] < 0) or (self.interceptor_pos[1] > self.world_size * 2)
@@ -170,7 +174,7 @@ class Aegis3DInterceptEnv(gym.Env):
         max_steps_reached = self.step_count >= self.max_steps
 
         # Separate terminated (episode done due to success/failure) from truncated (timeout)
-        terminated = intercepted or missile_hit or out_of_bounds
+        terminated = intercepted or missile_hit or out_of_bounds or interceptor_above_missile
         truncated = max_steps_reached and not terminated  # Only truncate if not already terminated
         
         # Scaled reward function to prevent exploding returns
@@ -180,6 +184,8 @@ class Aegis3DInterceptEnv(gym.Env):
             reward = 10.0  # Good reward for successful intercept
         elif missile_hit:
             reward = -5.0  # Penalty for mission failure
+        elif interceptor_above_missile:
+            reward = -3.0  # Punishment for going above the missile
         elif out_of_bounds:
             reward = -2.0  # Penalty for going out of bounds
         elif truncated:
@@ -190,6 +196,20 @@ class Aegis3DInterceptEnv(gym.Env):
             # Simple distance-based reward each step
             max_dist = 600.0  # Approximate max distance in world
             distance_reward = max(0, 1.0 * (1.0 - intercept_dist / max_dist))  # 0-1 based on distance
+            
+            # Directional reward: bonus for pointing toward the missile
+            if np.linalg.norm(self.interceptor_vel) > 1.0:  # Only if moving
+                # Vector from interceptor to missile
+                to_missile = self.missile_pos - self.interceptor_pos
+                if np.linalg.norm(to_missile) > 0:
+                    to_missile_normalized = to_missile / np.linalg.norm(to_missile)
+                    vel_normalized = self.interceptor_vel / np.linalg.norm(self.interceptor_vel)
+                    
+                    # Dot product gives cosine of angle (-1 to 1)
+                    alignment = np.dot(vel_normalized, to_missile_normalized)
+                    # Convert to 0-1 range and scale
+                    alignment_reward = max(0, alignment) * 0.3  # 0-0.3 bonus for good direction
+                    distance_reward += alignment_reward
             
             # Small bonus for getting very close
             if intercept_dist < 50:
@@ -215,6 +235,8 @@ class Aegis3DInterceptEnv(gym.Env):
                 print(f"[ENV] ✅ INTERCEPTED! Distance: {intercept_dist:.1f}, Reward: {reward:.1f}, Steps: {self.step_count}")
             elif missile_hit:
                 print(f"[ENV] ❌ MISSILE HIT TARGET! Distance: {miss_dist:.1f}, Reward: {reward:.1f}, Steps: {self.step_count}")  
+            elif interceptor_above_missile:
+                print(f"[ENV] ⬆️ INTERCEPTOR WENT ABOVE MISSILE! Interceptor Z: {self.interceptor_pos[2]:.1f}, Missile Z: {self.missile_pos[2]:.1f}, Reward: {reward:.1f}, Steps: {self.step_count}")
             elif out_of_bounds:
                 print(f"[ENV] 🚫 OUT OF BOUNDS, Steps: {self.step_count}, Position: {self.interceptor_pos}")
             elif truncated:
