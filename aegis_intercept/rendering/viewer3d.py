@@ -6,7 +6,8 @@ import numpy as np
 class Viewer3D:
     def __init__(self, world_size: float):
         self.world_size = world_size
-        self.fig = plt.figure()
+        plt.ion()  # Enable interactive mode
+        self.fig = plt.figure(figsize=(10, 8))
         self.ax = self.fig.add_subplot(111, projection='3d')
         self.ax.set_xlim([-world_size, world_size])
         self.ax.set_ylim([-world_size, world_size])
@@ -14,8 +15,8 @@ class Viewer3D:
         self.ax.set_xlabel("X")
         self.ax.set_ylabel("Y")
         self.ax.set_zlabel("Z")
-        self.ax.set_title("AegisIntercept 3D")
-        plt.ion()
+        self.ax.set_title("AegisIntercept 3D - Real-time Training Visualization")
+        plt.show(block=False)  # Show the window without blocking
 
     def render(self, interceptor_pos: np.ndarray, missile_pos: np.ndarray, target_pos: np.ndarray):
         self.ax.cla()
@@ -37,8 +38,9 @@ class Viewer3D:
         self.ax.scatter(missile_pos[0], missile_pos[1], missile_pos[2], c='r', marker='x', s=100, label="Missile")
 
         self.ax.legend()
-        plt.draw()
-        plt.pause(0.001)
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
+        plt.pause(0.01)  # Small pause to ensure rendering
 
     def close(self):
         plt.ioff()

@@ -13,6 +13,7 @@ import numpy as np
 import gymnasium as gym
 from torch.utils.tensorboard import SummaryWriter
 from gymnasium.vector import AsyncVectorEnv as SubprocVecEnv
+from distutils.util import strtobool
 
 from aegis_intercept.envs.aegis_3d_env import Aegis3DInterceptEnv
 
@@ -75,6 +76,7 @@ if __name__ == "__main__":
     parser.add_argument("--capture-video", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True, help="weather to capture videos of the agent performances (check out `videos` folder)")
     parser.add_argument("--visualize", action="store_true", help="Enable real-time visualization")
     parser.add_argument("--resume", type=str, default=None, help="the path to the model checkpoint to resume from")
+    parser.add_argument("--reset", action="store_true", help="Delete all existing checkpoints and restart training from scratch")
 
     # Algorithm specific arguments
     parser.add_argument("--env-id", type=str, default="Aegis3DIntercept-v0", help="the id of the environment")
@@ -97,6 +99,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
+    
+    # Handle reset flag - delete existing checkpoints
+    if args.reset:
+        import shutil
+        if os.path.exists("models/phase2"):
+            shutil.rmtree("models/phase2")
+            print("Deleted existing checkpoints. Starting fresh training.")
+        if os.path.exists("runs"):
+            for run_dir in os.listdir("runs"):
+                if args.env_id in run_dir:
+                    shutil.rmtree(os.path.join("runs", run_dir))
+                    print(f"Deleted tensorboard logs: {run_dir}")
+        args.resume = None  # Ensure we don't try to resume
 
     run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
     if args.track:
@@ -126,8 +141,17 @@ if __name__ == "__main__":
 
     # env setup
     envs = SubprocVecEnv([
-        make_env(args.env_id, args.seed, i, args.capture_video, run_name, render_mode="human" if args.visualize and i == 0 else None) for i in range(args.num_envs)
+        make_env(args.env_id, args.seed, i, args.capture_video, run_name, render_mode=None) for i in range(args.num_envs)
     ])
+    
+    # Setup visualization environment if requested
+    viz_env = None
+    viz_obs = None
+    viz_step_counter = 0
+    viz_render_every = 5  # Render every 5 steps to maintain performance
+    if args.visualize:
+        viz_env = Aegis3DInterceptEnv(render_mode="human")
+        viz_obs, _ = viz_env.reset(seed=args.seed)
 
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
@@ -147,6 +171,11 @@ if __name__ == "__main__":
     global_step = 0
     start_time = time.time()
     next_obs, _ = envs.reset()
+    
+    # Episode tracking for progress monitoring
+    episode_returns = []
+    episode_lengths = []
+    last_progress_update = 0
     next_obs = torch.Tensor(next_obs).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
     num_updates = args.total_timesteps // args.batch_size
@@ -175,13 +204,45 @@ if __name__ == "__main__":
             done = np.logical_or(terminated, truncated)
             rewards[step] = torch.tensor(reward).to(device).view(-1)
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
+            
+            # Visualization: step the viz environment with the agent's action
+            if args.visualize and viz_env is not None:
+                # Get action for visualization environment using its current observation
+                with torch.no_grad():
+                    viz_obs_tensor = torch.Tensor(viz_obs).unsqueeze(0).to(device)
+                    viz_action, _, _, _ = agent.get_action_and_value(viz_obs_tensor)
+                    viz_action = viz_action[0].cpu().numpy()
+                
+                # Step the visualization environment
+                viz_obs, viz_reward, viz_terminated, viz_truncated, viz_info = viz_env.step(viz_action)
+                
+                # Render at reduced frequency to maintain performance
+                viz_step_counter += 1
+                if viz_step_counter % viz_render_every == 0:
+                    viz_env.render()
+                
+                # Reset viz environment if episode ends
+                if viz_terminated or viz_truncated:
+                    viz_obs, _ = viz_env.reset(seed=args.seed)
 
             if "final_info" in info:
                 for item in info["final_info"]:
                     if item and "episode" in item:
-                        print(f"global_step={global_step}, episodic_return={item['episode']['r']}")
-                        writer.add_scalar("charts/episodic_return", item["episode"]["r"], global_step)
-                        writer.add_scalar("charts/episodic_length", item["episode"]["l"], global_step)
+                        episode_return = item['episode']['r']
+                        episode_length = item['episode']['l']
+                        
+                        # Track episodes for progress monitoring
+                        episode_returns.append(episode_return)
+                        episode_lengths.append(episode_length)
+                        
+                        # Enhanced logging for training progress
+                        if not args.visualize:  # More detailed output when not visualizing
+                            print(f"Episode Complete | Step: {global_step:,} | Return: {episode_return:.2f} | Length: {episode_length} | SPS: {int(global_step / (time.time() - start_time))}")
+                        else:
+                            print(f"global_step={global_step}, episodic_return={episode_return}")
+                            
+                        writer.add_scalar("charts/episodic_return", episode_return, global_step)
+                        writer.add_scalar("charts/episodic_length", episode_length, global_step)
                         break
 
         # bootstrap value if not done
@@ -276,12 +337,28 @@ if __name__ == "__main__":
         writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
         writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
         writer.add_scalar("charts/explained_variance", explained_var, global_step)
-        print("SPS:", int(global_step / (time.time() - start_time)))
-        writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+        
+        # Enhanced progress reporting
+        current_sps = int(global_step / (time.time() - start_time))
+        if not args.visualize:
+            # Show progress summary every 10 updates
+            if update % 10 == 0 and len(episode_returns) > 0:
+                recent_returns = episode_returns[-50:] if len(episode_returns) >= 50 else episode_returns
+                avg_return = np.mean(recent_returns)
+                avg_length = np.mean(episode_lengths[-50:] if len(episode_lengths) >= 50 else episode_lengths)
+                print(f"Update {update:4d} | Steps: {global_step:7,} | Episodes: {len(episode_returns):4d} | Avg Return: {avg_return:+6.2f} | Avg Length: {avg_length:6.1f} | SPS: {current_sps:4d}")
+            elif update % 5 == 0:  # Show basic progress every 5 updates
+                print(f"Update {update:4d} | Steps: {global_step:7,} | Episodes: {len(episode_returns):4d} | SPS: {current_sps:4d}")
+        else:
+            print("SPS:", current_sps)
+            
+        writer.add_scalar("charts/SPS", current_sps, global_step)
 
         if update % 5 == 0:
             os.makedirs("models/phase2", exist_ok=True)
             torch.save(agent.state_dict(), f"models/phase2/ppo_{global_step}.pt")
 
     envs.close()
+    if viz_env is not None:
+        viz_env.close()
     writer.close()
