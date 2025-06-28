@@ -35,7 +35,7 @@ def parse_args():
     
     # Algorithm specific arguments
     parser.add_argument("--env-id", type=str, default="Aegis3DIntercept-v0")
-    parser.add_argument("--total-timesteps", type=int, default=2_000_000)
+    parser.add_argument("--total-timesteps", type=int, default=9999_000_000)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--num-envs", type=int, default=8)
     parser.add_argument("--num-steps", type=int, default=2048)
