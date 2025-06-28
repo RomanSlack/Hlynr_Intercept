@@ -14,12 +14,12 @@ class Aegis3DInterceptEnv(gym.Env):
     def __init__(
         self,
         world_size: float = 300.0,  # New coordinate system 0-600
-        max_steps: int = 50,  # Very short episodes to force completion
+        max_steps: int = 400,  # Much longer episodes (20 seconds) 
         dt: float = 0.05,
         intercept_threshold: float = 8.0,  # Reasonable intercept distance
         miss_threshold: float = 3.0,  # Tighter target protection
-        max_velocity: float = 20.0,  # Faster interceptor
-        max_accel: float = 8.0,  # More responsive
+        max_velocity: float = 30.0,  # Much faster interceptor
+        max_accel: float = 15.0,  # Much more responsive
         drag_coefficient: float = 0.05,  # Less drag
         missile_speed: float = 18.0,  # Much faster missile
         evasion_freq: int = 15,
@@ -107,7 +107,7 @@ class Aegis3DInterceptEnv(gym.Env):
         # Debug: Print step count occasionally to see if environment is running
         if self.step_count == 0:
             print(f"[ENV] Starting new episode")
-        elif self.step_count == 25:
+        elif self.step_count == 200:
             print(f"[ENV] Halfway through episode (step {self.step_count})")
             
         action = np.clip(action, -1.0, 1.0)

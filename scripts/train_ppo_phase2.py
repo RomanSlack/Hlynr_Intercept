@@ -275,10 +275,10 @@ if __name__ == "__main__":
                             # Create fake final_info structure for our processing
                             if not hasattr(info, 'get'):
                                 episode_return = -0.3  # Default timeout reward
-                                episode_length = 50     # Default episode length
+                                episode_length = 400    # Default episode length
                             else:
                                 episode_return = reward[i]  # Use the reward from this step
-                                episode_length = 50         # We know episodes are 50 steps
+                                episode_length = 400        # Episodes are now 400 steps max
                             
                             completed_count += 1
                             
@@ -327,7 +327,8 @@ if __name__ == "__main__":
                                     max_score = max(scores)
                                     margin = max(0.1, abs(max_score - min_score) * 0.15)
                                     plt.ylim(min(min_score - margin, -1.3), max(max_score + margin, 1.3))
-                                    plt.xlim(0.5, max(10, len(scores) + 0.5))
+                                    # X-axis shows all episodes, not limited to 100
+                                    plt.xlim(0.5, len(scores) + 5)  # Show all episodes + small buffer
                                 
                                 plt.xlabel('Episode Number')
                                 plt.ylabel('Episode Score (Return)')
