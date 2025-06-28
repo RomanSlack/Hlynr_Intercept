@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     # Algorithm specific arguments
     parser.add_argument("--env-id", type=str, default="Aegis3DIntercept-v0", help="the id of the environment")
-    parser.add_argument("--total-timesteps", type=int, default=1000000, help="total timesteps of the experiments")
+    parser.add_argument("--total-timesteps", type=int, default=9999999999, help="total timesteps of the experiments (effectively infinite)")
     parser.add_argument("--learning-rate", type=float, default=3e-4, help="the learning rate of the optimizer")
     parser.add_argument("--num-envs", type=int, default=8, help="the number of parallel game environments")
     parser.add_argument("--num-steps", type=int, default=2048, help="the number of steps to run in each environment per policy rollout")
@@ -276,10 +276,10 @@ if __name__ == "__main__":
                             # Create fake final_info structure for our processing
                             if not hasattr(info, 'get'):
                                 episode_return = -0.3  # Default timeout reward
-                                episode_length = 400    # Default episode length
+                                episode_length = 300    # Default episode length
                             else:
                                 episode_return = reward[i]  # Use the reward from this step
-                                episode_length = 400        # Episodes are now 400 steps max
+                                episode_length = 300        # Episodes are now 300 steps max
                             
                             completed_count += 1
                             
@@ -288,8 +288,8 @@ if __name__ == "__main__":
                             episode_lengths.append(int(episode_length))
                             score_history.append(float(episode_return))
                             
-                            # Track successful intercepts (reward > 5 indicates successful intercept)
-                            if episode_return > 5.0:
+                            # Track successful intercepts (reward > 50 indicates successful intercept)
+                            if episode_return > 50.0:
                                 successful_intercepts += 1
                             
                             print(f"[TRAINING] Manual episode {completed_count}: return={episode_return:.3f}, length={episode_length}")
