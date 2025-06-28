@@ -14,17 +14,18 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "gymnasium",
-    "numpy",
-    "pygame",
-    "cleanrl",
-    "torch",
-    "stable-baselines3"
+    "gymnasium>=0.29",
+    "numpy>=1.26",
+    "torch>=2.2",
+    "cleanrl>=2.5",
+    "matplotlib>=3.9",
+    "pygame>=2.5",
+    "tqdm>=4.66"
 ]
 
 [project.optional-dependencies]
 test = [
-    "pytest",
+    "pytest>=8.2",
     "pytest-cov"
 ]
 dev = [
