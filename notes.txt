@@ -1,10 +1,5 @@
-● TensorBoard Warning Fix
-
-  The "TensorFlow installation not found" warning is normal - TensorBoard works fine without TensorFlow for PyTorch logs. You can ignore it or install TensorFlow if you want:
-
-  pip install tensorflow
-
-  How to See if it's Learning in TensorBoard
+python scripts/train_ppo_phase2.py --resume models/phase2/latest.pt
+●
 
   Once you open http://localhost:6006, look for these key indicators of learning:
 

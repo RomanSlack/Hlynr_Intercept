@@ -38,16 +38,16 @@ def parse_args():
     parser.add_argument("--total-timesteps", type=int, default=9999_000_000)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--num-envs", type=int, default=8)
-    parser.add_argument("--num-steps", type=int, default=2048)
+    parser.add_argument("--num-steps", type=int, default=512)  # Shorter rollouts for faster episode completion
     parser.add_argument("--anneal-lr", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True)
     parser.add_argument("--gamma", type=float, default=0.99)
     parser.add_argument("--gae-lambda", type=float, default=0.95)
-    parser.add_argument("--num-minibatches", type=int, default=32)
+    parser.add_argument("--num-minibatches", type=int, default=8)  # Adjust for smaller batch size
     parser.add_argument("--update-epochs", type=int, default=10)
     parser.add_argument("--norm-adv", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True)
     parser.add_argument("--clip-coef", type=float, default=0.2)
     parser.add_argument("--clip-vloss", type=lambda x: bool(strtobool(x)), default=True, nargs="?", const=True)
-    parser.add_argument("--ent-coef", type=float, default=0.01)  # Fixed from 0.0
+    parser.add_argument("--ent-coef", type=float, default=0.005)  # Lower entropy for more stable learning
     parser.add_argument("--vf-coef", type=float, default=0.5)
     parser.add_argument("--max-grad-norm", type=float, default=0.5)
     parser.add_argument("--target-kl", type=float, default=None)
@@ -230,10 +230,17 @@ def main():
             rewards[step] = torch.tensor(reward).view(-1)
             next_obs, next_done = torch.Tensor(next_obs), torch.Tensor(done)
 
+            # Debug episode completion
+            if step % 100 == 0:  # Every 100 steps
+                print(f"Step {step}: Terminated={terminated.sum()}, Truncated={truncated.sum()}, Done={done.sum()}")
+                if done.sum() > 0:
+                    print(f"  Episode rewards this step: {reward[done]}")
+            
             # Log episodes
             if "final_info" in info:
                 for item in info["final_info"]:
                     if item and "episode" in item:
+                        print(f"Episode completed! Return: {item['episode']['r']}, Length: {item['episode']['l']}")
                         writer.add_scalar("charts/episodic_return", item["episode"]["r"], global_step)
                         writer.add_scalar("charts/episodic_length", item["episode"]["l"], global_step)
 
