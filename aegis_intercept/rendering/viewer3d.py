@@ -22,7 +22,7 @@ class Viewer3D:
         # Track intercept status for visual feedback
         self.last_intercept = False
 
-    def render(self, interceptor_pos: np.ndarray, missile_pos: np.ndarray, target_pos: np.ndarray, intercepted: bool = False):
+    def render(self, interceptor_pos: np.ndarray, missile_pos: np.ndarray, target_pos: np.ndarray, intercepted: bool = False, popup_info: dict = None):
         self.ax.cla()
         # New coordinate system: 0 to 600
         self.ax.set_xlim([0, self.world_size * 2])
@@ -75,6 +75,30 @@ class Viewer3D:
         self.ax.plot([target_pos[0], missile_pos[0]], [target_pos[1], missile_pos[1]], [target_pos[2], missile_pos[2]], 'r--', alpha=0.5, linewidth=1)
 
         self.ax.legend(loc='upper right')
+        
+        # Add popup message if provided
+        if popup_info:
+            message = popup_info['message']
+            color = popup_info['color']
+            timer = popup_info['timer']
+            
+            # Convert RGB to matplotlib format (0-1 range)
+            color_normalized = tuple(c/255.0 for c in color)
+            
+            # Calculate alpha based on timer (fade out effect)
+            alpha = min(1.0, timer / 60.0)  # Full opacity for first second, then fade
+            
+            # Add large text overlay
+            self.fig.suptitle(message, fontsize=20, fontweight='bold', 
+                            color=color_normalized, alpha=alpha, y=0.95)
+            
+            # Add a background box for better visibility
+            bbox_props = dict(boxstyle="round,pad=0.5", facecolor='white', alpha=0.8)
+            self.ax.text2D(0.5, 0.95, message, transform=self.ax.transAxes, 
+                          fontsize=16, fontweight='bold', color=color_normalized,
+                          horizontalalignment='center', verticalalignment='top',
+                          bbox=bbox_props, alpha=alpha)
+        
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
         plt.pause(0.01)  # Small pause to ensure rendering

@@ -14,16 +14,16 @@ class Aegis3DInterceptEnv(gym.Env):
     def __init__(
         self,
         world_size: float = 300.0,  # New coordinate system 0-600
-        max_steps: int = 200,  # Shorter episodes for quicker intercepts
+        max_steps: int = 250,  # Longer episodes since missiles start farther away
         dt: float = 0.05,
         intercept_threshold: float = 30.0,  # Slightly easier intercepts
         miss_threshold: float = 10.0,  # Reasonable target protection  
         max_velocity: float = 50.0,  # Very fast interceptor
         max_accel: float = 25.0,  # High acceleration
         drag_coefficient: float = 0.03,  # Low drag for missile-like behavior
-        missile_speed: float = 20.0,  # Fast incoming missile
-        evasion_freq: int = 20,  # Less frequent evasion
-        evasion_magnitude: float = 2.0,  # Smaller evasion
+        missile_speed: float = 25.0,  # Faster incoming missile
+        evasion_freq: int = 15,  # More frequent evasion
+        evasion_magnitude: float = 4.0,  # Larger evasion maneuvers
         max_fuel: float = 100.0,  # Limited fuel for interceptor
         fuel_burn_rate: float = 0.5,  # Fuel consumed per acceleration
         render_mode: Optional[str] = None,
@@ -83,6 +83,8 @@ class Aegis3DInterceptEnv(gym.Env):
 
         self.step_count = 0
         self.viewer = None
+        self.popup_message = None
+        self.popup_timer = 0
 
     def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
         super().reset(seed=seed)
@@ -109,25 +111,38 @@ class Aegis3DInterceptEnv(gym.Env):
         # Initialize fuel
         self.fuel_remaining = self.max_fuel
 
-        # Missile starts much closer to target for easier learning
-        missile_distance_from_target = self.np_random.uniform(80, 150)  # Much closer
+        # Missile starts from random direction at longer range for realism
+        missile_distance_from_target = self.np_random.uniform(200, 350)  # Further back
+        
+        # Random approach direction (full 360 degrees around target)
         missile_angle = self.np_random.uniform(0, 2 * np.pi)
+        
+        # Calculate initial position
         missile_x = self.target_pos[0] + missile_distance_from_target * np.cos(missile_angle)
         missile_y = self.target_pos[1] + missile_distance_from_target * np.sin(missile_angle)
         
-        # Clamp to world bounds
-        missile_x = np.clip(missile_x, 50, self.world_size * 2 - 50)
-        missile_y = np.clip(missile_y, 50, self.world_size * 2 - 50)
+        # Clamp to world bounds with some margin
+        missile_x = np.clip(missile_x, 30, self.world_size * 2 - 30)
+        missile_y = np.clip(missile_y, 30, self.world_size * 2 - 30)
+        
+        # Random height - can come from high, medium, or low altitude
+        missile_height = self.np_random.uniform(100, 400)  # Higher and more varied altitude
         
         self.missile_pos = np.array([
             missile_x,
             missile_y,
-            self.np_random.uniform(200, 350)  # Start at lower altitude for easier intercepts
+            missile_height
         ], dtype=np.float32)
         
-        # Missile heads toward target
+        # Initialize missile trajectory toward target
         direction = (self.target_pos - self.missile_pos) / np.linalg.norm(self.target_pos - self.missile_pos)
         self.missile_vel = direction * self.missile_speed
+        
+        # Initialize evasion state for more realistic flight patterns
+        self.missile_evasion_timer = 0
+        self.current_evasion_direction = np.zeros(3, dtype=np.float32)
+        self.evasion_duration = 0
+        self.base_direction = direction.copy()  # Store original direction
 
         return self._get_observation(), self._get_info()
 
@@ -135,7 +150,7 @@ class Aegis3DInterceptEnv(gym.Env):
         # Debug: Print step count occasionally to see if environment is running
         if self.step_count == 0:
             print(f"[ENV] Starting new episode")
-        elif self.step_count == 100:
+        elif self.step_count == 125:
             print(f"[ENV] Halfway through episode (step {self.step_count})")
             
         action = np.clip(action, -1.0, 1.0)
@@ -163,14 +178,43 @@ class Aegis3DInterceptEnv(gym.Env):
         # Update position - allow going underground (realistic for intercept)
         self.interceptor_pos = self.interceptor_pos + self.interceptor_vel * self.dt
 
-        if self.step_count % self.evasion_freq == 0:
-            evasion_offset = np.random.randn(3)
-            evasion_offset[2] = 0 # No vertical evasion
-            evasion_offset = evasion_offset / np.linalg.norm(evasion_offset) * self.evasion_magnitude
-            self.missile_pos += evasion_offset
-
-        direction = (self.target_pos - self.missile_pos) / np.linalg.norm(self.target_pos - self.missile_pos)
-        self.missile_vel = direction * self.missile_speed
+        # Advanced missile evasion behavior
+        self.missile_evasion_timer += 1
+        
+        # Update base direction toward target
+        self.base_direction = (self.target_pos - self.missile_pos) / np.linalg.norm(self.target_pos - self.missile_pos)
+        
+        # Start new evasive maneuver
+        if self.missile_evasion_timer % self.evasion_freq == 0:
+            # Random evasive maneuver duration
+            self.evasion_duration = self.np_random.integers(5, 20)  # 5-20 steps
+            
+            # Generate random evasion direction (can include vertical now)
+            evasion_direction = self.np_random.normal(0, 1, 3)
+            # Bias toward horizontal evasion but allow some vertical
+            evasion_direction[2] *= 0.3  # Reduce vertical component
+            
+            if np.linalg.norm(evasion_direction) > 0:
+                self.current_evasion_direction = evasion_direction / np.linalg.norm(evasion_direction)
+            else:
+                self.current_evasion_direction = np.zeros(3, dtype=np.float32)
+        
+        # Apply evasive maneuver if active
+        if self.evasion_duration > 0:
+            self.evasion_duration -= 1
+            # Blend evasion with base direction (70% target, 30% evasion)
+            evasion_strength = 0.3 * (self.evasion_duration / 20.0)  # Fade out over time
+            final_direction = (0.7 * self.base_direction + 
+                             evasion_strength * self.current_evasion_direction)
+            final_direction = final_direction / np.linalg.norm(final_direction)
+        else:
+            # No evasion, go straight to target with small random variance
+            noise = self.np_random.normal(0, 0.05, 3)  # Small random flight variance
+            final_direction = self.base_direction + noise
+            final_direction = final_direction / np.linalg.norm(final_direction)
+        
+        # Update missile velocity and position
+        self.missile_vel = final_direction * self.missile_speed
         self.missile_pos += self.missile_vel * self.dt
 
         intercept_dist = distance(self.interceptor_pos, self.missile_pos)
@@ -281,6 +325,31 @@ class Aegis3DInterceptEnv(gym.Env):
             print(f"[ENV] Step {self.step_count}: Distance to missile: {current_distance:.1f}, Missile to target: {missile_to_target:.1f}, Fuel: {fuel_pct:.0f}%, Reward: {reward:.2f}")
                 
         return self._get_observation(), reward, terminated, truncated, self._get_info()
+    
+    def show_episode_result(self, reward: float, terminated: bool, truncated: bool):
+        """Show a popup message for episode results"""
+        if terminated:
+            if reward > 10:  # Successful intercept
+                self.popup_message = "🎯 INTERCEPT SUCCESS!"
+                self.popup_color = (0, 255, 0)  # Green
+            elif reward < -3:  # Serious failure
+                if reward < -7:  # Missile hit target
+                    self.popup_message = "💥 MISSILE HIT TARGET!"
+                    self.popup_color = (255, 0, 0)  # Red
+                elif reward > -5:  # Went above missile or out of fuel
+                    self.popup_message = "⚠️ INTERCEPTOR FAILED!"
+                    self.popup_color = (255, 165, 0)  # Orange
+                else:
+                    self.popup_message = "❌ MISSION FAILED!"
+                    self.popup_color = (255, 0, 0)  # Red
+            else:
+                self.popup_message = "⛔ OUT OF BOUNDS!"
+                self.popup_color = (128, 128, 128)  # Gray
+        elif truncated:
+            self.popup_message = "⏰ TIMEOUT!"
+            self.popup_color = (255, 255, 0)  # Yellow
+        
+        self.popup_timer = 120  # Show for 2 seconds at 60fps
 
     def _get_observation(self) -> np.ndarray:
         time_remaining = (self.max_steps - self.step_count) / self.max_steps
@@ -305,7 +374,23 @@ class Aegis3DInterceptEnv(gym.Env):
         if self.render_mode == "human":
             if self.viewer is None:
                 self.viewer = Viewer3D(self.world_size)
-            self.viewer.render(self.interceptor_pos, self.missile_pos, self.target_pos, intercepted)
+            
+            # Update popup timer
+            if self.popup_timer > 0:
+                self.popup_timer -= 1
+                if self.popup_timer == 0:
+                    self.popup_message = None
+            
+            # Pass popup info to viewer
+            popup_info = None
+            if self.popup_message and self.popup_timer > 0:
+                popup_info = {
+                    'message': self.popup_message,
+                    'color': self.popup_color,
+                    'timer': self.popup_timer
+                }
+            
+            self.viewer.render(self.interceptor_pos, self.missile_pos, self.target_pos, intercepted, popup_info)
 
     def close(self):
         if self.viewer:

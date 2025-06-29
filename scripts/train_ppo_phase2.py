@@ -266,8 +266,12 @@ def main():
                 with torch.no_grad():
                     viz_obs_gpu = torch.tensor(viz_obs).unsqueeze(0).to(device)
                     viz_action, _, _, _ = agent.get_action_and_value(viz_obs_gpu)
-                    viz_obs, _, viz_terminated, viz_truncated, _ = viz_env.step(viz_action[0].cpu().numpy())
+                    viz_obs, viz_reward, viz_terminated, viz_truncated, viz_info = viz_env.step(viz_action[0].cpu().numpy())
+                    
+                    # Show episode result popup
                     if viz_terminated or viz_truncated:
+                        if hasattr(viz_env, 'show_episode_result'):
+                            viz_env.show_episode_result(viz_reward, viz_terminated, viz_truncated)
                         viz_obs, _ = viz_env.reset()
                     viz_env.render()
 
