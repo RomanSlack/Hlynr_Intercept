@@ -13,12 +13,13 @@ AegisIntercept simulates defensive missile interception scenarios where an AI ag
 
 ## Phase Roadmap
 
-| Phase | Scope | Primary Tools |
-|-------|-------|---------------|
-| **1** | 2-D prototype, flat PPO | Gymnasium, CleanRL, PyGame |
-| **2** | 3-D kinematics & basic visual | MuJoCo **or** Gazebo, TorchRL |
-| **3** | Hierarchical RL (manager/worker) | SB3 + HIRO or Tianshou |
-| **4** | Distributed, high-fidelity 6-DOF, flexible body | RLlib, Isaac Gym, Optuna |
+| Phase | Scope                                                                                                 | Primary Tools                          |
+|-------|-------------------------------------------------------------------------------------------------------|----------------------------------------|
+| **1** | 2D missile interception with PPO and real-time visualization.                                         | Gymnasium, PyGame, CleanRL             |
+| **2** | 3DOF physics, 3D kinematics, adversary movement, togglable headless mode, basic checkpointing.        | Gymnasium VectorEnv, TorchRL           |
+| **3** | Full 6DOF, realistic physics (wind, drag, IRL constants), modular scenario randomization, curriculum learning, enhanced logging, refined reward shaping. | Gymnasium, Custom PPO Trainer, WandB   |
+| **4** | Scalable distributed training with multiple interceptors, physical body flexibility, and transfer learning benchmarks. | RLlib, Isaac Gym, Optuna               |
+
 
 ## Repository Structure
 
