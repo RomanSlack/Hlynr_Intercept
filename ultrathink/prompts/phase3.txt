@@ -1,0 +1,63 @@
+Task Description – Phase 3: Advanced Interception Simulation Framework
+Objective:
+Extend the existing 3DOF interception simulation (Phase 2) into a full 6DOF, physics-accurate environment with enhanced adversary behaviors, scalable difficulty, and logging features for downstream Unity integration.
+
+Core Requirements:
+
+6DOF Simulation:
+
+Upgrade agent and adversary movement from 3DOF to 6DOF.
+
+Include full rotational dynamics (pitch, yaw, roll) with quaternion or matrix-based representation.
+
+Realistic Physics Environment:
+
+Implement wind physics and integrate drag models.
+
+Use IRL-accurate constants for gravity, drag coefficients, and max speeds.
+
+Ensure the environment is scaled spatially and temporally (simulate real-world dimensions and optionally speed up time).
+
+Curriculum Learning Engine:
+
+Create a modular curriculum training system with progressive scenario complexity.
+
+Scenarios should range from easy to impossible.
+
+Define scenario parameters in external .json files (wind variability, adversary IQ/evasion logic, speed).
+
+Ensure the engine dynamically loads scenarios and transitions through them over time or training progress.
+
+Enhanced Adversary Behavior:
+
+Replace placeholder evasion logic with a more dynamic, reactive policy.
+
+Behavior should remain non-AI (e.g. rule-based or procedural), but more sophisticated than linear movement.
+
+Reward System Redesign:
+
+Move from binary interception reward to a continuous proximity-based reward curve.
+
+Design should account for interception success, proximity efficiency, and time to intercept.
+
+Logging and Visualization:
+
+Implement togglable logging for all runs.
+
+Export positional, velocity, and reward data per timestep in .csv or .json format.
+
+Structure logs for easy visualization or Unity import.
+
+Scenario Template Support:
+
+Implement a system to load and interpret .json scenario templates.
+
+These should parameterize environmental forces, adversary traits, and scenario difficulty.
+
+Optional Enhancements (Time-Permitting):
+
+Multi-Interceptor Mode:
+
+Allow the environment to support multiple interceptors acting simultaneously.
+
+No shared policy or coordination required—just support for running multiple agents per scenario.
