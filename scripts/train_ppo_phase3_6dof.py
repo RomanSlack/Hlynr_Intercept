@@ -26,6 +26,7 @@ from torch.utils.tensorboard import SummaryWriter
 from gymnasium.vector import AsyncVectorEnv
 from distutils.util import strtobool
 from pathlib import Path
+from collections import deque
 
 # AegisIntercept Phase 3 imports
 from aegis_intercept.envs import Aegis6DInterceptEnv, DifficultyMode, ActionMode
@@ -282,7 +283,15 @@ def main():
         agent.load_state_dict(checkpoint["model"])
         optimizer.load_state_dict(checkpoint["optimizer"])
         start_update = checkpoint.get("update", 0)
-        print(f"Resumed from update {start_update}")
+        
+        # Restore curriculum phase
+        if "curriculum_phase" in checkpoint and checkpoint["curriculum_phase"] is not None:
+            from aegis_intercept.curriculum import CurriculumPhase
+            saved_phase = CurriculumPhase(checkpoint["curriculum_phase"])
+            curriculum_manager.set_phase(saved_phase)
+            print(f"Resumed from update {start_update}, curriculum phase: {saved_phase.value}")
+        else:
+            print(f"Resumed from update {start_update} (no curriculum phase saved)")
 
     # Storage setup
     obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape, device=device)
@@ -306,6 +315,9 @@ def main():
     # Episode tracking for tensorboard logging
     episode_returns = [0.0] * args.num_envs
     episode_lengths = [0] * args.num_envs
+    
+    # Rolling success rate tracking (last 50 episodes)
+    recent_episodes = deque(maxlen=50)
 
     print(f"Starting Phase 3 training for {num_updates} updates ({args.total_timesteps:,} timesteps)")
     print(f"Current phase: {curriculum_manager.current_phase.value}")
@@ -353,11 +365,19 @@ def main():
                     writer.add_scalar("charts/episodic_return", final_return, global_step)
                     writer.add_scalar("charts/episodic_length", final_length, global_step)
                     
-                    # Update curriculum with episode results
+                    # Update curriculum with episode results  
                     episode_reward = final_return
-                    episode_success = episode_reward > 10.0  # Success threshold
+                    # Proper success detection: terminated with positive reward = successful intercept
+                    episode_success = terminated[i] and episode_reward > 0
                     fuel_used = 0.5  # Placeholder - would get from env info
                     intercept_time = 10.0  # Placeholder - would get from env info
+                    
+                    # Track success for rolling success rate
+                    recent_episodes.append(episode_success)
+                    
+                    # Calculate and log success rate (averaged over last 50 episodes, updated each episode)
+                    rolling_success_rate = sum(recent_episodes) / len(recent_episodes) * 100.0
+                    writer.add_scalar("charts/success_rate", rolling_success_rate, global_step)
                     
                     if args.enable_curriculum:
                         curriculum_manager.update_performance(
@@ -381,7 +401,7 @@ def main():
                     
                     # Print progress
                     if episode_count % 10 == 0:
-                        print(f"Episode {episode_count}: Return={final_return:.2f}, Length={final_length}, Success={episode_success}")
+                        print(f"Episode {episode_count}: Return={final_return:.2f}, Length={final_length}, Success={episode_success}, SuccessRate={rolling_success_rate:.1f}%")
             
             # Log episode statistics
             if "final_info" in info:
