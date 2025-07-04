@@ -87,6 +87,10 @@ class Aegis6DInterceptEnv(gym.Env):
         max_fuel: float = 150.0,
         fuel_burn_rate: float = 0.8,
         
+        # One-shot interception parameters
+        one_shot_distance: float = 100.0,  # Distance within which one-shot rule applies
+        one_shot_penalty: float = -12.0,   # Penalty for missing one-shot opportunity
+        
         # Scenario loading
         scenario_config: Optional[Dict[str, Any]] = None,
     ):
@@ -123,6 +127,10 @@ class Aegis6DInterceptEnv(gym.Env):
         self.max_fuel = max_fuel
         self.fuel_burn_rate = fuel_burn_rate
         
+        # One-shot interception parameters
+        self.one_shot_distance = one_shot_distance
+        self.one_shot_penalty = one_shot_penalty
+        
         # Load scenario configuration
         self.scenario_config = scenario_config or {}
         
@@ -157,6 +165,11 @@ class Aegis6DInterceptEnv(gym.Env):
         
         # Performance tracking
         self.episode_stats = {}
+        
+        # One-shot interception tracking
+        self.min_distance_achieved = float('inf')
+        self.entered_one_shot_zone = False
+        self.one_shot_failed = False
         
     def _setup_spaces(self):
         """Setup observation and action spaces based on difficulty mode"""
@@ -258,6 +271,11 @@ class Aegis6DInterceptEnv(gym.Env):
             'fuel_efficiency': 0.0,
             'intercept_method': None
         }
+        
+        # Reset one-shot tracking
+        self.min_distance_achieved = float('inf')
+        self.entered_one_shot_zone = False
+        self.one_shot_failed = False
         
         # Setup target position
         self.target_pos = np.array([
@@ -382,7 +400,7 @@ class Aegis6DInterceptEnv(gym.Env):
         self.simulation_time += self.dt
         self.step_count += 1
         
-        # Update episode statistics
+        # Update episode statistics and one-shot logic
         if not self.legacy_3dof_mode and self.interceptor_6dof is not None:
             current_distance = distance_6dof(self.interceptor_6dof.position, self.missile_6dof.position)
             self.episode_stats['max_altitude_reached'] = max(
@@ -393,6 +411,32 @@ class Aegis6DInterceptEnv(gym.Env):
                 self.episode_stats['min_distance_achieved'], 
                 current_distance
             )
+            
+            # One-shot interception logic
+            if current_distance < self.one_shot_distance:
+                self.entered_one_shot_zone = True
+            
+            # Check if interceptor is moving away after entering one-shot zone
+            if (self.entered_one_shot_zone and not terminated and not truncated and 
+                current_distance > self.min_distance_achieved + 5.0):  # 5m tolerance for noise
+                self.one_shot_failed = True
+                terminated = True
+                reward = self.one_shot_penalty
+                self._show_popup("❌ ONE-SHOT FAILED - Interceptor missed opportunity!", (255, 100, 100))
+        else:
+            # Handle 3DOF mode one-shot logic
+            current_distance = np.linalg.norm(self.interceptor_pos_3d - self.missile_pos_3d)
+            self.min_distance_achieved = min(self.min_distance_achieved, current_distance)
+            
+            if current_distance < self.one_shot_distance:
+                self.entered_one_shot_zone = True
+            
+            if (self.entered_one_shot_zone and not terminated and not truncated and 
+                current_distance > self.min_distance_achieved + 5.0):
+                self.one_shot_failed = True
+                terminated = True
+                reward = self.one_shot_penalty
+                self._show_popup("❌ ONE-SHOT FAILED - Interceptor missed opportunity!", (255, 100, 100))
         
         return self._get_observation(), reward, terminated, truncated, self._get_info()
     
@@ -450,7 +494,10 @@ class Aegis6DInterceptEnv(gym.Env):
         
         # Reward calculation (simplified from original)
         if intercepted:
-            reward = 15.0 + (self.fuel_remaining / self.max_fuel) * 5.0
+            base_reward = 15.0
+            fuel_bonus = (self.fuel_remaining / self.max_fuel) * 5.0
+            explosion_bonus = 6.0 if exploded else 0.0  # Encourage explosion attempts
+            reward = base_reward + fuel_bonus + explosion_bonus
             self.episode_stats['intercept_method'] = 'explosion' if exploded else 'proximity'
         elif missile_hit:
             reward = -8.0
@@ -459,6 +506,10 @@ class Aegis6DInterceptEnv(gym.Env):
         else:
             # Distance-based reward
             reward = max(0, 1.0 - intercept_dist / 200.0) - 0.02
+            
+            # Small bonus for explosion attempts (encourages exploration)
+            if explosion_command and intercept_dist < 150.0:
+                reward += 0.2  # Small exploration bonus for trying to explode when close
         
         return reward, terminated, truncated
     
@@ -536,6 +587,10 @@ class Aegis6DInterceptEnv(gym.Env):
             intercept_dist, miss_dist, intercepted, exploded, 
             missile_hit, out_of_bounds, structural_failure
         )
+        
+        # Small bonus for explosion attempts (encourages exploration)
+        if explosion_command and not intercepted and intercept_dist < 150.0:
+            reward += 0.2  # Small exploration bonus for trying to explode when close
         
         return reward, terminated, truncated
     
@@ -656,7 +711,7 @@ class Aegis6DInterceptEnv(gym.Env):
             # Efficiency bonuses
             fuel_bonus = (self.fuel_remaining / self.max_fuel) * 8.0
             time_bonus = (self.max_steps - self.step_count) / self.max_steps * 5.0
-            method_bonus = 3.0 if exploded else 0.0  # Prefer explosion intercepts
+            method_bonus = 8.0 if exploded else 0.0  # Strongly encourage explosion intercepts
             
             # Intercept quality bonus
             if intercept_dist < 10.0:
@@ -813,13 +868,32 @@ class Aegis6DInterceptEnv(gym.Env):
             if self.viewer is None:
                 self.viewer = Viewer3D(self.world_size)
             
+            # Prepare popup info if there's a message
+            popup_info = None
+            if self.popup_message and self.popup_timer > 0:
+                popup_info = {
+                    'message': self.popup_message,
+                    'color': getattr(self, 'popup_color', (255, 255, 255)),
+                    'timer': self.popup_timer
+                }
+                self.popup_timer -= 1
+                if self.popup_timer <= 0:
+                    self.popup_message = None
+            
             # Use 3D positions for rendering (compatible with both modes)
             self.viewer.render(
                 self.interceptor_pos_3d, 
                 self.missile_pos_3d, 
                 self.target_pos, 
-                intercepted
+                intercepted,
+                popup_info
             )
+    
+    def _show_popup(self, message: str, color: tuple = (255, 255, 255), duration: int = 60):
+        """Show a popup message in the visualization"""
+        self.popup_message = message
+        self.popup_color = color
+        self.popup_timer = duration
     
     def close(self):
         """Close the environment"""

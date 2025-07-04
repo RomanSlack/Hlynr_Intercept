@@ -238,6 +238,7 @@ class CurriculumManager:
         self.current_phase = CurriculumPhase.PHASE_1_BASIC_3DOF
         self.current_scenario = 0
         self.phase_metrics = {phase: PerformanceMetrics() for phase in CurriculumPhase}
+        self.curriculum_completed = False  # Flag to track completion
         
         # Scenario management
         self.scenarios = self._initialize_default_scenarios()
@@ -493,8 +494,12 @@ class CurriculumManager:
             self.logger.info(f"Advanced from {old_phase.value} to {self.current_phase.value}")
             print(f"🎓 CURRICULUM ADVANCEMENT: {old_phase.value} → {self.current_phase.value}")
         else:
-            self.logger.info("Curriculum completed - reached expert level")
-            print("🏆 CURRICULUM COMPLETED - Expert level achieved!")
+            # Only print completion message once
+            if not self.curriculum_completed:
+                self.curriculum_completed = True
+                self.logger.info("Curriculum completed - reached expert level")
+                print("🏆 CURRICULUM COMPLETED - Expert level achieved!")
+                print("🏆 Continuing training in Expert mode...")
     
     def _adjust_difficulty(self):
         """Dynamically adjust difficulty based on recent performance"""
@@ -699,6 +704,11 @@ class CurriculumManager:
             old_phase = self.current_phase
             self.current_phase = phase
             self.current_scenario = 0
+            
+            # Set completion flag if we're setting to expert phase
+            if phase == CurriculumPhase.PHASE_5_EXPERT_6DOF:
+                self.curriculum_completed = True
+            
             self.logger.info(f"Manually set phase from {old_phase.value} to {phase.value}")
         else:
             raise ValueError(f"Invalid phase: {phase}")
