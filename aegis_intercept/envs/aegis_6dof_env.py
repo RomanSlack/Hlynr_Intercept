@@ -50,10 +50,6 @@ class ActionMode(Enum):
     THRUST_ATTITUDE = "thrust_attitude"   # [thrust_mag, pitch, yaw, roll, explode] - 5D
 
 
-@gym.envs.registration.register(
-    id='Aegis6DIntercept-v0',
-    entry_point='aegis_intercept.envs:Aegis6DInterceptEnv',
-)
 class Aegis6DInterceptEnv(gym.Env):
     """Enhanced 6DOF Missile Intercept Environment"""
     
@@ -832,7 +828,7 @@ class Aegis6DInterceptEnv(gym.Env):
 
 
 # Register the environment
-gym.envs.registration.register(
+gym.register(
     id='Aegis6DIntercept-v0',
     entry_point='aegis_intercept.envs.aegis_6dof_env:Aegis6DInterceptEnv',
 )

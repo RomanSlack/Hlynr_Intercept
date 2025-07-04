@@ -302,6 +302,10 @@ def main():
     
     episode_count = 0
     last_curriculum_update = time.time()
+    
+    # Episode tracking for tensorboard logging
+    episode_returns = [0.0] * args.num_envs
+    episode_lengths = [0] * args.num_envs
 
     print(f"Starting Phase 3 training for {num_updates} updates ({args.total_timesteps:,} timesteps)")
     print(f"Current phase: {curriculum_manager.current_phase.value}")
@@ -333,13 +337,24 @@ def main():
             rewards[step] = torch.tensor(reward, device=device).view(-1)
             next_obs, next_done = torch.tensor(next_obs, device=device), torch.tensor(done, device=device)
 
+            # Update episode tracking
+            for i in range(args.num_envs):
+                episode_returns[i] += reward[i]
+                episode_lengths[i] += 1
+
             # Process episode completions
             for i in range(args.num_envs):
                 if done[i]:
                     episode_count += 1
                     
+                    # Log episode metrics to TensorBoard
+                    final_return = episode_returns[i]
+                    final_length = episode_lengths[i]
+                    writer.add_scalar("charts/episodic_return", final_return, global_step)
+                    writer.add_scalar("charts/episodic_length", final_length, global_step)
+                    
                     # Update curriculum with episode results
-                    episode_reward = reward[i]
+                    episode_reward = final_return
                     episode_success = episode_reward > 10.0  # Success threshold
                     fuel_used = 0.5  # Placeholder - would get from env info
                     intercept_time = 10.0  # Placeholder - would get from env info
@@ -359,6 +374,14 @@ def main():
                     if export_manager and episode_count % args.export_frequency == 0:
                         print(f"Would export episode {episode_count} for Unity")
                         # Would export episode data for Unity visualization
+                    
+                    # Reset episode tracking for this environment
+                    episode_returns[i] = 0.0
+                    episode_lengths[i] = 0
+                    
+                    # Print progress
+                    if episode_count % 10 == 0:
+                        print(f"Episode {episode_count}: Return={final_return:.2f}, Length={final_length}, Success={episode_success}")
             
             # Log episode statistics
             if "final_info" in info:

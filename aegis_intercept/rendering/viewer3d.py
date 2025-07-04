@@ -2,6 +2,8 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
+from collections import deque
 
 class Viewer3D:
     def __init__(self, world_size: float):
@@ -21,8 +23,56 @@ class Viewer3D:
         
         # Track intercept status for visual feedback
         self.last_intercept = False
+        
+        # Ghost trail history - store position and velocity data
+        self.trail_length = 100  # Number of trail points to keep
+        self.interceptor_trail = deque(maxlen=self.trail_length)
+        self.missile_trail = deque(maxlen=self.trail_length)
+        
+        # Create custom colormaps for speed visualization
+        # Blue to cyan to yellow to red for interceptor (cool to warm)
+        interceptor_colors = ['#000080', '#0080FF', '#00FFFF', '#80FF00', '#FFFF00', '#FF8000', '#FF0000']
+        self.interceptor_cmap = LinearSegmentedColormap.from_list('interceptor_speed', interceptor_colors, N=256)
+        
+        # Dark red to red to orange to yellow for missile (threat colors)
+        missile_colors = ['#800000', '#FF0000', '#FF4000', '#FF8000', '#FFC000', '#FFFF00']
+        self.missile_cmap = LinearSegmentedColormap.from_list('missile_speed', missile_colors, N=256)
+        
+        # Previous positions for velocity calculation
+        self.prev_interceptor_pos = None
+        self.prev_missile_pos = None
 
     def render(self, interceptor_pos: np.ndarray, missile_pos: np.ndarray, target_pos: np.ndarray, intercepted: bool = False, popup_info: dict = None):
+        # Calculate velocities if we have previous positions
+        interceptor_velocity = 0
+        missile_velocity = 0
+        
+        if self.prev_interceptor_pos is not None:
+            interceptor_velocity = np.linalg.norm(interceptor_pos - self.prev_interceptor_pos)
+        if self.prev_missile_pos is not None:
+            missile_velocity = np.linalg.norm(missile_pos - self.prev_missile_pos)
+        
+        # Store current positions and velocities in trails
+        self.interceptor_trail.append({
+            'pos': interceptor_pos.copy(),
+            'velocity': interceptor_velocity
+        })
+        self.missile_trail.append({
+            'pos': missile_pos.copy(),
+            'velocity': missile_velocity
+        })
+        
+        # Update previous positions
+        self.prev_interceptor_pos = interceptor_pos.copy()
+        self.prev_missile_pos = missile_pos.copy()
+        
+        # Clear on intercept or episode reset
+        if intercepted or (self.last_intercept and not intercepted):
+            self.interceptor_trail.clear()
+            self.missile_trail.clear()
+            self.prev_interceptor_pos = None
+            self.prev_missile_pos = None
+        
         self.ax.cla()
         # New coordinate system: 0 to 600
         self.ax.set_xlim([0, self.world_size * 2])
@@ -48,6 +98,9 @@ class Viewer3D:
         ground_z = np.zeros_like(ground_x)
         self.ax.plot_surface(ground_x, ground_y, ground_z, alpha=0.1, color='brown')
 
+        # Draw ghost trails with speed-based coloring
+        self._draw_ghost_trails()
+
         # Draw target at ground level
         self.ax.scatter(target_pos[0], target_pos[1], target_pos[2], c='green', marker='o', s=200, label="Target (Ground)", edgecolors='darkgreen', linewidth=2)
 
@@ -69,10 +122,6 @@ class Viewer3D:
             missile_size = 120
             
         self.ax.scatter(missile_pos[0], missile_pos[1], missile_pos[2], c=missile_color, marker='X', s=missile_size, label=missile_label, edgecolors='black', linewidth=1)
-
-        # Draw trajectory lines
-        self.ax.plot([target_pos[0], interceptor_pos[0]], [target_pos[1], interceptor_pos[1]], [target_pos[2], interceptor_pos[2]], 'b--', alpha=0.5, linewidth=1)
-        self.ax.plot([target_pos[0], missile_pos[0]], [target_pos[1], missile_pos[1]], [target_pos[2], missile_pos[2]], 'r--', alpha=0.5, linewidth=1)
 
         self.ax.legend(loc='upper right')
         
@@ -102,6 +151,55 @@ class Viewer3D:
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
         plt.pause(0.01)  # Small pause to ensure rendering
+
+    def _draw_ghost_trails(self):
+        """Draw ghost trails with speed-based color coding"""
+        # Draw interceptor trail
+        if len(self.interceptor_trail) > 1:
+            self._draw_trail(self.interceptor_trail, self.interceptor_cmap, 'Interceptor Trail')
+        
+        # Draw missile trail
+        if len(self.missile_trail) > 1:
+            self._draw_trail(self.missile_trail, self.missile_cmap, 'Missile Trail')
+    
+    def _draw_trail(self, trail, colormap, label):
+        """Draw a single trail with speed-based coloring"""
+        if len(trail) < 2:
+            return
+            
+        # Extract positions and velocities
+        positions = np.array([point['pos'] for point in trail])
+        velocities = np.array([point['velocity'] for point in trail])
+        
+        # Normalize velocities for color mapping (0-1 range)
+        if velocities.max() > 0:
+            normalized_velocities = velocities / velocities.max()
+        else:
+            normalized_velocities = velocities
+        
+        # Draw trail segments with speed-based colors
+        for i in range(len(positions) - 1):
+            # Calculate segment color based on speed
+            speed_color = colormap(normalized_velocities[i])
+            
+            # Calculate alpha based on age (newer = more opaque)
+            age_factor = (i + 1) / len(positions)
+            alpha = 0.3 + 0.7 * age_factor  # Range from 0.3 to 1.0
+            
+            # Draw line segment
+            self.ax.plot([positions[i][0], positions[i+1][0]], 
+                        [positions[i][1], positions[i+1][1]], 
+                        [positions[i][2], positions[i+1][2]], 
+                        color=speed_color, alpha=alpha, linewidth=2)
+        
+        # Add speed indicators along the trail (every 10th point)
+        sample_indices = range(0, len(positions), 10)
+        for i in sample_indices:
+            if i < len(positions):
+                speed_color = colormap(normalized_velocities[i])
+                # Draw small spheres to show speed at key points
+                self.ax.scatter(positions[i][0], positions[i][1], positions[i][2], 
+                              c=[speed_color], s=20, alpha=0.6, edgecolors='none')
 
     def close(self):
         plt.ioff()
