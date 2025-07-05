@@ -89,3 +89,16 @@ When using this work in research, please cite:
   url={https://github.com/rslack/aegis_intercept}
 }
 ```
+
+---
+
+## ⚖️ Legal and Ethical Disclaimer
+
+This project is a purely academic and simulated environment intended for reinforcement learning research and experimentation. It does not interface with real-world defense systems, targeting software, or weaponized hardware.
+
+The repository does **not** include any classified, restricted, or export-controlled materials. It is intended only for educational and non-military applications.
+
+Use of this software must comply with applicable U.S. export control laws (ITAR, EAR) and international dual-use regulations. The authors explicitly prohibit any use of this project for real-world weaponization, targeting, or autonomous lethal systems.
+
+By using this repository, you agree to use it solely for lawful, ethical, and research-related purposes.
+
