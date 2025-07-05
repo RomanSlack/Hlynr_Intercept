@@ -76,19 +76,18 @@ AegisIntercept simulates defensive missile interception scenarios where an AI ag
 * **Visualization**: Real-time PyGame rendering for debugging and analysis
 * **Testing**: Comprehensive pytest suite for environment validation
 
-## License & Citation
+---
 
-MIT License (see LICENSE file)
+## ⚖️ Legal and Ethical Use Notice
 
-When using this work in research, please cite:
-```
-@misc{aegis_intercept_2025,
-  title={AegisIntercept: Nuclear-Defense Path-Finding Simulator},
-  author={Slack, Roman and Hasse, Quinn},
-  year={2025},
-  url={https://github.com/rslack/aegis_intercept}
-}
-```
+This repository is released under the [Hippocratic License 2.1](./LICENSE), which permits use, modification, and distribution of this software for purposes that do not violate human rights or enable weaponized, military, or surveillance applications.
+
+**This project is for academic, research, and peaceful experimentation only.**
+
+Use of this code in autonomous weapons, missile guidance systems, surveillance infrastructure, or other military/defense-related applications is explicitly prohibited.
+
+If you are unsure whether your intended use violates this principle, do not use this software.
+
 
 ---
 
