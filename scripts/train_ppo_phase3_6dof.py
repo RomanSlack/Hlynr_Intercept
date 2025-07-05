@@ -45,6 +45,7 @@ def parse_args():
     parser.add_argument("--wandb-project-name", type=str, default="aegis-intercept-phase3")
     parser.add_argument("--wandb-entity", type=str, default=None)
     parser.add_argument("--visualize", action="store_true", help="Enable real-time visualization")
+    parser.add_argument("--count", type=int, default=5, help="Number of interceptors to show in visualization (requires --visualize)")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
     
     # Environment and curriculum
@@ -267,6 +268,7 @@ def main():
             difficulty_mode=viz_env_config['difficulty_mode'],
             action_mode=viz_env_config['action_mode'],
             render_mode="human",
+            num_interceptors=args.count,  # Use command line argument
             **{k: v for k, v in viz_env_config.items() 
                if k not in ['difficulty_mode', 'action_mode']}
         )

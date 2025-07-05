@@ -91,6 +91,9 @@ class Aegis6DInterceptEnv(gym.Env):
         one_shot_distance: float = 100.0,  # Distance within which one-shot rule applies
         one_shot_penalty: float = -12.0,   # Penalty for missing one-shot opportunity
         
+        # Multi-interceptor support
+        num_interceptors: int = 1,  # Number of interceptors to spawn
+        
         # Scenario loading
         scenario_config: Optional[Dict[str, Any]] = None,
     ):
@@ -131,6 +134,9 @@ class Aegis6DInterceptEnv(gym.Env):
         self.one_shot_distance = one_shot_distance
         self.one_shot_penalty = one_shot_penalty
         
+        # Multi-interceptor support
+        self.num_interceptors = num_interceptors
+        
         # Load scenario configuration
         self.scenario_config = scenario_config or {}
         
@@ -139,20 +145,27 @@ class Aegis6DInterceptEnv(gym.Env):
         
         # Initialize 6DOF physics if not in legacy mode
         if not self.legacy_3dof_mode:
-            self.interceptor_6dof = None
+            self.interceptors_6dof = [None] * self.num_interceptors
             self.missile_6dof = None
         
-        # Legacy 3DOF state for compatibility
+        # Primary interceptor reference (for backward compatibility)
+        self.interceptor_6dof = None
+        
+        # Legacy 3DOF state for compatibility (using first interceptor for control)
         self.interceptor_pos_3d = np.zeros(3, dtype=np.float32)
         self.interceptor_vel_3d = np.zeros(3, dtype=np.float32)
         self.missile_pos_3d = np.zeros(3, dtype=np.float32)
         self.missile_vel_3d = np.zeros(3, dtype=np.float32)
         self.target_pos = np.zeros(3, dtype=np.float32)
         
+        # Multi-interceptor 3DOF positions for visualization
+        self.interceptors_pos_3d = [np.zeros(3, dtype=np.float32) for _ in range(self.num_interceptors)]
+        self.interceptors_vel_3d = [np.zeros(3, dtype=np.float32) for _ in range(self.num_interceptors)]
+        
         # Environment state
         self.step_count = 0
         self.simulation_time = 0.0
-        self.fuel_remaining = self.max_fuel
+        self.fuel_remaining = [self.max_fuel] * self.num_interceptors  # Fuel per interceptor
         self.wind_velocity = np.zeros(3)
         
         # Setup observation and action spaces
@@ -166,10 +179,10 @@ class Aegis6DInterceptEnv(gym.Env):
         # Performance tracking
         self.episode_stats = {}
         
-        # One-shot interception tracking
-        self.min_distance_achieved = float('inf')
-        self.entered_one_shot_zone = False
-        self.one_shot_failed = False
+        # One-shot interception tracking (per interceptor)
+        self.min_distance_achieved = [float('inf')] * self.num_interceptors
+        self.entered_one_shot_zone = [False] * self.num_interceptors
+        self.one_shot_failed = [False] * self.num_interceptors
         
     def _setup_spaces(self):
         """Setup observation and action spaces based on difficulty mode"""
@@ -262,7 +275,7 @@ class Aegis6DInterceptEnv(gym.Env):
         
         self.step_count = 0
         self.simulation_time = 0.0
-        self.fuel_remaining = self.max_fuel
+        self.fuel_remaining = [self.max_fuel] * self.num_interceptors
         
         # Reset episode statistics
         self.episode_stats = {
@@ -272,10 +285,10 @@ class Aegis6DInterceptEnv(gym.Env):
             'intercept_method': None
         }
         
-        # Reset one-shot tracking
-        self.min_distance_achieved = float('inf')
-        self.entered_one_shot_zone = False
-        self.one_shot_failed = False
+        # Reset one-shot tracking (per interceptor)
+        self.min_distance_achieved = [float('inf')] * self.num_interceptors
+        self.entered_one_shot_zone = [False] * self.num_interceptors
+        self.one_shot_failed = [False] * self.num_interceptors
         
         # Setup target position
         self.target_pos = np.array([
@@ -302,15 +315,23 @@ class Aegis6DInterceptEnv(gym.Env):
     
     def _reset_3dof_mode(self):
         """Reset in 3DOF compatibility mode"""
-        # Setup interceptor (similar to original 3DOF)
-        interceptor_offset = self.np_random.uniform(10, 30)
-        interceptor_angle = self.np_random.uniform(0, 2 * np.pi)
-        self.interceptor_pos_3d = self.target_pos + np.array([
-            interceptor_offset * np.cos(interceptor_angle),
-            interceptor_offset * np.sin(interceptor_angle),
-            0.0
-        ], dtype=np.float32)
-        self.interceptor_vel_3d = np.array([0.0, 0.0, 8.0], dtype=np.float32)
+        # Setup multiple interceptors
+        for i in range(self.num_interceptors):
+            interceptor_offset = self.np_random.uniform(10, 30)
+            interceptor_angle = self.np_random.uniform(0, 2 * np.pi) + (i * 2 * np.pi / self.num_interceptors)
+            self.interceptors_pos_3d[i] = self.target_pos + np.array([
+                interceptor_offset * np.cos(interceptor_angle),
+                interceptor_offset * np.sin(interceptor_angle),
+                0.0
+            ], dtype=np.float32)
+            self.interceptors_vel_3d[i] = np.array([0.0, 0.0, 8.0], dtype=np.float32)
+        
+        # Set first interceptor as primary (for control)
+        self.interceptor_pos_3d = self.interceptors_pos_3d[0].copy()
+        self.interceptor_vel_3d = self.interceptors_vel_3d[0].copy()
+        
+        # Ensure interceptor_6dof is None in 3DOF mode
+        self.interceptor_6dof = None
         
         # Setup missile
         missile_distance = self.np_random.uniform(200, 350)
@@ -333,23 +354,31 @@ class Aegis6DInterceptEnv(gym.Env):
     
     def _reset_6dof_mode(self):
         """Reset in full 6DOF mode"""
-        # Initialize interceptor 6DOF
-        interceptor_offset = self.np_random.uniform(20, 50)
-        interceptor_angle = self.np_random.uniform(0, 2 * np.pi)
-        interceptor_pos = self.target_pos + np.array([
-            interceptor_offset * np.cos(interceptor_angle),
-            interceptor_offset * np.sin(interceptor_angle),
-            5.0  # Start slightly above ground
-        ])
+        # Initialize multiple interceptors in 6DOF
+        for i in range(self.num_interceptors):
+            interceptor_offset = self.np_random.uniform(20, 50)
+            interceptor_angle = self.np_random.uniform(0, 2 * np.pi) + (i * 2 * np.pi / self.num_interceptors)
+            interceptor_pos = self.target_pos + np.array([
+                interceptor_offset * np.cos(interceptor_angle),
+                interceptor_offset * np.sin(interceptor_angle),
+                5.0  # Start slightly above ground
+            ])
+            
+            interceptor_vel = np.array([0.0, 0.0, 15.0])  # Launch velocity
+            interceptor_quat = np.array([1.0, 0.0, 0.0, 0.0])  # Identity quaternion
+            interceptor_omega = np.zeros(3)
+            
+            self.interceptors_6dof[i] = RigidBody6DOF(
+                VehicleType.INTERCEPTOR,
+                interceptor_pos, interceptor_vel, interceptor_quat, interceptor_omega
+            )
+            
+            # Update 3D positions for visualization
+            self.interceptors_pos_3d[i] = interceptor_pos.copy()
+            self.interceptors_vel_3d[i] = interceptor_vel.copy()
         
-        interceptor_vel = np.array([0.0, 0.0, 15.0])  # Launch velocity
-        interceptor_quat = np.array([1.0, 0.0, 0.0, 0.0])  # Identity quaternion
-        interceptor_omega = np.zeros(3)
-        
-        self.interceptor_6dof = RigidBody6DOF(
-            VehicleType.INTERCEPTOR,
-            interceptor_pos, interceptor_vel, interceptor_quat, interceptor_omega
-        )
+        # Set first interceptor as primary (for control and observation)
+        self.interceptor_6dof = self.interceptors_6dof[0]
         
         # Initialize missile 6DOF  
         missile_distance = self.np_random.uniform(300, 500)
@@ -424,16 +453,16 @@ class Aegis6DInterceptEnv(gym.Env):
                 reward = self.one_shot_penalty
                 self._show_popup("❌ ONE-SHOT FAILED - Interceptor missed opportunity!", (255, 100, 100))
         else:
-            # Handle 3DOF mode one-shot logic
+            # Handle 3DOF mode one-shot logic (primary interceptor only)
             current_distance = np.linalg.norm(self.interceptor_pos_3d - self.missile_pos_3d)
-            self.min_distance_achieved = min(self.min_distance_achieved, current_distance)
+            self.min_distance_achieved[0] = min(self.min_distance_achieved[0], current_distance)
             
             if current_distance < self.one_shot_distance:
-                self.entered_one_shot_zone = True
+                self.entered_one_shot_zone[0] = True
             
-            if (self.entered_one_shot_zone and not terminated and not truncated and 
-                current_distance > self.min_distance_achieved + 5.0):
-                self.one_shot_failed = True
+            if (self.entered_one_shot_zone[0] and not terminated and not truncated and 
+                current_distance > self.min_distance_achieved[0] + 5.0):
+                self.one_shot_failed[0] = True
                 terminated = True
                 reward = self.one_shot_penalty
                 self._show_popup("❌ ONE-SHOT FAILED - Interceptor missed opportunity!", (255, 100, 100))
@@ -444,13 +473,13 @@ class Aegis6DInterceptEnv(gym.Env):
         """Execute step in 3DOF compatibility mode"""
         thrust_action = action[:3]
         
-        # Fuel system
+        # Fuel system (primary interceptor)
         if self.enable_fuel_system:
             thrust_magnitude = np.linalg.norm(thrust_action)
             fuel_consumed = thrust_magnitude * self.fuel_burn_rate * self.dt
-            self.fuel_remaining = max(0.0, self.fuel_remaining - fuel_consumed)
+            self.fuel_remaining[0] = max(0.0, self.fuel_remaining[0] - fuel_consumed)
             
-            if self.fuel_remaining <= 0:
+            if self.fuel_remaining[0] <= 0:
                 thrust_action = np.zeros(3)
         
         # Simple 3DOF physics (from original environment)
@@ -495,7 +524,7 @@ class Aegis6DInterceptEnv(gym.Env):
         # Reward calculation (simplified from original)
         if intercepted:
             base_reward = 15.0
-            fuel_bonus = (self.fuel_remaining / self.max_fuel) * 5.0
+            fuel_bonus = (self.fuel_remaining[0] / self.max_fuel) * 5.0
             explosion_bonus = 6.0 if exploded else 0.0  # Encourage explosion attempts
             reward = base_reward + fuel_bonus + explosion_bonus
             self.episode_stats['intercept_method'] = 'explosion' if exploded else 'proximity'
@@ -535,12 +564,12 @@ class Aegis6DInterceptEnv(gym.Env):
             thrust_force = action[:3] * 1000.0
             control_torque = action[3:6] * 200.0
         
-        # Fuel consumption
+        # Fuel consumption (primary interceptor)
         if self.enable_fuel_system:
             fuel_consumed = np.linalg.norm(thrust_force) / 1000.0 * self.fuel_burn_rate * self.dt
-            self.fuel_remaining = max(0.0, self.fuel_remaining - fuel_consumed)
+            self.fuel_remaining[0] = max(0.0, self.fuel_remaining[0] - fuel_consumed)
             
-            if self.fuel_remaining <= 0:
+            if self.fuel_remaining[0] <= 0:
                 thrust_force = np.zeros(3)
         
         # Set control inputs
@@ -709,7 +738,7 @@ class Aegis6DInterceptEnv(gym.Env):
             base_reward = 20.0
             
             # Efficiency bonuses
-            fuel_bonus = (self.fuel_remaining / self.max_fuel) * 8.0
+            fuel_bonus = (self.fuel_remaining[0] / self.max_fuel) * 8.0
             time_bonus = (self.max_steps - self.step_count) / self.max_steps * 5.0
             method_bonus = 8.0 if exploded else 0.0  # Strongly encourage explosion intercepts
             
@@ -762,7 +791,7 @@ class Aegis6DInterceptEnv(gym.Env):
                 geometry_reward = 0.0
             
             # Fuel efficiency penalty
-            fuel_penalty = -0.1 * (1.0 - self.fuel_remaining / self.max_fuel)
+            fuel_penalty = -0.1 * (1.0 - self.fuel_remaining[0] / self.max_fuel)
             
             # Time pressure
             time_penalty = -0.03
@@ -776,7 +805,7 @@ class Aegis6DInterceptEnv(gym.Env):
         if self.legacy_3dof_mode or self.difficulty_mode == DifficultyMode.EASY_3DOF:
             # 3DOF observation (14D)
             time_remaining = (self.max_steps - self.step_count) / self.max_steps
-            fuel_remaining = self.fuel_remaining / self.max_fuel
+            fuel_remaining = self.fuel_remaining[0] / self.max_fuel  # Use primary interceptor fuel
             
             return np.concatenate([
                 self.interceptor_pos_3d,
@@ -790,11 +819,16 @@ class Aegis6DInterceptEnv(gym.Env):
         else:
             # Full 6DOF observation (31D)
             time_remaining = (self.max_steps - self.step_count) / self.max_steps
-            fuel_remaining = self.fuel_remaining / self.max_fuel
+            fuel_remaining = self.fuel_remaining[0] / self.max_fuel  # Use primary interceptor fuel
             
             # Get 6DOF state vectors
-            interceptor_state = self.interceptor_6dof.get_state_vector()  # 13D
-            missile_state = self.missile_6dof.get_state_vector()  # 13D
+            if self.interceptor_6dof is not None and self.missile_6dof is not None:
+                interceptor_state = self.interceptor_6dof.get_state_vector()  # 13D
+                missile_state = self.missile_6dof.get_state_vector()  # 13D
+            else:
+                # Fallback to zeros if 6DOF objects not initialized yet
+                interceptor_state = np.zeros(13, dtype=np.float32)
+                missile_state = np.zeros(13, dtype=np.float32)
             
             # Environment state (5D)
             env_state = np.array([
@@ -880,13 +914,20 @@ class Aegis6DInterceptEnv(gym.Env):
                 if self.popup_timer <= 0:
                     self.popup_message = None
             
+            # Prepare additional interceptor positions for visualization
+            additional_interceptors = []
+            if self.num_interceptors > 1:
+                for i in range(1, self.num_interceptors):
+                    additional_interceptors.append(self.interceptors_pos_3d[i])
+            
             # Use 3D positions for rendering (compatible with both modes)
             self.viewer.render(
                 self.interceptor_pos_3d, 
                 self.missile_pos_3d, 
                 self.target_pos, 
                 intercepted,
-                popup_info
+                popup_info,
+                additional_interceptors
             )
     
     def _show_popup(self, message: str, color: tuple = (255, 255, 255), duration: int = 60):

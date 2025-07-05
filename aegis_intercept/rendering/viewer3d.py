@@ -42,7 +42,7 @@ class Viewer3D:
         self.prev_interceptor_pos = None
         self.prev_missile_pos = None
 
-    def render(self, interceptor_pos: np.ndarray, missile_pos: np.ndarray, target_pos: np.ndarray, intercepted: bool = False, popup_info: dict = None):
+    def render(self, interceptor_pos: np.ndarray, missile_pos: np.ndarray, target_pos: np.ndarray, intercepted: bool = False, popup_info: dict = None, additional_interceptors: list = None):
         # Calculate velocities if we have previous positions
         interceptor_velocity = 0
         missile_velocity = 0
@@ -104,11 +104,19 @@ class Viewer3D:
         # Draw target at ground level
         self.ax.scatter(target_pos[0], target_pos[1], target_pos[2], c='green', marker='o', s=200, label="Target (Ground)", edgecolors='darkgreen', linewidth=2)
 
-        # Draw interceptor with different colors based on status
+        # Draw primary interceptor with different colors based on status
         if intercepted:
-            self.ax.scatter(interceptor_pos[0], interceptor_pos[1], interceptor_pos[2], c='gold', marker='^', s=150, label="Interceptor (SUCCESS!)", edgecolors='orange', linewidth=2)
+            self.ax.scatter(interceptor_pos[0], interceptor_pos[1], interceptor_pos[2], c='gold', marker='^', s=150, label="Interceptor #1 (SUCCESS!)", edgecolors='orange', linewidth=2)
         else:
-            self.ax.scatter(interceptor_pos[0], interceptor_pos[1], interceptor_pos[2], c='blue', marker='^', s=120, label="Interceptor", edgecolors='darkblue', linewidth=1)
+            self.ax.scatter(interceptor_pos[0], interceptor_pos[1], interceptor_pos[2], c='blue', marker='^', s=120, label="Interceptor #1", edgecolors='darkblue', linewidth=1)
+
+        # Draw additional interceptors if provided
+        if additional_interceptors:
+            colors = ['cyan', 'magenta', 'yellow', 'lime', 'orange', 'purple', 'pink', 'brown']
+            for i, pos in enumerate(additional_interceptors):
+                if i < len(colors):
+                    color = colors[i]
+                    self.ax.scatter(pos[0], pos[1], pos[2], c=color, marker='^', s=100, label=f"Interceptor #{i+2}", edgecolors='black', linewidth=1, alpha=0.8)
 
         # Draw missile with threat indicator
         distance_to_target = np.linalg.norm(missile_pos - target_pos)
