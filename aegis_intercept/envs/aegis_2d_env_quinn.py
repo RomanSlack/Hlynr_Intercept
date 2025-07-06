@@ -104,37 +104,25 @@ class Aegis2DInterceptEnvQuinn(Aegis2DInterceptEnv):
             terminated = True
         elif missile_hit:
             # Failure penalty
-            reward = -2.0
+            reward = -1.0
             terminated = True
         elif out_of_bounds:
             # Out of bounds penalty
-            reward = -1.0
+            reward = -0.5
             terminated = True
         elif max_steps_reached:
             # Timeout penalty (less severe than other failures)
-            reward = -0.3
+            reward = -0.5
             terminated = True
         else:
             # Step-based reward shaping
-            reward = -0.02  # Small time penalty
+            reward = -0.01  # Small time penalty
             
             # Distance-based reward shaping
             prev_distance = np.linalg.norm(prev_interceptor_pos - prev_missile_pos)
             curr_distance = intercept_distance
-            
             if curr_distance < prev_distance:
-                # Reward for getting closer to missile
-                distance_improvement = (prev_distance - curr_distance) / self.world_size
-                reward += distance_improvement * 0.1
-            
-            # Penalty for missile getting closer to defended point
-            prev_missile_to_defended = np.linalg.norm(prev_missile_pos - self.defended_point)
-            curr_missile_to_defended = miss_distance
-            
-            if curr_missile_to_defended < prev_missile_to_defended:
-                # Penalty increases as missile gets closer to defended point
-                urgency_factor = max(0.1, (self.world_size - curr_missile_to_defended) / self.world_size)
-                reward -= urgency_factor * 0.02
+                reward += 0.001
         
         observation = self._get_observation()
         info = self._get_info()
