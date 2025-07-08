@@ -1,0 +1,52 @@
+{
+  "tier_name": "medium",
+  "description": "Moderate difficulty with evasive adversary and environmental challenges",
+  "difficulty_level": 2,
+  "parameters": {
+    "spawn_separation": 800.0,
+    "adversary_speed_range": [180, 250],
+    "adversary_evasion_aggressiveness": 0.5,
+    "wind_severity": 0.2,
+    "max_episode_steps": 1000,
+    "fuel_capacity": 0.8,
+    "kill_distance": 3.0,
+    "interceptor_max_thrust": 4500.0,
+    "interceptor_max_torque": 450.0,
+    "adversary_max_thrust": 3000.0
+  },
+  "environmental_conditions": {
+    "wind_profiles": ["uniform", "logarithmic", "power_law"],
+    "weather_conditions": ["clear", "light_wind", "moderate_wind"],
+    "visibility_range": [5000, 30000],
+    "turbulence_intensity_range": [0.1, 0.3],
+    "gust_amplitude_range": [5.0, 15.0],
+    "wind_shear_probability": 0.3
+  },
+  "scenario_variations": {
+    "head_on_probability": 0.2,
+    "side_attack_probability": 0.25,
+    "rear_chase_probability": 0.2,
+    "high_altitude_probability": 0.15,
+    "crosswind_probability": 0.15,
+    "vertical_intercept_probability": 0.05
+  },
+  "adversary_behaviors": {
+    "evasion_patterns": ["jinks", "spirals"],
+    "evasion_threshold": 300.0,
+    "guidance_noise": 0.05,
+    "counter_maneuvering": true
+  },
+  "success_criteria": {
+    "primary_objective": "intercept_adversary",
+    "kill_distance": 3.0,
+    "time_limit": 20.0,
+    "fuel_efficiency_bonus": 0.6
+  },
+  "training_objectives": [
+    "Handle evasive targets",
+    "Adapt to wind conditions",
+    "Optimize fuel usage",
+    "Master 3D maneuvering",
+    "Develop predictive targeting"
+  ]
+}

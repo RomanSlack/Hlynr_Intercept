@@ -1,4 +1,4 @@
-# Core dependencies for AegisIntercept Phase-2
+# Core dependencies for AegisIntercept Phase-3 (6-DOF)
 torch                     # conda-forge mps build
 gymnasium>=0.29
 stable-baselines3
@@ -9,6 +9,8 @@ cleanrl
 matplotlib>=3.4
 pyvirtualdisplay
 tqdm
+scipy
+pyquaternion
 
 # Testing dependencies
 pytest>=7.0.0

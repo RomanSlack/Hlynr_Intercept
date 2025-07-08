@@ -12,14 +12,19 @@ authors = [
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 dependencies = [
     "gymnasium>=0.29",
     "numpy",
     "pygame",
     "cleanrl>=2.4",
     "torch",
-    "stable-baselines3"
+    "stable-baselines3",
+    "matplotlib>=3.4",
+    "tensorboard",
+    "tqdm",
+    "scipy",
+    "pyquaternion"
 ]
 
 [project.optional-dependencies]

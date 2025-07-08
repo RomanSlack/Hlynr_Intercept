@@ -1,0 +1,56 @@
+{
+  "tier_name": "hard",
+  "description": "Challenging scenarios with aggressive evasion and resource constraints",
+  "difficulty_level": 3,
+  "parameters": {
+    "spawn_separation": 1200.0,
+    "adversary_speed_range": [200, 300],
+    "adversary_evasion_aggressiveness": 0.8,
+    "wind_severity": 0.3,
+    "max_episode_steps": 1200,
+    "fuel_capacity": 0.6,
+    "kill_distance": 2.0,
+    "interceptor_max_thrust": 4000.0,
+    "interceptor_max_torque": 400.0,
+    "adversary_max_thrust": 4000.0
+  },
+  "environmental_conditions": {
+    "wind_profiles": ["logarithmic", "power_law"],
+    "weather_conditions": ["moderate_wind", "strong_wind", "crosswind"],
+    "visibility_range": [2000, 15000],
+    "turbulence_intensity_range": [0.2, 0.4],
+    "gust_amplitude_range": [10.0, 25.0],
+    "wind_shear_probability": 0.6,
+    "atmospheric_disturbances": true
+  },
+  "scenario_variations": {
+    "head_on_probability": 0.15,
+    "side_attack_probability": 0.2,
+    "rear_chase_probability": 0.25,
+    "high_altitude_probability": 0.2,
+    "crosswind_probability": 0.15,
+    "vertical_intercept_probability": 0.05
+  },
+  "adversary_behaviors": {
+    "evasion_patterns": ["jinks", "spirals", "barrel_rolls"],
+    "evasion_threshold": 400.0,
+    "guidance_noise": 0.1,
+    "counter_maneuvering": true,
+    "adaptive_behavior": true,
+    "deception_tactics": true
+  },
+  "success_criteria": {
+    "primary_objective": "intercept_adversary",
+    "kill_distance": 2.0,
+    "time_limit": 24.0,
+    "fuel_efficiency_bonus": 0.4
+  },
+  "training_objectives": [
+    "Counter advanced evasion",
+    "Operate in harsh conditions",
+    "Maximize fuel efficiency",
+    "Handle resource constraints",
+    "Master complex geometries",
+    "Develop advanced tactics"
+  ]
+}
