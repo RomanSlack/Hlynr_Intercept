@@ -1,0 +1,47 @@
+{
+  "args": {
+    "total_timesteps": 2500000,
+    "n_envs": 8,
+    "max_episode_steps": 1000,
+    "learning_rate": 0.0003,
+    "n_steps": 2048,
+    "batch_size": 64,
+    "n_epochs": 10,
+    "gamma": 0.995,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2,
+    "ent_coef": 0.01,
+    "vf_coef": 0.5,
+    "max_grad_norm": 0.5,
+    "time_step": 0.01,
+    "world_scale": 5000.0,
+    "use_curriculum": true,
+    "curriculum_config": null,
+    "log_dir": "logs_fixed_reward",
+    "checkpoint_freq": 10000,
+    "enable_logging": false,
+    "log_frequency": 1000,
+    "export_frequency": 50000,
+    "load_model": null,
+    "save_model": "trained_model",
+    "resume_latest": true,
+    "resume_from": null,
+    "checkpoint_retention": 5,
+    "validate_checkpoints": false,
+    "force_resume": false,
+    "headless": false,
+    "seed": 42
+  },
+  "model_params": {
+    "learning_rate": 0.0003,
+    "gamma": 0.995,
+    "gae_lambda": 0.95,
+    "clip_range": 0.2
+  },
+  "environment_params": {
+    "max_episode_steps": 1000,
+    "time_step": 0.01,
+    "world_scale": 5000.0
+  },
+  "training_start_time": 1751936370.5408928
+}

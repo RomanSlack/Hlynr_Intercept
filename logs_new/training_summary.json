@@ -1,0 +1,7 @@
+{
+  "resumed_from_checkpoint": "logs_new/checkpoints/robust_checkpoint_0001230016",
+  "initial_timesteps": 1230016,
+  "total_timesteps_trained": 2500000,
+  "final_training_time": 1109.1928679943085,
+  "resume_success": true
+}

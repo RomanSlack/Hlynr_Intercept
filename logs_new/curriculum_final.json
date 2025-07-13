@@ -1,0 +1,110 @@
+{
+  "config": {
+    "tiers": {
+      "easy": {
+        "spawn_separation": 500.0,
+        "adversary_speed_range": [
+          150,
+          200
+        ],
+        "adversary_evasion_aggressiveness": 0.2,
+        "wind_severity": 0.1,
+        "max_episode_steps": 800,
+        "fuel_capacity": 1.0,
+        "kill_distance": 5.0,
+        "description": "Basic interception with minimal evasion"
+      },
+      "medium": {
+        "spawn_separation": 800.0,
+        "adversary_speed_range": [
+          180,
+          250
+        ],
+        "adversary_evasion_aggressiveness": 0.5,
+        "wind_severity": 0.2,
+        "max_episode_steps": 1000,
+        "fuel_capacity": 0.8,
+        "kill_distance": 3.0,
+        "description": "Moderate evasion with environmental challenges"
+      },
+      "hard": {
+        "spawn_separation": 1200.0,
+        "adversary_speed_range": [
+          200,
+          300
+        ],
+        "adversary_evasion_aggressiveness": 0.8,
+        "wind_severity": 0.3,
+        "max_episode_steps": 1200,
+        "fuel_capacity": 0.6,
+        "kill_distance": 2.0,
+        "description": "Aggressive evasion with limited fuel"
+      },
+      "impossible": {
+        "spawn_separation": 1500.0,
+        "adversary_speed_range": [
+          250,
+          350
+        ],
+        "adversary_evasion_aggressiveness": 1.0,
+        "wind_severity": 0.4,
+        "max_episode_steps": 1500,
+        "fuel_capacity": 0.4,
+        "kill_distance": 1.5,
+        "description": "Maximum difficulty with all challenges"
+      }
+    },
+    "promotion_criteria": {
+      "success_rate_threshold": 0.85,
+      "evaluation_window": 100,
+      "min_episodes": 50,
+      "stability_requirement": 10
+    }
+  },
+  "statistics": {
+    "current_level": "easy",
+    "current_tier_index": 0,
+    "episodes_in_current_level": 655,
+    "total_episodes": 655,
+    "level_statistics": {
+      "easy": {
+        "episodes": 655,
+        "successes": 1,
+        "total_reward": 351245622.80367815
+      },
+      "medium": {
+        "episodes": 0,
+        "successes": 0,
+        "total_reward": 0.0
+      },
+      "hard": {
+        "episodes": 0,
+        "successes": 0,
+        "total_reward": 0.0
+      },
+      "impossible": {
+        "episodes": 0,
+        "successes": 0,
+        "total_reward": 0.0
+      }
+    },
+    "promotion_history": [],
+    "current_success_rate": 0.0015267175572519084,
+    "overall_success_rate": 0.0,
+    "evaluation_window_size": 100
+  },
+  "episode_history": [
+    {
+      "success": false,
+      "reward": 547955.676679,
+      "level": "easy",
+      "episode_num": 555,
+      "info": {
+        "intercept_distance": 263.5492850796875,
+        "target_distance": 941.2719156121142,
+        "fuel_remaining": 0.0,
+        "episode_time": 6.429999999999907,
+        "current_step": 643,
+        "episode_metrics": {
+          "min_distance": 69.7556233597393,
+          "fuel_used": 

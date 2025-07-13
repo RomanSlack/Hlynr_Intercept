@@ -782,9 +782,9 @@ def main():
                        help='Maximum gradient norm')
     
     # Environment parameters
-    parser.add_argument('--time-step', type=float, default=0.02,
+    parser.add_argument('--time-step', type=float, default=0.01,
                        help='Physics simulation time step')
-    parser.add_argument('--world-scale', type=float, default=2000.0,
+    parser.add_argument('--world-scale', type=float, default=5000.0,
                        help='World scale in meters')
     
     # Curriculum learning

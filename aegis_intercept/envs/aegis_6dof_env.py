@@ -35,8 +35,8 @@ class Aegis6DOFEnv(gym.Env):
     def __init__(self,
                  render_mode: Optional[str] = None,
                  max_episode_steps: int = 1000,
-                 time_step: float = 0.02,
-                 world_scale: float = 1000.0,
+                 time_step: float = 0.01,
+                 world_scale: float = 5000.0,
                  wind_config: Optional[Dict[str, Any]] = None,
                  curriculum_level: str = "easy"):
         """
@@ -134,37 +134,37 @@ class Aegis6DOFEnv(gym.Env):
         """Get mission parameters based on curriculum level."""
         params = {
             'easy': {
-                'spawn_separation': 500.0,  # m
-                'adversary_max_thrust': 2000.0,  # N
-                'interceptor_max_thrust': 5000.0,  # N
-                'interceptor_max_torque': 500.0,  # N⋅m
+                'spawn_separation': 1500.0,  # m - increased for realistic engagement
+                'adversary_max_thrust': 3000.0,  # N
+                'interceptor_max_thrust': 10000.0,  # N - doubled for better authority
+                'interceptor_max_torque': 1000.0,  # N⋅m - doubled
                 'adversary_evasion_aggressiveness': 0.2,
                 'wind_severity': 0.1,
                 'kill_distance': 5.0  # m
             },
             'medium': {
-                'spawn_separation': 800.0,
-                'adversary_max_thrust': 3000.0,
-                'interceptor_max_thrust': 4500.0,
-                'interceptor_max_torque': 450.0,
+                'spawn_separation': 2000.0,  # m - increased
+                'adversary_max_thrust': 4000.0,
+                'interceptor_max_thrust': 9000.0,  # N - doubled
+                'interceptor_max_torque': 900.0,  # N⋅m - doubled
                 'adversary_evasion_aggressiveness': 0.5,
                 'wind_severity': 0.2,
                 'kill_distance': 3.0
             },
             'hard': {
-                'spawn_separation': 1200.0,
-                'adversary_max_thrust': 4000.0,
-                'interceptor_max_thrust': 4000.0,
-                'interceptor_max_torque': 400.0,
+                'spawn_separation': 2500.0,  # m - increased
+                'adversary_max_thrust': 5000.0,
+                'interceptor_max_thrust': 8000.0,  # N - doubled
+                'interceptor_max_torque': 800.0,  # N⋅m - doubled
                 'adversary_evasion_aggressiveness': 0.8,
                 'wind_severity': 0.3,
                 'kill_distance': 2.0
             },
             'impossible': {
-                'spawn_separation': 1500.0,
-                'adversary_max_thrust': 5000.0,
-                'interceptor_max_thrust': 3500.0,
-                'interceptor_max_torque': 350.0,
+                'spawn_separation': 3000.0,  # m - increased
+                'adversary_max_thrust': 6000.0,
+                'interceptor_max_thrust': 7000.0,  # N - doubled
+                'interceptor_max_torque': 700.0,  # N⋅m - doubled
                 'adversary_evasion_aggressiveness': 1.0,
                 'wind_severity': 0.4,
                 'kill_distance': 1.5
@@ -194,6 +194,9 @@ class Aegis6DOFEnv(gym.Env):
             'time_to_intercept': 0.0,
             'success': False
         }
+        
+        # Initialize progress tracking for reward function
+        self._last_intercept_distance = None
         
         # Generate realistic engagement scenario positions
         separation = self.mission_params['spawn_separation']
@@ -346,6 +349,7 @@ class Aegis6DOFEnv(gym.Env):
         # Check termination conditions
         terminated = False
         truncated = False
+        termination_reason = "ongoing"
         
         # Success: interceptor close enough to adversary
         if intercept_distance <= self.mission_params['kill_distance']:
@@ -353,30 +357,47 @@ class Aegis6DOFEnv(gym.Env):
             reward += 100.0
             self.episode_metrics['success'] = True
             self.episode_metrics['time_to_intercept'] = self.episode_time
+            termination_reason = "intercept_success"
         
         # Failure: adversary reaches target
         elif target_distance <= 10.0:
             terminated = True
             reward -= 100.0
+            termination_reason = "adversary_reached_target"
         
         # Failure: interceptor out of fuel
         elif self.interceptor_fuel <= 0.0:
             terminated = True
             reward -= 50.0
+            termination_reason = "out_of_fuel"
         
         # Failure: interceptor out of bounds or crashed
         elif (np.linalg.norm(interceptor_pos) > self.world_scale or 
               interceptor_pos[2] < 0):
             terminated = True
-            reward -= 50.0
+            # Severe penalty for ground collision to prevent deliberate crashes
+            if interceptor_pos[2] < 0:
+                reward -= 200.0  # Much higher penalty for crashing
+            else:
+                reward -= 50.0   # Regular penalty for out of bounds
+            
+            # More specific termination reasons
+            if np.linalg.norm(interceptor_pos) > self.world_scale:
+                termination_reason = f"out_of_bounds_distance_{np.linalg.norm(interceptor_pos):.1f}m_limit_{self.world_scale}m"
+            else:
+                termination_reason = f"ground_collision_altitude_{interceptor_pos[2]:.1f}m"
         
         # Truncation: maximum episode length
         elif self.current_step >= self.max_episode_steps:
             truncated = True
+            termination_reason = "max_steps_reached"
         
         # Get observation and info
         observation = self._get_observation()
         info = self._get_info()
+        
+        # Add termination reason to info
+        info['termination_reason'] = termination_reason
         
         return observation, reward, terminated, truncated, info
     
@@ -426,7 +447,7 @@ class Aegis6DOFEnv(gym.Env):
         self.adversary.apply_force_torque(total_force, np.zeros(3), self.time_step)
     
     def _calculate_reward(self, intercept_distance: float, target_distance: float, action: np.ndarray) -> float:
-        """Calculate dense reward with proper guidance shaping."""
+        """Calculate balanced reward preventing exploitation while maintaining guidance."""
         reward = 0.0
         
         # Get current state for guidance calculations
@@ -435,60 +456,94 @@ class Aegis6DOFEnv(gym.Env):
         adversary_pos = self.adversary.get_position()
         adversary_vel = self.adversary.get_velocity()
         
-        # 1. Primary distance reward (linear + scaled components)
-        # Linear component for large distances
+        # 1. Primary distance reward (capped and balanced)
         if intercept_distance > 1000.0:
-            distance_reward = 2.0 * (2000.0 - intercept_distance) / 1000.0  # Linear from 2km to 1km
+            distance_reward = 1.0 * (1500.0 - intercept_distance) / 500.0  # Max 1.0 reward
         else:
-            # Exponential for close range with better scaling
-            distance_reward = 2.0 + 3.0 * np.exp(-intercept_distance / 200.0)  # Exponential below 1km
+            # Exponential for close range but capped
+            distance_reward = 1.0 + 2.0 * np.exp(-intercept_distance / 150.0)  # Max ~3.0
         
+        distance_reward = max(0.0, min(distance_reward, 3.0))  # Hard cap at 3.0
         reward += distance_reward
         
-        # 2. Approach angle reward (Proportional Navigation principle)
+        # 2. Approach reward (capped to prevent exploitation)
         relative_pos = adversary_pos - interceptor_pos
         relative_vel = adversary_vel - interceptor_vel
         closing_rate = -np.dot(relative_pos, relative_vel) / max(np.linalg.norm(relative_pos), 1.0)
         
         if closing_rate > 0:  # Approaching
-            approach_reward = 1.0 * min(closing_rate / 100.0, 2.0)  # Reward up to 200 m/s closing
+            # Cap approach reward and scale by distance (closer = more important)
+            approach_reward = 0.5 * min(closing_rate / 150.0, 1.0)  # Max 0.5 reward
+            if intercept_distance < 500.0:  # Bonus for close approach
+                approach_reward *= 1.5
             reward += approach_reward
         
-        # 3. Velocity alignment reward
-        if np.linalg.norm(relative_pos) > 1.0:
+        # 3. Intercept course reward (proportional navigation)
+        if intercept_distance > 50.0:  # Only when not too close
             desired_direction = normalize_vector(relative_pos)
             current_direction = normalize_vector(interceptor_vel)
             alignment = np.dot(current_direction, desired_direction)
-            alignment_reward = 0.5 * max(alignment, 0.0)  # Reward positive alignment
+            alignment_reward = 0.3 * max(alignment, 0.0)  # Max 0.3 reward
             reward += alignment_reward
         
-        # 4. Reduced fuel penalty (was too aggressive)
+        # 4. Fuel efficiency penalty (stronger when inefficient)
         fuel_usage = np.linalg.norm(action[0:3]) / 3.0  # Normalized thrust usage
-        fuel_penalty = -0.005 * fuel_usage  # Reduced by 10x
-        reward += fuel_penalty
         
-        # 5. Reduced control effort penalty
-        control_penalty = -0.001 * np.sum(np.square(action))  # Reduced by 10x
+        # Progressive fuel penalty - higher penalty when fuel is low
+        fuel_efficiency_penalty = -0.01 * fuel_usage * (2.0 - self.interceptor_fuel)
+        reward += fuel_efficiency_penalty
+        
+        # 5. Control smoothness penalty
+        control_penalty = -0.002 * np.sum(np.square(action))
         reward += control_penalty
         
-        # 6. Target protection bonus (scaled by distance)
-        target_protection_bonus = 0.1 * min(target_distance / 500.0, 2.0)
-        reward += target_protection_bonus
+        # 6. Target protection bonus (reasonable scale)
+        if target_distance > 200.0:
+            protection_bonus = 0.05 * min(target_distance / 1000.0, 1.0)
+            reward += protection_bonus
         
-        # 7. Time penalty (encourage quick intercept but not overwhelming)
-        time_penalty = -0.0005  # Reduced by 2x
+        # 7. Time incentive (encourage efficiency)
+        time_penalty = -0.001
         reward += time_penalty
         
-        # 8. Progress reward (reward for reducing distance over time)
-        if hasattr(self, '_last_intercept_distance'):
+        # 8. Progress reward (CAPPED to prevent exploitation)
+        if hasattr(self, '_last_intercept_distance') and self._last_intercept_distance is not None:
             distance_change = self._last_intercept_distance - intercept_distance
-            progress_reward = 5.0 * distance_change / self.time_step  # Reward rate of closure
-            reward += progress_reward
+            # Cap progress reward and require minimum distance change
+            if abs(distance_change) > 0.1:  # Ignore tiny changes
+                progress_reward = np.clip(distance_change / self.time_step * 0.002, -0.5, 0.5)  # Max ±0.5
+                reward += progress_reward
+        
+        # 9. Close approach bonus (reward getting very close)
+        if intercept_distance < 100.0:
+            close_bonus = 2.0 * np.exp(-intercept_distance / 30.0)  # Exponential bonus for <100m
+            reward += close_bonus
+        
+        # 10. Fuel conservation bonus (reward having fuel remaining)
+        if self.interceptor_fuel > 0.3:  # Bonus for having >30% fuel
+            fuel_bonus = 0.1 * (self.interceptor_fuel - 0.3)
+            reward += fuel_bonus
+        
+        # 11. Altitude discipline rewards and penalties
+        interceptor_altitude = interceptor_pos[2]
+        
+        if interceptor_altitude < 10.0:  # Very low altitude - danger zone
+            altitude_penalty = -1.0 * (10.0 - interceptor_altitude) / 10.0  # Up to -1.0 penalty
+            reward += altitude_penalty
+        elif interceptor_altitude > 50.0:  # Safe altitude
+            altitude_bonus = 0.05  # Small bonus for staying high
+            reward += altitude_bonus
+        
+        # 12. Severe penalty for getting too close to ground (prevention)
+        if 0 < interceptor_altitude < 5.0:  # About to crash
+            near_crash_penalty = -2.0 * (5.0 - interceptor_altitude) / 5.0  # Up to -2.0 penalty
+            reward += near_crash_penalty
         
         # Store for next step
         self._last_intercept_distance = intercept_distance
         
-        return reward
+        # Total reward should typically be in range [-2, 10] to prevent exploitation
+        return np.clip(reward, -8.0, 10.0)  # Expanded lower bound for altitude penalties
     
     def _get_observation(self) -> np.ndarray:
         """Get current observation vector with numerical stability."""

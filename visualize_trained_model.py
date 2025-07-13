@@ -19,6 +19,26 @@ import sys
 sys.path.append(str(Path(__file__).parent))
 
 from aegis_intercept.envs.aegis_6dof_env import Aegis6DOFEnv
+import gymnasium as gym
+
+
+class BackwardCompatibilityWrapper(gym.ObservationWrapper):
+    """Wrapper to make new environment compatible with old models."""
+    
+    def __init__(self, env, target_obs_size=32):
+        super().__init__(env)
+        self.target_obs_size = target_obs_size
+        # Update observation space to match target size
+        self.observation_space = gym.spaces.Box(
+            low=-np.inf, high=np.inf, shape=(target_obs_size,), dtype=np.float32
+        )
+    
+    def observation(self, obs):
+        """Truncate observation to match old model expectations."""
+        if len(obs) > self.target_obs_size:
+            # Take the first target_obs_size elements (original format)
+            return obs[:self.target_obs_size].astype(np.float32)
+        return obs.astype(np.float32)
 
 
 def dynamic_reset(env):
@@ -57,7 +77,7 @@ def dynamic_step(env, action):
 
 
 def get_positions(env, info):
-    """Get interceptor, adversary, and target positions handling VecNormalize."""
+    """Get interceptor, adversary, and target positions handling VecNormalize and wrappers."""
     try:
         # Try direct access first (unwrapped environment)
         interceptor_pos = env.interceptor.get_position()
@@ -65,10 +85,27 @@ def get_positions(env, info):
         target_pos = env.target_position
         return interceptor_pos, adversary_pos, target_pos
     except AttributeError:
+        # Environment is wrapped, need to unwrap to get to the base environment
+        current_env = env
+        
+        # Unwrap through multiple layers
+        while hasattr(current_env, 'env') and not hasattr(current_env, 'interceptor'):
+            current_env = current_env.env
+        
+        # Try the unwrapped environment
+        if hasattr(current_env, 'interceptor'):
+            interceptor_pos = current_env.interceptor.get_position()
+            adversary_pos = current_env.adversary.get_position()
+            target_pos = current_env.target_position
+            return interceptor_pos, adversary_pos, target_pos
+        
         # Environment is wrapped (VecNormalize + DummyVecEnv), access underlying env
         if hasattr(env, 'envs') and len(env.envs) > 0:
             # Access through DummyVecEnv
             underlying_env = env.envs[0]
+            # Unwrap the underlying env too if needed
+            while hasattr(underlying_env, 'env') and not hasattr(underlying_env, 'interceptor'):
+                underlying_env = underlying_env.env
             interceptor_pos = underlying_env.interceptor.get_position()
             adversary_pos = underlying_env.adversary.get_position()
             target_pos = underlying_env.target_position
@@ -76,6 +113,9 @@ def get_positions(env, info):
         elif hasattr(env, 'venv') and hasattr(env.venv, 'envs'):
             # Access through VecNormalize -> DummyVecEnv
             underlying_env = env.venv.envs[0]
+            # Unwrap the underlying env too if needed
+            while hasattr(underlying_env, 'env') and not hasattr(underlying_env, 'interceptor'):
+                underlying_env = underlying_env.env
             interceptor_pos = underlying_env.interceptor.get_position()
             adversary_pos = underlying_env.adversary.get_position()
             target_pos = underlying_env.target_position
@@ -109,14 +149,41 @@ def visualize_episodes(model_path: str, vec_normalize_path: str = None, num_epis
     # Create environment
     env = Aegis6DOFEnv()
     
+    # Check if this is an old checkpoint and apply compatibility wrapper if needed
+    try:
+        test_model = PPO.load(model_path)
+        model_obs_space = test_model.observation_space.shape[0]
+        env_obs_space = env.observation_space.shape[0]
+        
+        if model_obs_space != env_obs_space:
+            print(f"⚠️  Model expects {model_obs_space}D observations, environment provides {env_obs_space}D")
+            print(f"⚠️  Applying backward compatibility wrapper for old checkpoint")
+            env = BackwardCompatibilityWrapper(env, target_obs_size=model_obs_space)
+            print(f"✓ Environment observation space adjusted to {model_obs_space}D")
+            
+    except Exception as e:
+        print(f"Warning: Could not check model compatibility: {e}")
+        # Continue anyway
+    
     # Load VecNormalize if available
     if vec_normalize_path and Path(vec_normalize_path).exists():
         print(f"Loading VecNormalize from: {vec_normalize_path}")
         # Wrap single environment in DummyVecEnv for VecNormalize compatibility
         env = DummyVecEnv([lambda: env])
-        env = VecNormalize.load(vec_normalize_path, env)
-        env.training = False
-        env.norm_reward = False
+        
+        try:
+            env = VecNormalize.load(vec_normalize_path, env)
+            env.training = False
+            env.norm_reward = False
+            print("✓ VecNormalize loaded successfully")
+        except AssertionError as e:
+            if "spaces must have the same shape" in str(e):
+                print(f"⚠️  VecNormalize shape mismatch: {e}")
+                print("⚠️  Skipping VecNormalize (old checkpoint incompatible with updated environment)")
+                print("⚠️  This is expected when testing updated code with old checkpoints")
+                # Continue without VecNormalize - the model will still work
+            else:
+                raise
     
     # Load trained model
     model = PPO.load(model_path)
@@ -155,6 +222,14 @@ def visualize_episodes(model_path: str, vec_normalize_path: str = None, num_epis
         step = 0
         done = False
         total_reward = 0
+        
+        # Store initial positions for visualization even if episode ends quickly
+        try:
+            interceptor_pos, adversary_pos, target_pos = get_positions(env, info)
+            interceptor_trajectory.append(interceptor_pos.copy())
+            adversary_trajectory.append(adversary_pos.copy())
+        except Exception as e:
+            print(f"Warning: Could not get initial positions: {e}")
         
         while not done and step < 1000:
             # Get action from trained model (use different determinism each episode)
@@ -223,6 +298,51 @@ def visualize_episodes(model_path: str, vec_normalize_path: str = None, num_epis
                 plt.draw()
                 plt.pause(0.05)
         
+        # Final plot for episodes that ended quickly
+        if step <= 5:  # Episode ended very quickly, show final state
+            ax.clear()
+            
+            # Plot trajectories (even if just initial positions)
+            if len(interceptor_trajectory) >= 1:
+                traj = np.array(interceptor_trajectory)
+                ax.scatter(traj[-1, 0], traj[-1, 1], traj[-1, 2], c='blue', s=200, marker='o', label='Interceptor (Final)')
+                if len(traj) > 1:
+                    ax.plot(traj[:, 0], traj[:, 1], traj[:, 2], 'b-', linewidth=2)
+            
+            if len(adversary_trajectory) >= 1:
+                traj = np.array(adversary_trajectory)
+                ax.scatter(traj[-1, 0], traj[-1, 1], traj[-1, 2], c='red', s=200, marker='^', label='Adversary (Final)')
+                if len(traj) > 1:
+                    ax.plot(traj[:, 0], traj[:, 1], traj[:, 2], 'r-', linewidth=2)
+            
+            # Plot target
+            try:
+                _, _, target_pos = get_positions(env, info)
+                ax.scatter(target_pos[0], target_pos[1], target_pos[2], c='green', s=300, marker='*', label='Target')
+            except:
+                ax.scatter(0, 0, 0, c='green', s=300, marker='*', label='Target')
+            
+            # Set labels and title
+            ax.set_xlabel('X (m)')
+            ax.set_ylabel('Y (m)')
+            ax.set_zlabel('Z (m)')
+            
+            dist = safe_float(info.get("intercept_distance", 0))
+            reward_val = safe_float(total_reward)
+            termination_reason = info.get('termination_reason', 'unknown')
+            
+            ax.set_title(f'Episode {episode+1} (Quick End): {termination_reason}\nDistance: {dist:.1f}m, Reward: {reward_val:.2f}, Steps: {step}')
+            ax.legend()
+            
+            # Set reasonable bounds for visualization
+            max_range = 3000
+            ax.set_xlim([-max_range, max_range])
+            ax.set_ylim([-max_range, max_range])
+            ax.set_zlim([0, 2000])
+            
+            plt.draw()
+            plt.pause(1.0)  # Show for a moment
+        
         # Final results for this episode
         success = info.get('intercept_distance', float('inf')) < 20.0
         status = "SUCCESS" if success else "FAILED"
@@ -231,6 +351,7 @@ def visualize_episodes(model_path: str, vec_normalize_path: str = None, num_epis
         reward_val = safe_float(total_reward)
         dist = safe_float(info.get('intercept_distance', 0))
         fuel = safe_float(info.get('fuel_remaining', 0))
+        termination_reason = info.get('termination_reason', 'unknown')
         
         episode_result = {
             'episode': episode + 1,
@@ -239,7 +360,8 @@ def visualize_episodes(model_path: str, vec_normalize_path: str = None, num_epis
             'steps': step,
             'distance': dist,
             'fuel': fuel,
-            'seed': episode_seed
+            'seed': episode_seed,
+            'termination_reason': termination_reason
         }
         episode_results.append(episode_result)
         
@@ -249,6 +371,7 @@ def visualize_episodes(model_path: str, vec_normalize_path: str = None, num_epis
         print(f"Steps: {step}")
         print(f"Final Distance: {dist:.1f}m")
         print(f"Fuel Remaining: {fuel:.2f}")
+        print(f"Termination Reason: {termination_reason}")
         print(f"Random Seed: {episode_seed}")
         
         # Keep plot open briefly
@@ -266,17 +389,31 @@ def visualize_episodes(model_path: str, vec_normalize_path: str = None, num_epis
         for result in episode_results:
             print(f"Episode {result['episode']}: {result['status']} | "
                   f"Reward: {result['reward']:6.2f} | Steps: {result['steps']:3d} | "
-                  f"Distance: {result['distance']:6.1f}m | Seed: {result['seed']}")
+                  f"Distance: {result['distance']:6.1f}m | Reason: {result['termination_reason']} | Seed: {result['seed']}")
         
         # Calculate statistics
         success_rate = sum(1 for r in episode_results if r['status'] == 'SUCCESS') / len(episode_results) * 100
         avg_reward = np.mean([r['reward'] for r in episode_results])
         avg_distance = np.mean([r['distance'] for r in episode_results])
+        avg_steps = np.mean([r['steps'] for r in episode_results])
+        
+        # Termination reason analysis
+        termination_counts = {}
+        for result in episode_results:
+            reason = result['termination_reason']
+            termination_counts[reason] = termination_counts.get(reason, 0) + 1
         
         print(f"\nStatistics:")
         print(f"Success Rate: {success_rate:.1f}%")
         print(f"Average Reward: {avg_reward:.2f}")
+        print(f"Average Steps: {avg_steps:.1f}")
         print(f"Average Final Distance: {avg_distance:.1f}m")
+        
+        print(f"\nTermination Reasons:")
+        for reason, count in sorted(termination_counts.items(), key=lambda x: x[1], reverse=True):
+            percentage = count / len(episode_results) * 100
+            print(f"  {reason}: {count}/{len(episode_results)} ({percentage:.1f}%)")
+        
         print(f"{'='*60}")
     
     return episode_results

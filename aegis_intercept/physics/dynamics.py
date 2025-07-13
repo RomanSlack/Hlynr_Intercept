@@ -148,11 +148,11 @@ class RigidBody6DOF:
         omega_cross_I_omega = np.cross(omega, I_omega)
         alpha = self.inv_inertia @ (torque - omega_cross_I_omega)
         
-        # Apply numerical stability limits
-        MAX_ACCEL = 1000.0  # 1000 m/s² (100g)
-        MAX_ALPHA = 100.0   # 100 rad/s² angular acceleration
-        MAX_VEL = 1000.0    # 1000 m/s maximum velocity  
-        MAX_OMEGA = 50.0    # 50 rad/s maximum angular velocity
+        # Apply numerical stability limits (increased for missile dynamics)
+        MAX_ACCEL = 2000.0  # 2000 m/s² (200g) - increased for missile capability
+        MAX_ALPHA = 200.0   # 200 rad/s² angular acceleration - doubled
+        MAX_VEL = 1500.0    # 1500 m/s maximum velocity - increased
+        MAX_OMEGA = 100.0   # 100 rad/s maximum angular velocity - doubled
         
         accel = np.clip(accel, -MAX_ACCEL, MAX_ACCEL)
         alpha = np.clip(alpha, -MAX_ALPHA, MAX_ALPHA)
