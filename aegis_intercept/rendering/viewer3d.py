@@ -6,26 +6,42 @@ from matplotlib.colors import LinearSegmentedColormap
 from collections import deque
 
 class Viewer3D:
-    def __init__(self, world_size: float):
+    def __init__(self, world_size: float, speed_multiplier: float = 5.0):
         self.world_size = world_size
+        self.speed_multiplier = speed_multiplier  # Speed up visualization
+        self.frame_skip = max(1, int(speed_multiplier))  # Skip frames for faster rendering
+        self.frame_count = 0
+        
         plt.ion()  # Enable interactive mode
-        self.fig = plt.figure(figsize=(12, 8))
+        self.fig = plt.figure(figsize=(10, 7))  # Smaller window for faster rendering
         self.ax = self.fig.add_subplot(111, projection='3d')
-        # New coordinate system: 0 to 600
+        
+        # Set limits
         self.ax.set_xlim([0, world_size * 2])
         self.ax.set_ylim([0, world_size * 2])
         self.ax.set_zlim([0, world_size * 2])
         self.ax.set_xlabel("X (East)")
         self.ax.set_ylabel("Y (North)")
         self.ax.set_zlabel("Z (Altitude)")
-        self.ax.set_title("AegisIntercept 3D - Missile Defense Training")
-        plt.show(block=False)  # Show the window without blocking
+        self.ax.set_title(f"AegisIntercept 3D - Missile Defense Training (Speed: {speed_multiplier}x)")
+        
+        # Optimize rendering performance
+        plt.tight_layout()
+        plt.show(block=False)
+        
+        # Performance optimizations
+        self.ax.mouse_init()  # Disable mouse interaction for speed
+        self.fig.canvas.draw_idle()  # Use idle drawing
+        
+        # Disable some visual elements for speed
+        self.ax.grid(False)
+        self.ax.set_facecolor('black')  # Dark background is faster to render
         
         # Track intercept status for visual feedback
         self.last_intercept = False
         
-        # Ghost trail history - store position and velocity data
-        self.trail_length = 100  # Number of trail points to keep
+        # Ghost trail history - reduced for performance
+        self.trail_length = max(20, 100 // speed_multiplier)  # Fewer trail points for speed
         self.interceptor_trail = deque(maxlen=self.trail_length)
         self.missile_trail = deque(maxlen=self.trail_length)
         
@@ -43,6 +59,20 @@ class Viewer3D:
         self.prev_missile_pos = None
 
     def render(self, interceptor_pos: np.ndarray, missile_pos: np.ndarray, target_pos: np.ndarray, intercepted: bool = False, popup_info: dict = None):
+        # Frame skipping for performance
+        self.frame_count += 1
+        if self.frame_count % self.frame_skip != 0 and not intercepted:
+            return  # Skip this frame unless it's an intercept event
+        # Clear previous frame efficiently
+        self.ax.clear()
+        
+        # Re-apply optimized settings after clear
+        self.ax.set_xlim([0, self.world_size * 2])
+        self.ax.set_ylim([0, self.world_size * 2])
+        self.ax.set_zlim([0, self.world_size * 2])
+        self.ax.set_facecolor('black')
+        self.ax.grid(False)
+        
         # Calculate velocities if we have previous positions
         interceptor_velocity = 0
         missile_velocity = 0

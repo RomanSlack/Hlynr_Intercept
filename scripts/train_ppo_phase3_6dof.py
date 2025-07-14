@@ -45,6 +45,10 @@ def parse_args():
     parser.add_argument("--wandb-project-name", type=str, default="aegis-intercept-phase3")
     parser.add_argument("--wandb-entity", type=str, default=None)
     parser.add_argument("--visualize", action="store_true", help="Enable real-time visualization")
+    parser.add_argument("--viz-mode", type=str, default="god_view", 
+                       choices=["god_view", "radar_ppi", "radar_3d", "both"],
+                       help="Visualization mode: god_view (traditional), radar_ppi (realistic radar), radar_3d (3D radar), both")
+    parser.add_argument("--viz-speed", type=float, default=10.0, help="Visualization speed multiplier (higher = faster)")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
     
     # Environment and curriculum
@@ -109,7 +113,11 @@ def make_env(curriculum_manager: CurriculumManager, seed: int, idx: int,
             enable_wind=env_config['enable_wind'],
             enable_atmosphere=env_config['enable_atmosphere'],
             wind_strength=env_config['wind_strength'],
-            render_mode=render_mode
+            render_mode=render_mode,
+            # Realistic sensor parameters
+            enable_realistic_sensors=env_config.get('enable_realistic_sensors', True),
+            sensor_update_rate=env_config.get('sensor_update_rate', 0.1),
+            weather_conditions=env_config.get('weather_conditions', 'clear')
         )
         
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -270,7 +278,13 @@ def main():
             **{k: v for k, v in viz_env_config.items() 
                if k not in ['difficulty_mode', 'action_mode']}
         )
+        # Override speed multiplier based on command line arg
+        viz_env.viz_speed_multiplier = args.viz_speed
         viz_obs, _ = viz_env.reset(seed=args.seed)
+        print(f"Visualization enabled: {args.viz_mode} mode with {args.viz_speed}x speed multiplier")
+        
+        if args.viz_mode in ["radar_ppi", "radar_3d", "both"]:
+            print("Realistic radar visualization - showing only sensor-derived information!")
 
     # Initialize enhanced agent
     agent = Enhanced6DOFAgent(envs).to(device)
@@ -380,8 +394,25 @@ def main():
                     writer.add_scalar("charts/success_rate", rolling_success_rate, global_step)
                     
                     if args.enable_curriculum:
+                        # Extract sensor-based metrics from episode info
+                        additional_metrics = {}
+                        
+                        # Get sensor performance from environment info
+                        if 'final_info' in info and info['final_info'] and len(info['final_info']) > i:
+                            env_info = info['final_info'][i]
+                            if env_info:
+                                # Extract tracking confidence if available
+                                if 'tracking_confidence' in env_info:
+                                    additional_metrics['tracking_confidence'] = env_info['tracking_confidence']
+                                
+                                # Extract sensor detection metrics
+                                if 'sensor_detections' in env_info:
+                                    additional_metrics['sensor_detections'] = env_info['sensor_detections']
+                                    additional_metrics['false_alarms'] = env_info.get('false_alarms', 0)
+                                    additional_metrics['tracking_accuracy'] = env_info.get('tracking_accuracy', 0.0)
+                        
                         curriculum_manager.update_performance(
-                            episode_reward, episode_success, fuel_used, intercept_time
+                            episode_reward, episode_success, fuel_used, intercept_time, additional_metrics
                         )
                     
                     # Log trajectory data
@@ -414,8 +445,8 @@ def main():
                         
                         print(f"Episode completed! Return: {episode_reward:.2f}, Length: {episode_length}")
 
-            # Update visualization
-            if viz_env is not None and step % 5 == 0:
+            # Update visualization (reduced frequency for speed)
+            if viz_env is not None and step % 20 == 0:  # Render every 20 steps instead of 5
                 with torch.no_grad():
                     viz_obs_gpu = torch.tensor(viz_obs).unsqueeze(0).to(device)
                     viz_action, _, _, _ = agent.get_action_and_value(viz_obs_gpu)
@@ -423,7 +454,9 @@ def main():
                     
                     if viz_terminated or viz_truncated:
                         viz_obs, _ = viz_env.reset()
-                    viz_env.render()
+                        viz_env.render(True, args.viz_mode)  # Always render intercept events
+                    else:
+                        viz_env.render(False, args.viz_mode)
 
         # Bootstrap value
         with torch.no_grad():
