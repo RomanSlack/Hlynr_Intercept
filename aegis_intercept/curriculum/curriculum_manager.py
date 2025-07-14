@@ -477,6 +477,17 @@ class CurriculumManager:
                     if recent_successes < 8:  # At least 8/10 success
                         criteria_met = False
                         break
+                        
+        # Additional sensor-based advancement criteria
+        # Only advance if the agent can consistently track targets
+        if hasattr(self, '_track_quality_history'):
+            recent_track_quality = self._track_quality_history[-20:] if len(self._track_quality_history) >= 20 else self._track_quality_history
+            avg_track_quality = sum(recent_track_quality) / len(recent_track_quality) if recent_track_quality else 0.0
+            
+            # Require minimum tracking performance for advancement
+            min_track_quality = 0.4 if self.current_phase.value.endswith('3dof') else 0.6
+            if avg_track_quality < min_track_quality:
+                criteria_met = False
         
         return criteria_met
     
@@ -582,6 +593,11 @@ class CurriculumManager:
             'enable_wind': phase_config.enable_wind,
             'enable_atmosphere': phase_config.enable_atmosphere,
             'wind_strength': phase_config.wind_strength,
+            
+            # Realistic sensor system parameters
+            'enable_realistic_sensors': True,
+            'sensor_update_rate': 0.1,
+            'weather_conditions': 'clear',
         }
         
         if scenario_config:
