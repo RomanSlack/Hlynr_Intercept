@@ -44,9 +44,9 @@ Thumbs.db
 .ipynb_checkpoints
 
 # Models and logs
-models/
+
 logs/
-runs/
+
 wandb/
 models
 # Test coverage
