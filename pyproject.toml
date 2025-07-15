@@ -3,7 +3,7 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aegis-intercept"
+name = "hlynr-intercept"
 version = "0.1.0"
 description = "Missile Defense RL Environment"
 authors = [
@@ -17,16 +17,25 @@ dependencies = [
     "gymnasium",
     "numpy",
     "torch",
+    "stable-baselines3",
+    "cleanrl",
     "matplotlib",
-    "stable-baselines3"
+    "pygame",
+    "tensorboard",
+    "scipy",
+    "pyquaternion",
+    "tqdm"
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "black"
+    "pytest-cov",
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+    "mypy>=1.0.0"
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["aegis_intercept*"]
+include = ["hlynr_intercept*"]

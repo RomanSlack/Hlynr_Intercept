@@ -1,4 +1,4 @@
-# Hlynr Intercept – Nuclear-Defense Path-Finding Simulator
+# Hlynr Intercept – Missile-Defense Path-Finding Simulator
 
 A physically realizable Gymnasium-style environment for developing and testing reinforcement learning algorithms in missile interception scenarios. This project provides a sandbox for deterrence-focused RL research, enabling rapid prototyping and evaluation of AI decision-making systems under extreme time constraints.
 

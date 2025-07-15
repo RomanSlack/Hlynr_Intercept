@@ -1,0 +1,26 @@
+# Core ML/RL dependencies
+torch
+gymnasium
+stable-baselines3
+numpy
+cleanrl
+
+# Visualization and rendering
+matplotlib
+pygame
+tensorboard
+pyvirtualdisplay
+
+# Scientific computing
+scipy
+pyquaternion
+tqdm
+
+# Testing
+pytest
+pytest-cov
+
+# Development tools
+black
+flake8
+mypy

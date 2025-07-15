@@ -1,5 +1,5 @@
 """
-AegisIntercept - Missile Defense RL Environment
+Hlynr Intercept - Missile Defense RL Environment
 
 Simple, focused package for reinforcement learning research
 in missile interception scenarios.
