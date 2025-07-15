@@ -36,10 +36,10 @@ import matplotlib.pyplot as plt
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from aegis_intercept.envs.aegis_6dof_env import Aegis6DOFEnv
-from aegis_intercept.demo.matplotlib_viewer import MatplotlibViewer
+from aegis_intercept.rendering.viewer3d import MatplotlibViewer
 from aegis_intercept.logging import TrajectoryLogger, UnityExporter, ExportManager
 from aegis_intercept.curriculum import ScenarioGenerator
-from aegis_intercept.physics import WindField
+from aegis_intercept.utils.physics3d import WindField
 
 try:
     from stable_baselines3 import PPO

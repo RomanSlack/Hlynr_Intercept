@@ -7,5 +7,6 @@ guidance systems, and adaptive tactics.
 
 from .adversary_controller import AdversaryController
 from .evasion_behaviors import EvasionBehaviors
+from .enhanced_adversary import EnhancedAdversary
 
-__all__ = ["AdversaryController", "EvasionBehaviors"]
+__all__ = ["AdversaryController", "EvasionBehaviors", "EnhancedAdversary"]

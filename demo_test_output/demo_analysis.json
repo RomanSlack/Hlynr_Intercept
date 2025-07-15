@@ -1,0 +1,75 @@
+{
+  "report_info": {
+    "creation_time": 1752451380.883623,
+    "report_type": "aegis_intercept_analysis",
+    "version": "1.0"
+  },
+  "summary": {
+    "episode_count": 3,
+    "success_rate": 0.0,
+    "distance_statistics": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "median": 0.0
+    },
+    "reward_statistics": {
+      "mean": -172.46809424255218,
+      "std": 2.837433826785541,
+      "min": -175.89974744270884,
+      "max": -168.9510560176304,
+      "total": -517.4042827276566
+    },
+    "duration_statistics": {
+      "mean": 4.526666666666667,
+      "std": 0.024944382578492807,
+      "min": 4.500000000000001,
+      "max": 4.5600000000000005
+    },
+    "fuel_statistics": {
+      "mean_consumed": 0.2200918671468103,
+      "std_consumed": 0.005854166733508664,
+      "min_consumed": 0.21283316356065596,
+      "max_consumed": 0.227169453111437
+    },
+    "export_stats": {
+      "total_episodes": 3,
+      "total_exports": 1,
+      "last_export_time": 1752451380.883595,
+      "total_export_size_mb": 0.0014934539794921875
+    }
+  },
+  "episode_details": [
+    {
+      "episode_id": "demo_episode_000",
+      "success": false,
+      "final_distance": 0.0,
+      "total_reward": -172.55347926731733,
+      "duration": 4.5200000000000005,
+      "fuel_consumed": 0.220272984768338,
+      "timestamp": 1752451380.5966341
+    },
+    {
+      "episode_id": "demo_episode_001",
+      "success": false,
+      "final_distance": 0.0,
+      "total_reward": -168.9510560176304,
+      "duration": 4.5600000000000005,
+      "fuel_consumed": 0.227169453111437,
+      "timestamp": 1752451380.752137
+    },
+    {
+      "episode_id": "demo_episode_002",
+      "success": false,
+      "final_distance": 0.0,
+      "total_reward": -175.89974744270884,
+      "duration": 4.500000000000001,
+      "fuel_consumed": 0.21283316356065596,
+      "timestamp": 1752451380.879862
+    }
+  ],
+  "recommendations": [
+    "Low success rate detected. Consider reducing curriculum difficulty."
+  ]
+}

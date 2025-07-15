@@ -227,12 +227,6 @@ class Aegis3DEnv(gym.Env):
         
         observation = self._get_observation()
         info = self._get_info()
-        ##if terminated and not intercepted and not out_of_bounds:
-            ##print(f"[DEBUG] Episode ended at step {self._elapsed_steps}: "
-                ##f"intercept={intercepted}, out_of_bounds={out_of_bounds}")
-        ##if terminated and out_of_bounds:
-            ##print(f"[DEBUG] Out of bounds at step {self._elapsed_steps}: "
-                ##f"agent_pos={self.agent_pos}, adversary_pos={self.adversary_pos}")
         return observation, reward, terminated, False, info
     
     def _update_adversary(self):

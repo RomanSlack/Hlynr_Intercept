@@ -49,16 +49,16 @@ def safe_divide(numerator: float, denominator: float, default: float = 0.0, epsi
     return numerator / denominator
 
 
-def sanitize_array(arr: np.ndarray, max_val: float = 1e6) -> np.ndarray:
+def sanitize_array(arr: np.ndarray, max_val: float = 1e4) -> np.ndarray:
     """
     Sanitize array by replacing NaN/Inf values and clamping extreme values.
     
     Args:
         arr: Input array
-        max_val: Maximum allowed absolute value
+        max_val: Maximum allowed absolute value (reduced default for better stability)
         
     Returns:
-        Sanitized array
+        Sanitized array with finite values
     """
     # Replace NaN and Inf values
     arr = np.nan_to_num(arr, nan=0.0, posinf=max_val, neginf=-max_val)
@@ -66,4 +66,30 @@ def sanitize_array(arr: np.ndarray, max_val: float = 1e6) -> np.ndarray:
     # Clamp extreme values
     arr = np.clip(arr, -max_val, max_val)
     
+    # Additional validation for numerical stability
+    if np.any(np.abs(arr) > max_val):
+        # Emergency clamp if somehow values are still too large
+        arr = np.clip(arr, -max_val, max_val)
+    
     return arr
+
+
+def check_numerical_stability(arr: np.ndarray, name: str = "array") -> bool:
+    """
+    Check if array contains stable numerical values.
+    
+    Args:
+        arr: Array to check
+        name: Name for logging/debugging
+        
+    Returns:
+        True if stable, False otherwise
+    """
+    if not np.all(np.isfinite(arr)):
+        return False
+    
+    max_magnitude = np.max(np.abs(arr))
+    if max_magnitude > 1e8:  # Very large values indicate instability
+        return False
+    
+    return True

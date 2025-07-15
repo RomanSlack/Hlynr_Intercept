@@ -10,7 +10,8 @@ from typing import Dict, Tuple, Optional, Any
 from pyquaternion import Quaternion
 
 from .evasion_behaviors import EvasionBehaviors
-from ..physics import RigidBody6DOF, DragModel, WindField
+from ..utils.physics6dof import RigidBody6DOF
+from ..utils.physics3d import DragModel, WindField
 from ..utils.maths import normalize_vector, clamp, distance
 
 

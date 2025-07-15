@@ -12,7 +12,8 @@ from typing import Dict, List, Tuple, Optional, Any
 from pyquaternion import Quaternion
 
 from .aegis_6dof_env import Aegis6DOFEnv
-from ..physics import RigidBody6DOF, DragModel, WindField
+from ..utils.physics6dof import RigidBody6DOF
+from ..utils.physics3d import DragModel, WindField
 from ..utils.maths import distance, normalize_vector
 
 

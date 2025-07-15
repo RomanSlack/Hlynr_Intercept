@@ -1,0 +1,186 @@
+{
+  "export_info": {
+    "version": "1.0",
+    "export_time": 1752451380.8809311,
+    "total_episodes": 3,
+    "format": "aegis_intercept_batch_export"
+  },
+  "statistics": {
+    "episode_count": 3,
+    "success_rate": 0.0,
+    "distance_statistics": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "median": 0.0
+    },
+    "reward_statistics": {
+      "mean": -172.46809424255218,
+      "std": 2.837433826785541,
+      "min": -175.89974744270884,
+      "max": -168.9510560176304,
+      "total": -517.4042827276566
+    },
+    "duration_statistics": {
+      "mean": 4.526666666666667,
+      "std": 0.024944382578492807,
+      "min": 4.500000000000001,
+      "max": 4.5600000000000005
+    },
+    "fuel_statistics": {
+      "mean_consumed": 0.2200918671468103,
+      "std_consumed": 0.005854166733508664,
+      "min_consumed": 0.21283316356065596,
+      "max_consumed": 0.227169453111437
+    },
+    "export_stats": {
+      "total_episodes": 3,
+      "total_exports": 0,
+      "last_export_time": null,
+      "total_export_size_mb": 0.0
+    }
+  },
+  "episode_summaries": [
+    {
+      "episode_id": "demo_episode_000",
+      "success": false,
+      "final_distance": 0.0,
+      "total_reward": -172.55347926731733,
+      "duration": 4.5200000000000005,
+      "fuel_consumed": 0.220272984768338,
+      "timestamp": 1752451380.5966341
+    },
+    {
+      "episode_id": "demo_episode_001",
+      "success": false,
+      "final_distance": 0.0,
+      "total_reward": -168.9510560176304,
+      "duration": 4.5600000000000005,
+      "fuel_consumed": 0.227169453111437,
+      "timestamp": 1752451380.752137
+    },
+    {
+      "episode_id": "demo_episode_002",
+      "success": false,
+      "final_distance": 0.0,
+      "total_reward": -175.89974744270884,
+      "duration": 4.500000000000001,
+      "fuel_consumed": 0.21283316356065596,
+      "timestamp": 1752451380.879862
+    }
+  ],
+  "episodes": {
+    "demo_episode_000": {
+      "metadata": {
+        "episode_number": 0,
+        "start_time": 1752451380.4268842,
+        "simulation_time_step": 0.02,
+        "total_steps": 227,
+        "success": false,
+        "final_distance": 0.0,
+        "fuel_consumed": 0.0,
+        "episode_reward": -172.55347926731733,
+        "demo_mode": true,
+        "model_used": false,
+        "scenario": "demo",
+        "total_reward": -172.55347926731733,
+        "episode_time": 0.16942715644836426,
+        "end_time": 1752451380.596319,
+        "duration_seconds": 0.1694347858428955
+      },
+      "summary": {
+        "total_points": 227,
+        "duration": 4.5200000000000005,
+        "success": false,
+        "final_distance": 0.0,
+        "min_distance": 0.0,
+        "max_distance": 0.0,
+        "total_reward": -172.55347926731733,
+        "fuel_consumed": 0.220272984768338,
+        "average_reward_per_step": -0.7601474857591073,
+        "distance_statistics": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "trajectory_points": 227
+    },
+    "demo_episode_001": {
+      "metadata": {
+        "episode_number": 1,
+        "start_time": 1752451380.597161,
+        "simulation_time_step": 0.02,
+        "total_steps": 229,
+        "success": false,
+        "final_distance": 0.0,
+        "fuel_consumed": 0.0,
+        "episode_reward": -168.9510560176304,
+        "demo_mode": true,
+        "model_used": false,
+        "scenario": "demo",
+        "total_reward": -168.95105601763044,
+        "episode_time": 0.15473413467407227,
+        "end_time": 1752451380.751903,
+        "duration_seconds": 0.15474200248718262
+      },
+      "summary": {
+        "total_points": 229,
+        "duration": 4.5600000000000005,
+        "success": false,
+        "final_distance": 0.0,
+        "min_distance": 0.0,
+        "max_distance": 0.0,
+        "total_reward": -168.9510560176304,
+        "fuel_consumed": 0.227169453111437,
+        "average_reward_per_step": -0.7377775371948926,
+        "distance_statistics": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "trajectory_points": 229
+    },
+    "demo_episode_002": {
+      "metadata": {
+        "episode_number": 2,
+        "start_time": 1752451380.7528498,
+        "simulation_time_step": 0.02,
+        "total_steps": 226,
+        "success": false,
+        "final_distance": 0.0,
+        "fuel_consumed": 0.0,
+        "episode_reward": -175.89974744270884,
+        "demo_mode": true,
+        "model_used": false,
+        "scenario": "demo",
+        "total_reward": -175.89974744270884,
+        "episode_time": 0.12679719924926758,
+        "end_time": 1752451380.8796532,
+        "duration_seconds": 0.12680339813232422
+      },
+      "summary": {
+        "total_points": 226,
+        "duration": 4.500000000000001,
+        "success": false,
+        "final_distance": 0.0,
+        "min_distance": 0.0,
+        "max_distance": 0.0,
+        "total_reward": -175.89974744270884,
+        "fuel_consumed": 0.21283316356065596,
+        "average_reward_per_step": -0.7783174665606587,
+        "distance_statistics": {
+          "mean": 0.0,
+          "std": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        }
+      },
+      "trajectory_points": 226
+    }
+  }
+}

@@ -11,7 +11,8 @@ from gymnasium import spaces
 from typing import Tuple, Dict, Any, Optional, List
 from pyquaternion import Quaternion
 
-from ..physics import RigidBody6DOF, AtmosphericModel, DragModel, WindField
+from ..utils.physics6dof import RigidBody6DOF
+from ..utils.physics3d import AtmosphericModel, DragModel, WindField
 from ..utils.maths import distance, normalize_vector, clamp, sanitize_array
 
 
@@ -136,8 +137,8 @@ class Aegis6DOFEnv(gym.Env):
             'easy': {
                 'spawn_separation': 1500.0,  # m - increased for realistic engagement
                 'adversary_max_thrust': 3000.0,  # N
-                'interceptor_max_thrust': 10000.0,  # N - doubled for better authority
-                'interceptor_max_torque': 1000.0,  # N⋅m - doubled
+                'interceptor_max_thrust': 8000.0,  # N - reduced for stability
+                'interceptor_max_torque': 400.0,  # N⋅m - reduced for stability
                 'adversary_evasion_aggressiveness': 0.2,
                 'wind_severity': 0.1,
                 'kill_distance': 5.0  # m
@@ -145,8 +146,8 @@ class Aegis6DOFEnv(gym.Env):
             'medium': {
                 'spawn_separation': 2000.0,  # m - increased
                 'adversary_max_thrust': 4000.0,
-                'interceptor_max_thrust': 9000.0,  # N - doubled
-                'interceptor_max_torque': 900.0,  # N⋅m - doubled
+                'interceptor_max_thrust': 7000.0,  # N - reduced for stability
+                'interceptor_max_torque': 350.0,  # N⋅m - reduced for stability
                 'adversary_evasion_aggressiveness': 0.5,
                 'wind_severity': 0.2,
                 'kill_distance': 3.0
@@ -154,8 +155,8 @@ class Aegis6DOFEnv(gym.Env):
             'hard': {
                 'spawn_separation': 2500.0,  # m - increased
                 'adversary_max_thrust': 5000.0,
-                'interceptor_max_thrust': 8000.0,  # N - doubled
-                'interceptor_max_torque': 800.0,  # N⋅m - doubled
+                'interceptor_max_thrust': 6000.0,  # N - reduced for stability
+                'interceptor_max_torque': 300.0,  # N⋅m - reduced for stability
                 'adversary_evasion_aggressiveness': 0.8,
                 'wind_severity': 0.3,
                 'kill_distance': 2.0
@@ -163,8 +164,8 @@ class Aegis6DOFEnv(gym.Env):
             'impossible': {
                 'spawn_separation': 3000.0,  # m - increased
                 'adversary_max_thrust': 6000.0,
-                'interceptor_max_thrust': 7000.0,  # N - doubled
-                'interceptor_max_torque': 700.0,  # N⋅m - doubled
+                'interceptor_max_thrust': 5000.0,  # N - reduced for stability
+                'interceptor_max_torque': 250.0,  # N⋅m - reduced for stability
                 'adversary_evasion_aggressiveness': 1.0,
                 'wind_severity': 0.4,
                 'kill_distance': 1.5
@@ -241,14 +242,14 @@ class Aegis6DOFEnv(gym.Env):
         self.interceptor.reset(
             position=interceptor_pos,
             velocity=interceptor_vel,
-            orientation=Quaternion(axis=[0, 0, 1], angle=0),
+            quaternion=Quaternion(axis=[0, 0, 1], angle=0),
             angular_velocity=np.zeros(3)
         )
         
         self.adversary.reset(
             position=adversary_pos,
             velocity=adversary_vel,
-            orientation=Quaternion(axis=[0, 0, 1], angle=0),
+            quaternion=Quaternion(axis=[0, 0, 1], angle=0),
             angular_velocity=np.zeros(3)
         )
         
@@ -297,9 +298,9 @@ class Aegis6DOFEnv(gym.Env):
         # Total force on interceptor
         total_force = thrust_world + drag_force + wind_force
         
-        # Apply numerical stability limits to prevent explosion
-        MAX_FORCE = 50000.0  # 50kN maximum total force
-        MAX_TORQUE = 1000.0  # 1000 N⋅m maximum torque
+        # Apply numerical stability limits to prevent explosion - reduced for better stability
+        MAX_FORCE = 25000.0  # 25kN maximum total force (reduced from 50kN)
+        MAX_TORQUE = 500.0   # 500 N⋅m maximum torque (reduced from 1000)
         
         total_force = sanitize_array(total_force, max_val=MAX_FORCE)
         torque = sanitize_array(torque, max_val=MAX_TORQUE)
@@ -351,8 +352,14 @@ class Aegis6DOFEnv(gym.Env):
         truncated = False
         termination_reason = "ongoing"
         
+        # Check for numerical instability first - highest priority
+        if self._check_numerical_instability():
+            terminated = True
+            reward -= 100.0  # Penalty for numerical instability
+            termination_reason = "numerical_instability"
+        
         # Success: interceptor close enough to adversary
-        if intercept_distance <= self.mission_params['kill_distance']:
+        elif intercept_distance <= self.mission_params['kill_distance']:
             terminated = True
             reward += 100.0
             self.episode_metrics['success'] = True
@@ -604,6 +611,49 @@ class Aegis6DOFEnv(gym.Env):
         observation = sanitize_array(observation, max_val=10.0)
         
         return observation.astype(np.float32)
+    
+    def _check_numerical_instability(self) -> bool:
+        """Check for numerical instability in the simulation."""
+        # Get state vectors
+        interceptor_pos = self.interceptor.get_position()
+        interceptor_vel = self.interceptor.get_velocity()
+        interceptor_angular_vel = self.interceptor.angular_velocity
+        
+        adversary_pos = self.adversary.get_position()
+        adversary_vel = self.adversary.get_velocity()
+        adversary_angular_vel = self.adversary.angular_velocity
+        
+        # Check for NaN or infinite values
+        states_to_check = [
+            interceptor_pos, interceptor_vel, interceptor_angular_vel,
+            adversary_pos, adversary_vel, adversary_angular_vel
+        ]
+        
+        for state in states_to_check:
+            if not np.all(np.isfinite(state)):
+                return True
+        
+        # Check for extremely large values that indicate numerical explosion
+        MAX_POSITION = 50000.0  # 50km
+        MAX_VELOCITY = 2000.0   # 2000 m/s
+        MAX_ANGULAR_VELOCITY = 100.0  # 100 rad/s
+        
+        if (np.linalg.norm(interceptor_pos) > MAX_POSITION or
+            np.linalg.norm(adversary_pos) > MAX_POSITION or
+            np.linalg.norm(interceptor_vel) > MAX_VELOCITY or
+            np.linalg.norm(adversary_vel) > MAX_VELOCITY or
+            np.linalg.norm(interceptor_angular_vel) > MAX_ANGULAR_VELOCITY or
+            np.linalg.norm(adversary_angular_vel) > MAX_ANGULAR_VELOCITY):
+            return True
+        
+        # Check quaternion validity
+        if (not np.isfinite(self.interceptor.quaternion.norm) or
+            not np.isfinite(self.adversary.quaternion.norm) or
+            self.interceptor.quaternion.norm < 1e-6 or
+            self.adversary.quaternion.norm < 1e-6):
+            return True
+        
+        return False
     
     def _get_info(self) -> Dict:
         """Get additional information about the current state."""
