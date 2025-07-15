@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aegis-intercept"
 version = "0.1.0"
-description = "Nuclear-Defense Path-Finding Simulator using Reinforcement Learning"
+description = "Missile Defense RL Environment"
 authors = [
     {name = "Roman Slack", email = "roman@example.com"},
     {name = "Quinn Hasse", email = "quinn@example.com"}
@@ -14,42 +14,19 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "gymnasium>=0.29",
+    "gymnasium",
     "numpy",
     "torch",
-    "cleanrl>=2.4",
-    "matplotlib>=3.4",
-    "pygame",
-    "stable-baselines3",
-    "tensorboard",
-    "tqdm",
-    "scipy",
-    "pyquaternion"
+    "matplotlib",
+    "stable-baselines3"
 ]
 
 [project.optional-dependencies]
-test = [
-    "pytest>=8.2",
-    "pytest-cov"
-]
 dev = [
-    "black",
-    "flake8",
-    "mypy"
+    "pytest",
+    "black"
 ]
-
-[project.urls]
-Homepage = "https://github.com/rslack/aegis-intercept"
-Repository = "https://github.com/rslack/aegis-intercept"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["aegis_intercept*"]
-
-[tool.black]
-line-length = 88
-target-version = ['py38']
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
