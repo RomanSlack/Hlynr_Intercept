@@ -14,13 +14,17 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "gymnasium",
+    "gymnasium>=0.29",
     "numpy",
     "torch",
-    "cleanrl" ,
-    "matplotlib",
+    "cleanrl>=2.4",
+    "matplotlib>=3.4",
     "pygame",
-    "tqdm"
+    "stable-baselines3",
+    "tensorboard",
+    "tqdm",
+    "scipy",
+    "pyquaternion"
 ]
 
 [project.optional-dependencies]

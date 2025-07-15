@@ -1,28 +1,6 @@
 """
-Curriculum Learning Module for AegisIntercept Phase 3
+Curriculum learning and scenario generation modules.
 
-This module provides curriculum learning capabilities for progressive
-training from simple 3DOF scenarios to complex 6DOF intercept missions.
+Contains curriculum managers, scenario generators, and adaptive difficulty
+systems for progressive learning in reinforcement learning training.
 """
-
-from .curriculum_manager import (
-    CurriculumManager,
-    CurriculumPhase,
-    AdvancementCriteria,
-    PhaseConfig,
-    ScenarioConfig,
-    PerformanceMetrics,
-    create_curriculum_manager,
-    setup_curriculum_directories
-)
-
-__all__ = [
-    'CurriculumManager',
-    'CurriculumPhase', 
-    'AdvancementCriteria',
-    'PhaseConfig',
-    'ScenarioConfig',
-    'PerformanceMetrics',
-    'create_curriculum_manager',
-    'setup_curriculum_directories'
-]

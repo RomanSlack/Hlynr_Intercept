@@ -1,10 +1,10 @@
-# AegisIntercept – Nuclear-Defense Path-Finding Simulator
+# Hlynr Intercept – Nuclear-Defense Path-Finding Simulator
 
 A physically realizable Gymnasium-style environment for developing and testing reinforcement learning algorithms in missile interception scenarios. This project provides a sandbox for deterrence-focused RL research, enabling rapid prototyping and evaluation of AI decision-making systems under extreme time constraints.
 
 ## Overview
 
-AegisIntercept simulates defensive missile interception scenarios where an AI agent must learn optimal trajectories to intercept incoming threats before they reach defended targets. The environment progresses from simple 2D kinematics to high-fidelity 6-DOF simulations across multiple phases, supporting research into hierarchical reinforcement learning, distributed training, and real-time decision making.
+Hlynr Intercept simulates defensive missile interception scenarios where an AI agent must learn optimal trajectories to intercept incoming threats before they reach defended targets. The environment progresses from simple 2D kinematics to high-fidelity 6-DOF simulations across multiple phases, supporting research into hierarchical reinforcement learning, distributed training, and real-time decision making.
 
 ## Collaborators
 
@@ -13,47 +13,61 @@ AegisIntercept simulates defensive missile interception scenarios where an AI ag
 
 ## Phase Roadmap
 
-| Phase | Scope | Primary Tools |
-|-------|-------|---------------|
-| **1** | 2-D prototype, flat PPO | Gymnasium, CleanRL, PyGame |
-| **2** | 3-D kinematics & basic visual | Matplotlib, CleanRL, PyTorch |
-| **3** | Hierarchical RL (manager/worker) | SB3 + HIRO or Tianshou |
-| **4** | Distributed, high-fidelity 6-DOF, flexible body | RLlib, Isaac Gym, Optuna |
+| Phase | Scope                                                                                                 | Primary Tools                          |
+|-------|-------------------------------------------------------------------------------------------------------|----------------------------------------|
+| **1** | 2D missile interception with PPO and real-time visualization.                                         | Gymnasium, PyGame, CleanRL             |
+| **2** | 3DOF physics, 3D kinematics, adversary movement, togglable headless mode, basic checkpointing.        | Gymnasium VectorEnv, TorchRL           |
+| **3** | Full 6DOF, realistic physics (wind, drag, IRL constants), modular scenario randomization, curriculum learning, enhanced logging, refined reward shaping. | Gymnasium, Custom PPO Trainer, WandB   |
+| **4** | Scalable distributed training with multiple interceptors, physical body flexibility, and transfer learning benchmarks. | RLlib, Isaac Gym, Optuna               |
 
-## Architecture
+
+## Repository Structure
 
 ```
-+-------------------------+
-|   train_ppo_phase2.py   |
-| (CleanRL, PyTorch)      |
-+-----------+-------------+
-            |
-            v
-+-----------+-------------+
-|   Aegis3DInterceptEnv   |
-| (Gymnasium)             |
-+-----------+-------------+
-            |
-            v
-+-----------+-------------+
-|      physics3d.py       |
-| (Numpy)                 |
-+-------------------------+
+.
+├── README.md              # Project documentation
+├── pyproject.toml         # Python package configuration
+├── .gitignore            # Git ignore patterns
+├── aegis_intercept/      # Main Python package
+│   ├── __init__.py
+│   ├── envs/
+│   │   ├── __init__.py
+│   │   └── aegis_2d_env.py   # 2-D missile vs interceptor simulation
+│   └── utils/
+│       ├── __init__.py
+│       └── maths.py          # Vector math utilities
+├── scripts/
+│   └── train_ppo_phase1.py   # CleanRL PPO training script
+├── tests/
+│   └── test_env_basic.py     # Pytest environment tests
+├── docs/                     # Reserved for design documentation
+└── models/                   # Saved model checkpoints
 ```
-
-## Phase 2: 3-DOF Simulation
-
-* **3-DOF Expansion:** The environment is now a 3D simulation with simple kinematics and linear drag.
-* **Adversary Evasion:** The adversary missile now has a basic sine-wave based evasion routine.
-* **PPO-GPU Training:** The PPO agent is updated for the 3D environment and optimized for GPU training with PyTorch.
-
-### GPU Optimization
-
-The training script `train_ppo_phase2.py` is optimized for NVIDIA GPUs supporting CUDA. For RTX 40 series cards, you can expect significant performance gains. The script uses mixed-precision training (`torch.cuda.amp`) to accelerate training while maintaining model accuracy.
 
 ## Quickstart
 
-See `RUNNING.md` for a quick start guide.
+1. **Setup Environment**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   pip install -e .
+   # or alternatively:
+   # pip install -r requirements.txt
+   ```
+
+3. **Run Training**
+   ```bash
+   python scripts/train_ppo_phase1.py
+   ```
+
+4. **Run Tests**
+   ```bash
+   pytest tests/
+   ```
 
 ## Phase 1 Features
 
@@ -62,16 +76,28 @@ See `RUNNING.md` for a quick start guide.
 * **Visualization**: Real-time PyGame rendering for debugging and analysis
 * **Testing**: Comprehensive pytest suite for environment validation
 
-## License & Citation
+---
 
-MIT License (see LICENSE file)
+## ⚖️ Legal and Ethical Use Notice
 
-When using this work in research, please cite:
-```
-@misc{aegis_intercept_2025,
-  title={AegisIntercept: Nuclear-Defense Path-Finding Simulator},
-  author={Slack, Roman and Hasse, Quinn},
-  year={2025},
-  url={https://github.com/rslack/aegis_intercept}
-}
-```
+This repository is released under the [Hippocratic License 2.1](./LICENSE), which permits use, modification, and distribution of this software for purposes that do not violate human rights or enable weaponized, military, or surveillance applications.
+
+**This project is for academic, research, and peaceful experimentation only.**
+
+Use of this code in autonomous weapons, missile guidance systems, surveillance infrastructure, or other military/defense-related applications is explicitly prohibited.
+
+If you are unsure whether your intended use violates this principle, do not use this software.
+
+
+---
+
+## ⚖️ Legal and Ethical Disclaimer
+
+This project is a purely academic and simulated environment intended for reinforcement learning research and experimentation. It does not interface with real-world defense systems, targeting software, or weaponized hardware.
+
+The repository does **not** include any classified, restricted, or export-controlled materials. It is intended only for educational and non-military applications.
+
+Use of this software must comply with applicable U.S. export control laws (ITAR, EAR) and international dual-use regulations. The authors explicitly prohibit any use of this project for real-world weaponization, targeting, or autonomous lethal systems.
+
+By using this repository, you agree to use it solely for lawful, ethical, and research-related purposes.
+

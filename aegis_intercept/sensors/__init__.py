@@ -1,29 +1,6 @@
 """
-Realistic Sensor Systems for AegisIntercept Phase 3
+Sensor simulation and fusion modules.
 
-This module implements production-quality radar and sensor systems
-for realistic missile defense simulation, replacing the perfect
-information system with physics-based sensor modeling.
+Contains radar systems, sensor environments, sensor fusion algorithms,
+and realistic sensor modeling for enhanced simulation fidelity.
 """
-
-from .radar_system import (
-    RadarSystem, GroundRadar, MissileRadar, RadarConfig,
-    RadarDetection, RadarTrack, RadarConstants
-)
-from .sensor_fusion import (
-    SensorFusionSystem, KalmanTracker, TrackState,
-    FusionConfig, TrackQuality
-)
-from .sensor_environment import (
-    SensorEnvironment, AtmosphericEffects, WeatherConditions,
-    ElectronicWarfare, ClutterModel
-)
-
-__all__ = [
-    'RadarSystem', 'GroundRadar', 'MissileRadar', 'RadarConfig',
-    'RadarDetection', 'RadarTrack', 'RadarConstants',
-    'SensorFusionSystem', 'KalmanTracker', 'TrackState',
-    'FusionConfig', 'TrackQuality',
-    'SensorEnvironment', 'AtmosphericEffects', 'WeatherConditions',
-    'ElectronicWarfare', 'ClutterModel'
-]

@@ -1,8 +1,0 @@
-gymnasium
-numpy
-torch
-cleanrl
-matplotlib
-pygame
-pytest
-tqdm
