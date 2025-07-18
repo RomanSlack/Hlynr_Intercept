@@ -1,0 +1,63 @@
+{
+  "name": "medium",
+  "description": "Multi-missile scenarios with moderate adversary intelligence",
+  "difficulty_level": 2,
+  
+  "num_missiles": 2,
+  "num_interceptors": 2,
+  
+  "spawn_positions": {
+    "missiles": [
+      [-50, -50],
+      [50, -50]
+    ],
+    "interceptors": [
+      [450, 450],
+      [550, 450]
+    ],
+    "targets": [
+      [950, 950],
+      [1050, 950]
+    ]
+  },
+  
+  "wind_settings": {
+    "speed": 8.0,
+    "direction": 45.0,
+    "variability": 0.15,
+    "gusts": true,
+    "gust_frequency": 0.3
+  },
+  
+  "adversary_config": {
+    "speed_multiplier": 1.0,
+    "evasion_iq": 0.5,
+    "maneuver_frequency": 0.3,
+    "predictable_patterns": false,
+    "coordination": 0.3
+  },
+  
+  "radar_config": {
+    "range": 1000.0,
+    "noise_level": 0.08,
+    "update_rate": 10,
+    "false_positive_rate": 0.05,
+    "detection_probability": 0.92,
+    "multi_target_tracking": true
+  },
+  
+  "environment_conditions": {
+    "atmospheric_density": 0.95,
+    "temperature": 25.0,
+    "visibility": 0.8,
+    "electromagnetic_interference": 0.25,
+    "weather_effects": true
+  },
+  
+  "success_criteria": {
+    "interception_distance": 40.0,
+    "time_bonus": true,
+    "fuel_efficiency_bonus": true,
+    "multi_target_bonus": true
+  }
+}
