@@ -80,13 +80,13 @@ class Phase4Trainer:
         self.model = None
         self.vec_normalize = None
         
-    def create_environment(self, n_envs: int = 1, eval_env: bool = False) -> gym.Env:
+    def create_environment(self, n_envs: int = 1, training: bool = True) -> gym.Env:
         """
         Create vectorized environment.
         
         Args:
             n_envs: Number of parallel environments
-            eval_env: Whether this is for evaluation
+            training: Whether this environment is for training (updates normalization stats)
             
         Returns:
             Vectorized environment
@@ -106,16 +106,20 @@ class Phase4Trainer:
         else:
             env = SubprocVecEnv([make_env() for _ in range(n_envs)])
         
-        # Apply normalization for training environments
-        if not eval_env:
-            env = VecNormalize(
-                env,
-                norm_obs=True,
-                norm_reward=True,
-                clip_obs=10.0,
-                clip_reward=10.0,
-                gamma=self.training_config.get('gamma', 0.99)
-            )
+        # Apply normalization to all environments
+        gamma = self.training_config.get('gamma', 0.99)
+        env = VecNormalize(
+            env,
+            norm_obs=True,
+            norm_reward=True,
+            clip_obs=10.0,
+            clip_reward=10.0,
+            gamma=gamma,
+            training=training
+        )
+        
+        # Store reference to training environment's VecNormalize wrapper
+        if training:
             self.vec_normalize = env
         
         return env
@@ -132,10 +136,10 @@ class Phase4Trainer:
         """
         # Create training environment
         n_envs = self.training_config.get('n_envs', 8)
-        self.env = self.create_environment(n_envs=n_envs)
+        self.env = self.create_environment(n_envs=n_envs, training=True)
         
-        # Create evaluation environment
-        self.eval_env = self.create_environment(n_envs=1, eval_env=True)
+        # Create evaluation environment with same normalization but training=False
+        self.eval_env = self.create_environment(n_envs=1, training=False)
         
         # Configure model parameters
         model_params = {
