@@ -1,0 +1,45 @@
+```
+/project:hlynr_intercept-task Build a minimal, production‑ready 3‑D missile–intercept simulation
+
+## Context
+We already have a working PPO‑based RL interceptor prototype. Now we need a **fresh, self‑contained 3‑D environment**—no RL logic yet—capable of simulating an attacker missile and a defender interceptor that launches from a fixed ground site, guided only by simulated radars (no privileged state).
+
+## Objective
+Create a fully functional, GPU‑accelerated Python package that:
+1. Renders a real‑time 3‑D scene (use a high‑performance Python binding to a modern engine—e.g. `pyglet`, `moderngl`, `panda3d`, or `vispy`; **never** Matplotlib).
+2. Models six‑degree‑of‑freedom kinematics for both missiles with:
+   - Atmospheric drag, gravity, and tunable wind.
+   - Realistic distance and speed scales (tens of km range; km/s velocities).
+   - Finite fuel and thrust envelopes.
+3. Implements two radar types:
+   - **Ground radar array** (multiple static sites) and
+   - **On‑board interceptor radar** (gimballed or fixed).
+   Each returns bearing, range, and Doppler; inject realistic noise, sweep rate, and detection limits.
+   Provide a simple “scope” overlay (2‑D or 3‑D blips) for visual debug.
+4. Exposes a clean Python API (`reset()`, `step(action)`, `get_obs()`, `render()`) ready for RL integration.
+5. Allows manual flight with keyboard (pitch, yaw, roll, throttle, stage‑fire) to validate six‑DOF dynamics.
+6. Runs smoothly on Ubuntu 24.04 with CUDA‑enabled RTX 40‑series GPUs.
+
+## Hard constraints
+- **Zero mock data, zero fallbacks.** All sensor outputs come from the live physics simulation.
+- Keep the repo *small and clear*: no giant scaffolding, no auto‑generated boilerplate, ≤ ~10 focused source files.
+- Operate **only** inside `/home/roman/Aegis_Intercept/hlynr_intercept/envs`.
+- Do **not** run or test the simulation yourself; the user will handle runtime checks.
+
+## Deliverables
+- Source code.
+- `requirements.txt` (pin minimal versions).
+- `README.md` with concise setup & usage.
+- `progress.md` log—append brief bullet updates each time you complete a logical milestone.
+
+## Workflow
+1. Plan folder layout → write to `progress.md`.
+2. Implement physics core.
+3. Add rendering layer.
+4. Integrate radar models & UI overlay.
+5. Wire API and manual‑control interface.
+6. Sanity‑check imports (but **skip execution**).
+7. Final update to `progress.md`.
+
+Ask any clarifying questions before coding if requirements are ambiguous.
+```
