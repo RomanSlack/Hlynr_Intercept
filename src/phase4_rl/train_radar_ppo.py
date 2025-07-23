@@ -26,11 +26,13 @@ try:
     from .config import get_config, reset_config
     from .scenarios import get_scenario_loader, reset_scenario_loader
     from .radar_env import RadarEnv
+    from .fast_sim_env import FastSimEnv
 except ImportError:
     # Fallback for direct execution
     from config import get_config, reset_config
     from scenarios import get_scenario_loader, reset_scenario_loader
     from radar_env import RadarEnv
+    from fast_sim_env import FastSimEnv
 
 
 class Phase4Trainer:
@@ -93,10 +95,9 @@ class Phase4Trainer:
         """
         def make_env():
             def _init():
-                env = RadarEnv(
+                env = FastSimEnv(
                     config=self.scenario_config,
-                    scenario_name=self.scenario_name,
-                    render_mode=None
+                    scenario_name=self.scenario_name
                 )
                 return env
             return _init

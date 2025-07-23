@@ -21,6 +21,84 @@ Hlynr Intercept simulates defensive missile interception scenarios where an AI a
 | **4** | Scalable distributed training with multiple interceptors, physical body flexibility, and transfer learning benchmarks. | RLlib, Isaac Gym, Optuna               |
 
 
+## Phase 4 Usage
+
+Phase 4 provides a complete multi-entity radar-based RL system with deterministic environments, fast simulation, comprehensive diagnostics, and Unity bridge integration.
+
+### Training
+
+Train a new model using the fast simulation environment:
+
+```bash
+cd src/phase4_rl
+python train_radar_ppo.py --scenario easy --timesteps 100000
+```
+
+Available scenarios: `easy`, `medium`, `hard`, `impossible`
+
+For distributed training with multiple environments:
+```bash
+python train_radar_ppo.py --scenario easy --timesteps 500000 --checkpoint-dir checkpoints --log-dir logs
+```
+
+### Inference
+
+Run inference on a trained model:
+
+```bash
+cd src/phase4_rl
+python run_inference.py checkpoints/phase4_radar_baseline.zip --episodes 50 --scenario easy
+```
+
+Multi-scenario evaluation:
+```bash
+python run_inference.py checkpoints/phase4_radar_baseline.zip --multi-scenario --episodes 20
+```
+
+### Unity Bridge Server
+
+Start the bridge server for Unity integration:
+
+```bash
+cd src/phase4_rl
+python bridge_server.py --checkpoint checkpoints/phase4_radar_baseline.zip --port 5000
+```
+
+Test the bridge server:
+```bash
+python client_stub.py --test-type all --host localhost --port 5000
+```
+
+### Diagnostics and Visualization
+
+Generate episode plots from diagnostics data:
+
+```bash
+cd src/phase4_rl
+python plot_episode.py episode_data.json --plot-type dashboard --output results.png
+```
+
+Plot types available: `trajectories`, `rewards`, `distances`, `dashboard`, `all`
+
+### Phase 4 Architecture
+
+- **RadarEnv**: Multi-entity environment with deterministic seeding
+- **FastSimEnv**: Headless wrapper for accelerated training  
+- **Bridge Server**: HTTP API for Unity integration (`/act`, `/health`, `/stats`)
+- **Diagnostics**: JSON logging with matplotlib visualization
+- **Scenarios**: Configurable difficulty levels with entity variations
+
+### Key Files
+
+- `radar_env.py` - Core multi-entity radar environment
+- `fast_sim_env.py` - Headless training wrapper
+- `train_radar_ppo.py` - PPO training with scenario management
+- `run_inference.py` - Multi-scenario evaluation
+- `bridge_server.py` - Unity integration server
+- `diagnostics.py` - Comprehensive logging and analysis
+- `plot_episode.py` - Quick visualization helper
+
+
 ## Repository Structure
 
 ```

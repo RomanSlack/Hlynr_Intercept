@@ -1,0 +1,459 @@
+name: Phase 4 RL CI
+
+on:
+  push:
+    branches: [ main, quinn_phase4_rl ]
+    paths: 
+      - 'src/phase4_rl/**'
+      - '.github/workflows/phase4_ci.yml'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/phase4_rl/**'
+      - '.github/workflows/phase4_ci.yml'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt', '**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-xdist
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f pyproject.toml ]; then pip install -e .; fi
+        # Install additional test dependencies
+        pip install matplotlib pandas
+    
+    - name: Install system dependencies
+      run: |
+        # Install virtual display for headless testing
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+    
+    - name: Validate scenario files
+      run: |
+        cd src/phase4_rl
+        python -c "
+        from scenarios import ScenarioLoader
+        loader = ScenarioLoader()
+        results = loader.validate_all_scenarios()
+        failed = [name for name, valid in results.items() if not valid]
+        if failed:
+            print(f'Failed scenarios: {failed}')
+            exit(1)
+        else:
+            print(f'All {len(results)} scenarios validated successfully')
+        "
+    
+    - name: Run configuration tests
+      run: |
+        cd src/phase4_rl
+        xvfb-run -a python -m pytest tests/test_config.py -v --tb=short
+    
+    - name: Run scenario tests
+      run: |
+        cd src/phase4_rl
+        xvfb-run -a python -m pytest tests/test_scenarios.py -v --tb=short
+    
+    - name: Run interface compatibility tests
+      run: |
+        cd src/phase4_rl
+        xvfb-run -a python -m pytest tests/test_interface_compat.py -v --tb=short
+    
+    - name: Run multi-entity tests
+      run: |
+        cd src/phase4_rl
+        xvfb-run -a python -m pytest tests/test_multi_entity.py -v --tb=short
+    
+    - name: Run all tests with coverage
+      run: |
+        cd src/phase4_rl
+        xvfb-run -a python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=term
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./src/phase4_rl/coverage.xml
+        flags: phase4_rl
+        name: codecov-umbrella
+    
+    - name: Test import structure
+      run: |
+        cd src/phase4_rl
+        python -c "
+        # Test that all modules can be imported
+        try:
+            from config import ConfigLoader, get_config
+            from scenarios import ScenarioLoader, get_scenario_loader
+            from radar_env import RadarEnv
+            from diagnostics import Logger, export_to_csv, export_to_json, plot_metrics
+            print('All imports successful')
+        except Exception as e:
+            print(f'Import failed: {e}')
+            exit(1)
+        "
+    
+    - name: Test environment instantiation
+      run: |
+        cd src/phase4_rl
+        python -c "
+        from radar_env import RadarEnv
+        from config import get_config
+        
+        # Test basic environment creation
+        config = get_config()
+        env = RadarEnv()
+        obs, info = env.reset()
+        action = env.action_space.sample()
+        step_result = env.step(action)
+        env.close()
+        print('Environment instantiation test passed')
+        "
+    
+    - name: Smoke test inference runner
+      run: |
+        cd src/phase4_rl
+        # Create a dummy checkpoint for testing
+        python -c "
+        import torch
+        import tempfile
+        from pathlib import Path
+        
+        # Create a minimal dummy model file for testing
+        dummy_model = {'model_state_dict': {}, 'optimizer_state_dict': {}}
+        temp_dir = Path(tempfile.mkdtemp())
+        checkpoint_path = temp_dir / 'dummy_model.zip'
+        torch.save(dummy_model, checkpoint_path)
+        print(f'Created dummy checkpoint: {checkpoint_path}')
+        
+        # Test that inference runner can import and parse arguments
+        import subprocess
+        result = subprocess.run([
+            'python', 'run_inference.py', str(checkpoint_path), '--episodes', '1', '--help'
+        ], capture_output=True, text=True)
+        
+        if 'Phase 4 RL Inference' in result.stdout:
+            print('Inference runner help test passed')
+        else:
+            print('Inference runner help test failed')
+            print(result.stdout)
+            print(result.stderr)
+        "
+    
+    - name: Test scenario loading across all scenarios
+      run: |
+        cd src/phase4_rl
+        python -c "
+        from scenarios import ScenarioLoader
+        from config import get_config
+        
+        loader = ScenarioLoader()
+        config_loader = get_config()
+        
+        scenarios = loader.list_scenarios()
+        print(f'Testing {len(scenarios)} scenarios: {scenarios}')
+        
+        for scenario_name in scenarios:
+            try:
+                # Test scenario loading
+                scenario = loader.load_scenario(scenario_name)
+                print(f'✓ Loaded scenario: {scenario_name}')
+                
+                # Test environment config creation
+                env_config = loader.create_environment_config(scenario_name, config_loader._config)
+                print(f'✓ Created environment config for: {scenario_name}')
+                
+            except Exception as e:
+                print(f'✗ Failed to process scenario {scenario_name}: {e}')
+                exit(1)
+        
+        print('All scenario loading tests passed')
+        "
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black isort mypy
+    
+    - name: Run black (code formatting check)
+      run: |
+        black --check --diff src/phase4_rl/
+    
+    - name: Run isort (import sorting check)
+      run: |
+        isort --check-only --diff src/phase4_rl/
+    
+    - name: Run flake8 (style and quality check)
+      run: |
+        flake8 src/phase4_rl/ --max-line-length=100 --ignore=E203,W503
+    
+    - name: Run mypy (type checking)
+      run: |
+        cd src/phase4_rl
+        mypy . --ignore-missing-imports --disable-error-code=import
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f pyproject.toml ]; then pip install -e .; fi
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+    
+    - name: Test training script help
+      run: |
+        cd src/phase4_rl
+        python train_radar_ppo.py --help
+    
+    - name: Test training script list scenarios
+      run: |
+        cd src/phase4_rl
+        python train_radar_ppo.py --list-scenarios
+    
+    - name: Test inference script help
+      run: |
+        cd src/phase4_rl
+        # Create dummy checkpoint for help test
+        python -c "
+        import torch
+        import tempfile
+        from pathlib import Path
+        dummy_model = {'model_state_dict': {}}
+        temp_dir = Path('temp_test')
+        temp_dir.mkdir(exist_ok=True)
+        checkpoint_path = temp_dir / 'dummy_model.zip'
+        torch.save(dummy_model, checkpoint_path)
+        "
+        
+        python run_inference.py temp_test/dummy_model.zip --help
+        
+        # Cleanup
+        rm -rf temp_test/
+    
+    - name: Test configuration system integration
+      run: |
+        cd src/phase4_rl
+        xvfb-run -a python -c "
+        from config import get_config
+        from scenarios import get_scenario_loader
+        from radar_env import RadarEnv
+        
+        # Test full integration
+        config_loader = get_config()
+        scenario_loader = get_scenario_loader()
+        
+        # Test with different scenarios
+        scenarios = scenario_loader.list_scenarios()
+        if scenarios:
+            scenario_name = scenarios[0]
+            env_config = scenario_loader.create_environment_config(scenario_name, config_loader._config)
+            
+            # Create environment with scenario
+            env = RadarEnv(config=env_config, scenario_name=scenario_name)
+            
+            # Test basic functionality
+            obs, info = env.reset()
+            action = env.action_space.sample()
+            step_result = env.step(action)
+            env.close()
+            
+            print(f'Integration test passed with scenario: {scenario_name}')
+        else:
+            print('No scenarios found for integration test')
+        "
+    
+    - name: Test diagnostics system
+      run: |
+        cd src/phase4_rl
+        xvfb-run -a python -c "
+        from diagnostics import Logger, export_to_csv, export_to_json
+        import tempfile
+        import json
+        
+        # Test logger
+        logger = Logger()
+        logger.reset_episode()
+        
+        # Log some dummy steps
+        for i in range(5):
+            step_data = {
+                'step': i,
+                'observation': [1.0, 2.0, 3.0],
+                'action': [0.5, -0.5],
+                'reward': i * 0.1,
+                'done': False,
+                'info': {}
+            }
+            logger.log_step(step_data)
+        
+        metrics = logger.get_episode_metrics()
+        print(f'Logger test passed, metrics keys: {list(metrics.keys())}')
+        
+        # Test export functions
+        dummy_results = {
+            'test_scenario': [
+                {'episode': 0, 'total_reward': 10.0, 'episode_length': 100, 'success': True, 'metrics': metrics}
+            ]
+        }
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Test CSV export
+            csv_path = f'{temp_dir}/test.csv'
+            export_to_csv(dummy_results, csv_path)
+            
+            # Test JSON export
+            json_path = f'{temp_dir}/test.json'
+            export_to_json(dummy_results, json_path)
+            
+            print('Diagnostics export tests passed')
+        "
+    
+    - name: Test bridge server functionality
+      run: |
+        cd src/phase4_rl
+        # Install flask dependencies
+        pip install flask flask-cors
+        
+        # Test bridge server imports and basic functionality
+        python -c "
+        from bridge_server import BridgeServer
+        from client_stub import BridgeClient, generate_dummy_observation
+        
+        # Test dummy observation generation
+        obs = generate_dummy_observation(30)
+        print(f'Bridge test: Generated observation with {len(obs)} dimensions')
+        
+        # Test that bridge server can be initialized
+        try:
+            # Create dummy checkpoint for testing
+            import torch
+            import tempfile
+            from pathlib import Path
+            
+            dummy_model = {'model_state_dict': {}, 'optimizer_state_dict': {}}
+            temp_dir = Path(tempfile.mkdtemp())
+            checkpoint_path = temp_dir / 'dummy_model.zip'
+            torch.save(dummy_model, checkpoint_path)
+            
+            server = BridgeServer(
+                checkpoint_path=str(checkpoint_path),
+                scenario_name='easy',
+                host='localhost',
+                port=5001
+            )
+            print('Bridge server initialization test passed')
+            
+            # Test client initialization
+            client = BridgeClient(host='localhost', port=5001)
+            print('Bridge client initialization test passed')
+            
+        except Exception as e:
+            print(f'Bridge server test error: {e}')
+            raise
+        
+        print('All bridge server tests passed')
+        "
+    
+    - name: Test fast sim environment
+      run: |
+        cd src/phase4_rl
+        xvfb-run -a python -c "
+        from fast_sim_env import make_fast_sim_env
+        
+        # Test fast sim environment creation
+        env = make_fast_sim_env('easy')
+        stats = env.get_performance_stats()
+        print(f'FastSim test: Created environment with stats: {stats}')
+        
+        # Test basic functionality
+        obs, info = env.reset(seed=42)
+        action = env.action_space.sample()
+        obs, reward, terminated, truncated, info = env.step(action)
+        env.close()
+        
+        print('Fast sim environment test passed')
+        "
+
+  build-check:
+    runs-on: ubuntu-latest
+    needs: [test, lint, integration]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install build tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Check if package can be built
+      run: |
+        python -m build
+    
+    - name: Check package with twine
+      run: |
+        twine check dist/*
+    
+    - name: Test installation from wheel
+      run: |
+        pip install dist/*.whl
+        python -c "
+        try:
+            import hlynr_intercept
+            print('Package installation test passed')
+        except ImportError as e:
+            print(f'Package installation test failed: {e}')
+            exit(1)
+        "

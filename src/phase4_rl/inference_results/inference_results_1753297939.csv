@@ -1,0 +1,2 @@
+scenario,episode,total_reward,episode_length,success,timestamp,closest_approach,successful_interception,efficiency_score,fuel_total_interceptor_fuel,fuel_average_interceptor_fuel,fuel_max_interceptor_fuel,num_missiles,num_interceptors
+easy,0,[96.83728],34,True,1753297939.492602,31.25429070667545,True,[2.8481553],228.36843462913396,228.36843462913396,228.36843462913396,1,1

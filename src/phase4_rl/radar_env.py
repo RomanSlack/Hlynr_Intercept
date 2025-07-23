@@ -285,19 +285,19 @@ class RadarEnv(gym.Env):
         """Randomly spawn missiles in designated area."""
         spawn_area = self.spawn_config.get('missile_spawn_area', [[-100, -100], [100, 100]])
         for i in range(self.num_missiles):
-            self.missile_positions[i] = np.random.uniform(spawn_area[0], spawn_area[1])
+            self.missile_positions[i] = self.np_random.uniform(spawn_area[0], spawn_area[1])
     
     def _random_interceptor_spawn(self):
         """Randomly spawn interceptors in designated area."""
         spawn_area = self.spawn_config.get('interceptor_spawn_area', [[400, 400], [600, 600]])
         for i in range(self.num_interceptors):
-            self.interceptor_positions[i] = np.random.uniform(spawn_area[0], spawn_area[1])
+            self.interceptor_positions[i] = self.np_random.uniform(spawn_area[0], spawn_area[1])
     
     def _random_target_spawn(self):
         """Randomly spawn targets in designated area."""
         target_area = self.spawn_config.get('target_area', [[800, 800], [1000, 1000]])
         for i in range(self.num_missiles):
-            self.target_positions[i] = np.random.uniform(target_area[0], target_area[1])
+            self.target_positions[i] = self.np_random.uniform(target_area[0], target_area[1])
     
     def _initialize_velocities(self):
         """Initialize entity velocities."""
@@ -355,10 +355,10 @@ class RadarEnv(gym.Env):
             evasion_iq = self.adversary_config.get('evasion_iq', 0.2)
             maneuver_freq = self.adversary_config.get('maneuver_frequency', 0.1)
             
-            if np.random.random() < maneuver_freq * evasion_iq:
+            if self.np_random.random() < maneuver_freq * evasion_iq:
                 # Apply evasive maneuver
                 maneuver_strength = 20.0 * evasion_iq
-                maneuver = np.random.uniform(-maneuver_strength, maneuver_strength, 2)
+                maneuver = self.np_random.uniform(-maneuver_strength, maneuver_strength, 2)
                 self.missile_velocities[i] += maneuver * self.dt
             
             # Update position
@@ -451,9 +451,9 @@ class RadarEnv(gym.Env):
         
         for i in range(self.num_missiles):
             # Simulate radar detection with noise
-            detected_pos = self.missile_positions[i] + np.random.normal(0, self.radar_noise * 10, 2)
+            detected_pos = self.missile_positions[i] + self.np_random.normal(0, self.radar_noise * 10, 2)
             distance = np.linalg.norm(self.missile_positions[i])
-            confidence = max(0.0, 1.0 - distance / self.radar_range - np.random.uniform(0, self.radar_noise))
+            confidence = max(0.0, 1.0 - distance / self.radar_range - self.np_random.uniform(0, self.radar_noise))
             
             radar_returns.extend([
                 detected_pos[0] / 1000.0,
