@@ -282,6 +282,7 @@ class Logger:
             filename = f"episode_{timestamp}.json"
         
         episode_summary = {
+            'schema_version': 1,
             'metrics': self.get_episode_metrics(),
             'step_data': self.step_data,
             'timestamp': time.time()
@@ -361,6 +362,7 @@ def export_to_json(results: Dict[str, List[Dict[str, Any]]], output_path: Union[
     
     # Add metadata
     export_data = {
+        'schema_version': 1,
         'metadata': {
             'export_timestamp': time.time(),
             'total_scenarios': len(results),
@@ -371,6 +373,113 @@ def export_to_json(results: Dict[str, List[Dict[str, Any]]], output_path: Union[
     
     with open(output_path, 'w') as f:
         json.dump(export_data, f, indent=2, default=str)
+
+
+def load_episode_data(filepath: Union[str, Path]) -> Dict[str, Any]:
+    """
+    Load episode data with automatic schema migration.
+    
+    Args:
+        filepath: Path to episode JSON file
+        
+    Returns:
+        Migrated episode data dictionary
+    """
+    filepath = Path(filepath)
+    
+    with open(filepath, 'r') as f:
+        data = json.load(f)
+    
+    # Check schema version and migrate if necessary
+    schema_version = data.get('schema_version', 0)  # Default to 0 for legacy files
+    
+    if schema_version == 0:
+        # Migrate from legacy format (no schema version)
+        data = _migrate_episode_data_v0_to_v1(data)
+    elif schema_version == 1:
+        # Current version, no migration needed
+        pass
+    else:
+        # Future version - warn but try to load
+        warnings.warn(f"Unknown schema version {schema_version}, attempting to load as-is")
+    
+    return data
+
+
+def load_inference_results(filepath: Union[str, Path]) -> Dict[str, Any]:
+    """
+    Load inference results with automatic schema migration.
+    
+    Args:
+        filepath: Path to inference results JSON file
+        
+    Returns:
+        Migrated inference results dictionary
+    """
+    filepath = Path(filepath)
+    
+    with open(filepath, 'r') as f:
+        data = json.load(f)
+    
+    # Check schema version and migrate if necessary
+    schema_version = data.get('schema_version', 0)  # Default to 0 for legacy files
+    
+    if schema_version == 0:
+        # Migrate from legacy format (no schema version)
+        data = _migrate_inference_results_v0_to_v1(data)
+    elif schema_version == 1:
+        # Current version, no migration needed
+        pass
+    else:
+        # Future version - warn but try to load
+        warnings.warn(f"Unknown schema version {schema_version}, attempting to load as-is")
+    
+    return data
+
+
+def _migrate_episode_data_v0_to_v1(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Migrate episode data from version 0 (legacy) to version 1.
+    
+    Args:
+        data: Legacy episode data
+        
+    Returns:
+        Migrated episode data with schema_version: 1
+    """
+    # Add schema version
+    migrated_data = data.copy()
+    migrated_data['schema_version'] = 1
+    
+    # Legacy format should have 'metrics', 'step_data', 'timestamp'
+    # No structural changes needed for v0->v1, just add version
+    
+    return migrated_data
+
+
+def _migrate_inference_results_v0_to_v1(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Migrate inference results from version 0 (legacy) to version 1.
+    
+    Args:
+        data: Legacy inference results data
+        
+    Returns:
+        Migrated inference results with schema_version: 1
+    """
+    migrated_data = data.copy()
+    migrated_data['schema_version'] = 1
+    
+    # Legacy format might not have metadata section
+    if 'metadata' not in migrated_data:
+        # Create metadata section for legacy files
+        migrated_data['metadata'] = {
+            'export_timestamp': migrated_data.get('timestamp', time.time()),
+            'total_scenarios': len(migrated_data.get('results', {})),
+            'total_episodes': sum(len(episodes) for episodes in migrated_data.get('results', {}).values())
+        }
+    
+    return migrated_data
 
 
 def plot_metrics(results: Dict[str, List[Dict[str, Any]]], output_dir: Union[str, Path]):
