@@ -114,7 +114,7 @@ def generate_dummy_observation(obs_dim: int = 30) -> List[float]:
         Dummy observation array
     """
     # Generate realistic-looking radar observation
-    np.random.seed(42)  # For reproducible testing
+    rng = np.random.default_rng(42)  # For reproducible testing
     
     # Simulate radar observations (normalized between -1 and 1)
     observation = []
