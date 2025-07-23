@@ -8,7 +8,7 @@ environment:
   observation_dim: 34  # Based on existing successful training
   action_dim: 6        # Based on existing successful training  
   max_episode_steps: 1000
-  render_mode: "human"
+  render_mode: "none"
 
 # Radar system configuration
 radar:

@@ -201,7 +201,8 @@ class Phase4InferenceRunner:
             
             # Print episode summary
             success_str = "SUCCESS" if episode_result['success'] else "FAILURE"
-            print(f"- Reward: {episode_reward:.2f}, Length: {episode_length}, {success_str}")
+            episode_reward_float = float(episode_reward) if hasattr(episode_reward, 'item') else episode_reward
+            print(f"- Reward: {episode_reward_float:.2f}, Length: {episode_length}, {success_str}")
         
         return episode_results
     
