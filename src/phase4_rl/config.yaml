@@ -51,9 +51,45 @@ training:
   gamma: 0.99
   gae_lambda: 0.95
   clip_range: 0.2
-  ent_coef: 0.0
+  ent_coef: 0.01  # Will be managed by entropy schedule
   vf_coef: 0.5
   max_grad_norm: 0.5
+  
+  # Training stability features
+  stability:
+    # Entropy coefficient scheduling
+    entropy_schedule:
+      enabled: true
+      initial_entropy: 0.01      # Starting entropy coefficient
+      final_entropy: 0.02        # Minimum entropy floor
+      decay_steps: 500000        # Steps over which to decay
+    
+    # Learning rate scheduling with plateau detection
+    lr_schedule:
+      enabled: true
+      monitor_key: "eval/mean_reward"  # Metric to monitor
+      patience: 5                      # Evaluations without improvement before LR reduction
+      min_delta: 0.01                  # Minimum improvement threshold
+      factor: 0.5                      # LR reduction factor
+      min_lr: 1e-6                     # Minimum learning rate
+      early_stopping: false            # Enable early stopping
+      early_stopping_patience: 10      # Early stopping patience
+    
+    # Best model checkpointing
+    best_model:
+      enabled: true
+      monitor_key: "eval/mean_reward"  # Metric for best model selection
+      save_path: "best_model"          # Directory for best model
+      name_prefix: "best"              # Filename prefix
+      save_vecnormalize: true          # Save normalization parameters
+    
+    # Adaptive clip range adjustment
+    clip_range_adaptive:
+      enabled: true
+      clip_fraction_threshold: 0.2     # Threshold for clip fraction
+      consecutive_threshold: 3         # Consecutive violations before reduction
+      reduction_factor: 0.75           # Clip range reduction factor
+      min_clip_range: 0.05             # Minimum clip range
 
 # Checkpointing and logging
 checkpointing:

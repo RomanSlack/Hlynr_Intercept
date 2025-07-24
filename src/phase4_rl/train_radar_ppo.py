@@ -27,12 +27,24 @@ try:
     from .scenarios import get_scenario_loader, reset_scenario_loader
     from .radar_env import RadarEnv
     from .fast_sim_env import FastSimEnv
+    from .training_callbacks import (
+        EntropyScheduleCallback,
+        LearningRateSchedulerCallback,
+        BestModelCallback,
+        ClipRangeAdaptiveCallback
+    )
 except ImportError:
     # Fallback for direct execution
     from config import get_config, reset_config
     from scenarios import get_scenario_loader, reset_scenario_loader
     from radar_env import RadarEnv
     from fast_sim_env import FastSimEnv
+    from training_callbacks import (
+        EntropyScheduleCallback,
+        LearningRateSchedulerCallback,
+        BestModelCallback,
+        ClipRangeAdaptiveCallback
+    )
 
 
 class Phase4Trainer:
@@ -179,10 +191,10 @@ class Phase4Trainer:
         return self.model
     
     def setup_callbacks(self):
-        """Setup training callbacks for checkpointing and evaluation."""
+        """Setup training callbacks for checkpointing, evaluation, and stability."""
         callbacks = []
         
-        # Checkpoint callback
+        # Basic checkpoint callback
         checkpoint_interval = self.training_config.get('checkpoint_interval', 10000)
         checkpoint_callback = CheckpointCallback(
             save_freq=checkpoint_interval,
@@ -194,7 +206,7 @@ class Phase4Trainer:
         # Evaluation callback
         eval_callback = EvalCallback(
             self.eval_env,
-            best_model_save_path=str(self.checkpoint_dir / "best_model"),
+            best_model_save_path=str(self.checkpoint_dir / "legacy_best_model"),
             log_path=str(self.log_dir),
             eval_freq=checkpoint_interval // 2,
             deterministic=True,
@@ -203,24 +215,100 @@ class Phase4Trainer:
         )
         callbacks.append(eval_callback)
         
+        # Training stability callbacks
+        stability_config = self.training_config.get('stability', {})
+        
+        # Entropy scheduling callback
+        if stability_config.get('entropy_schedule', {}).get('enabled', False):
+            entropy_config = stability_config['entropy_schedule']
+            entropy_callback = EntropyScheduleCallback(
+                initial_entropy=entropy_config.get('initial_entropy', 0.01),
+                final_entropy=entropy_config.get('final_entropy', 0.02),
+                decay_steps=entropy_config.get('decay_steps', 500000),
+                verbose=1
+            )
+            callbacks.append(entropy_callback)
+            print(f"✅ Entropy scheduling enabled: {entropy_config['initial_entropy']} → {entropy_config['final_entropy']}")
+        
+        # Learning rate scheduling callback
+        if stability_config.get('lr_schedule', {}).get('enabled', False):
+            lr_config = stability_config['lr_schedule']
+            lr_callback = LearningRateSchedulerCallback(
+                monitor_key=lr_config.get('monitor_key', 'eval/mean_reward'),
+                patience=lr_config.get('patience', 5),
+                min_delta=lr_config.get('min_delta', 0.01),
+                factor=lr_config.get('factor', 0.5),
+                min_lr=lr_config.get('min_lr', 1e-6),
+                early_stopping=lr_config.get('early_stopping', False),
+                early_stopping_patience=lr_config.get('early_stopping_patience', 10),
+                verbose=1
+            )
+            callbacks.append(lr_callback)
+            print(f"✅ Learning rate scheduling enabled: patience={lr_config['patience']}, factor={lr_config['factor']}")
+        
+        # Best model callback (enhanced version)
+        if stability_config.get('best_model', {}).get('enabled', False):
+            best_config = stability_config['best_model']
+            best_callback = BestModelCallback(
+                monitor_key=best_config.get('monitor_key', 'eval/mean_reward'),
+                save_path=str(self.checkpoint_dir / best_config.get('save_path', 'best_model')),
+                name_prefix=best_config.get('name_prefix', 'best'),
+                save_freq=checkpoint_interval // 2,
+                save_vecnormalize=best_config.get('save_vecnormalize', True),
+                verbose=1
+            )
+            callbacks.append(best_callback)
+            print(f"✅ Enhanced best model checkpointing enabled: monitor={best_config.get('monitor_key', 'eval/mean_reward')}")
+        
+        # Clip range adaptive callback
+        if stability_config.get('clip_range_adaptive', {}).get('enabled', False):
+            clip_config = stability_config['clip_range_adaptive']
+            clip_callback = ClipRangeAdaptiveCallback(
+                clip_fraction_threshold=clip_config.get('clip_fraction_threshold', 0.2),
+                consecutive_threshold=clip_config.get('consecutive_threshold', 3),
+                reduction_factor=clip_config.get('reduction_factor', 0.75),
+                min_clip_range=clip_config.get('min_clip_range', 0.05),
+                check_freq=checkpoint_interval // 2,
+                verbose=1
+            )
+            callbacks.append(clip_callback)
+            print(f"✅ Adaptive clip range enabled: threshold={clip_config['clip_fraction_threshold']}")
+        
+        print(f"📋 Total callbacks configured: {len(callbacks)}")
+        
         return callbacks
     
-    def train(self, total_timesteps: Optional[int] = None, resume_checkpoint: Optional[str] = None):
+    def train(self, total_timesteps: Optional[int] = None, resume_checkpoint: Optional[str] = None, seed: Optional[int] = None):
         """
         Train the model.
         
         Args:
             total_timesteps: Total training timesteps
             resume_checkpoint: Path to checkpoint to resume from
+            seed: Random seed for reproducible training
         """
         if total_timesteps is None:
             total_timesteps = self.training_config.get('total_timesteps', 1000000)
+        
+        # Set random seed if provided
+        if seed is not None:
+            import random
+            import torch
+            np.random.seed(seed)
+            random.seed(seed)
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(seed)
+                torch.cuda.manual_seed_all(seed)
+            print(f"🎲 Random seed set to: {seed}")
         
         print(f"Starting Phase 4 RL training:")
         print(f"  Scenario: {self.scenario_name}")
         print(f"  Total timesteps: {total_timesteps}")
         print(f"  Checkpoint directory: {self.checkpoint_dir}")
         print(f"  Log directory: {self.log_dir}")
+        if seed is not None:
+            print(f"  Random seed: {seed}")
         print()
         
         # Setup model
@@ -345,6 +433,13 @@ def main():
         help='List available scenarios and exit'
     )
     
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=None,
+        help='Random seed for reproducible training'
+    )
+    
     args = parser.parse_args()
     
     # List scenarios if requested
@@ -379,7 +474,8 @@ def main():
     try:
         trainer.train(
             total_timesteps=args.timesteps,
-            resume_checkpoint=args.resume
+            resume_checkpoint=args.resume,
+            seed=args.seed
         )
     except KeyboardInterrupt:
         print("\nTraining interrupted by user.")

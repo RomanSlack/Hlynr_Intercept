@@ -69,6 +69,81 @@ Test the bridge server:
 python client_stub.py --test-type all --host localhost --port 5000
 ```
 
+#### Bridge Server API
+
+The bridge server provides a REST API for real-time inference with trained RL models:
+
+**POST `/act` - Get Action for Observation**
+
+Request body (JSON):
+```json
+{
+  "observation": [0.1, -0.2, 0.5, ...],  // Array of floats (34 dimensions)
+  "deterministic": true                   // Optional: use deterministic policy (default: true)
+}
+```
+
+Response (JSON):
+```json
+{
+  "success": true,
+  "action": [0.3, -0.1, 0.8, 0.2, 0.0, 0.4],  // Action array (6 dimensions)
+  "inference_time": 0.0234,                     // Inference time in seconds
+  "error": null
+}
+```
+
+**cURL Examples:**
+
+```bash
+# Basic inference request
+curl -X POST http://localhost:5000/act \
+  -H "Content-Type: application/json" \
+  -d '{
+    "observation": [-0.1, -0.1, 0.2, 0.2, 0.9, 0.9, 0.4, 0.5, 0.0, 0.0, 1.0, 1.0, 0.0, 0.3, -0.1, -0.1, 0.8, 0.5, 0.5, 0.2, 0.6, 0.0, 0.0, 1.0, 0.5, 1.0, 0.1, 0.8, 0.3, 0.4, 0.0, 0.0, 0.0, 0.0],
+    "deterministic": true
+  }'
+
+# Stochastic inference (for exploration)
+curl -X POST http://localhost:5000/act \
+  -H "Content-Type: application/json" \
+  -d '{
+    "observation": [-0.1, -0.1, 0.2, 0.2, 0.9, 0.9, 0.4, 0.5, 0.0, 0.0, 1.0, 1.0, 0.0, 0.3, -0.1, -0.1, 0.8, 0.5, 0.5, 0.2, 0.6, 0.0, 0.0, 1.0, 0.5, 1.0, 0.1, 0.8, 0.3, 0.4, 0.0, 0.0, 0.0, 0.0],
+    "deterministic": false
+  }'
+```
+
+**Other Endpoints:**
+
+```bash
+# Health check
+curl http://localhost:5000/health
+
+# Server statistics
+curl http://localhost:5000/stats
+
+# Reset environment (debugging)
+curl -X POST http://localhost:5000/reset
+```
+
+**Error Responses:**
+
+Invalid observation shape:
+```json
+{
+  "success": false,
+  "error": "Observation shape (10,) does not match expected (34,)",
+  "action": null,
+  "inference_time": 0.0
+}
+```
+
+**Performance Characteristics:**
+- Typical inference time: 10-30ms
+- Supported throughput: 20+ requests/second
+- Observation space: 34-dimensional float array (normalized -1 to 1)
+- Action space: 6-dimensional continuous control signals
+
 ### Diagnostics and Visualization
 
 Generate episode plots from diagnostics data:

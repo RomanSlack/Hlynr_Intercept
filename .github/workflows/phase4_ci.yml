@@ -401,6 +401,12 @@ jobs:
         print('All bridge server tests passed')
         "
     
+    - name: Test multi-seed random baseline
+      run: |
+        cd src/phase4_rl
+        xvfb-run -a python test_random_baseline.py --scenario easy --episodes 10 --seeds 0 1 --quiet
+        echo "Multi-seed baseline test completed"
+    
     - name: Test fast sim environment
       run: |
         cd src/phase4_rl
@@ -421,9 +427,130 @@ jobs:
         print('Fast sim environment test passed')
         "
 
-  build-check:
+  bridge-stress-test:
     runs-on: ubuntu-latest
     needs: [test, lint, integration]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f pyproject.toml ]; then pip install -e .; fi
+        pip install flask flask-cors requests
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+    
+    - name: Create dummy model for stress test
+      run: |
+        cd src/phase4_rl
+        python -c "
+        import torch
+        import tempfile
+        from pathlib import Path
+        from stable_baselines3 import PPO
+        from stable_baselines3.common.env_util import make_vec_env
+        import gymnasium as gym
+        
+        # Create a minimal trained model for testing
+        print('Creating dummy trained model for bridge stress test...')
+        
+        # Create dummy environment to get observation/action spaces
+        from fast_sim_env import make_fast_sim_env
+        env = make_fast_sim_env('easy')
+        
+        # Create minimal PPO model
+        model = PPO('MlpPolicy', env, verbose=0)
+        
+        # Save the model
+        model.save('ci_test_model')
+        env.close()
+        
+        print('Dummy model created: ci_test_model.zip')
+        print(f'File exists: {Path(\"ci_test_model.zip\").exists()}')
+        "
+    
+    - name: Start bridge server in background
+      run: |
+        cd src/phase4_rl
+        echo "Starting bridge server in background..."
+        python bridge_server.py --checkpoint ci_test_model.zip --port 5000 --host 127.0.0.1 &
+        BRIDGE_PID=$!
+        echo $BRIDGE_PID > bridge_pid.txt
+        echo "Bridge server started with PID: $BRIDGE_PID"
+        
+        # Wait for server to start
+        echo "Waiting for bridge server to start..."
+        for i in {1..30}; do
+          if curl -s http://127.0.0.1:5000/health > /dev/null 2>&1; then
+            echo "Bridge server is ready after ${i} seconds"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "Bridge server failed to start within 30 seconds"
+            exit 1
+          fi
+          sleep 1
+        done
+    
+    - name: Run bridge stress test (CI mode)
+      run: |
+        cd src/phase4_rl
+        echo "Running bridge stress test in CI mode..."
+        python stress_bridge.py --host 127.0.0.1 --port 5000 --ci-mode --output stress_test_results.json
+        
+        echo "Stress test completed successfully!"
+        
+        # Show brief results
+        if [ -f stress_test_results.json ]; then
+          echo "Stress test results saved to stress_test_results.json"
+          python -c "
+          import json
+          with open('stress_test_results.json') as f:
+              results = json.load(f)
+          print(f'Total requests: {results[\"performance\"][\"total_requests\"]}')
+          print(f'Success rate: {results[\"performance\"][\"successful_requests\"] / results[\"performance\"][\"total_requests\"] * 100:.1f}%')
+          print(f'Throughput: {results[\"performance\"][\"actual_rps\"]:.1f} req/s')
+          if results['latency']:
+              print(f'P50 latency: {results[\"latency\"][\"p50\"] * 1000:.1f}ms')
+          print(f'SLA compliance: {\"PASSED\" if results[\"success\"] else \"FAILED\"}')
+          "
+        fi
+    
+    - name: Stop bridge server
+      if: always()
+      run: |
+        cd src/phase4_rl
+        if [ -f bridge_pid.txt ]; then
+          BRIDGE_PID=$(cat bridge_pid.txt)
+          echo "Stopping bridge server (PID: $BRIDGE_PID)..."
+          kill $BRIDGE_PID || true
+          sleep 2
+          kill -9 $BRIDGE_PID 2>/dev/null || true
+          rm -f bridge_pid.txt
+        fi
+        
+        # Kill any remaining python processes on port 5000
+        pkill -f "bridge_server.py" || true
+    
+    - name: Upload stress test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: bridge-stress-test-results
+        path: src/phase4_rl/stress_test_results.json
+        retention-days: 30
+
+  build-check:
+    runs-on: ubuntu-latest
+    needs: [test, lint, integration, bridge-stress-test]
     
     steps:
     - uses: actions/checkout@v4
