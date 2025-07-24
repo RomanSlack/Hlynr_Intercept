@@ -113,7 +113,8 @@ class Phase4InferenceRunner:
                     num_episodes: int,
                     real_time: bool = False,
                     deterministic: bool = True,
-                    render: bool = False) -> List[Dict[str, Any]]:
+                    render: bool = False,
+                    seed: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Run inference episodes.
         
@@ -122,6 +123,7 @@ class Phase4InferenceRunner:
             real_time: Whether to run in real-time or accelerated
             deterministic: Whether to use deterministic policy
             render: Whether to render environment
+            seed: Random seed for reproducible inference
             
         Returns:
             List of episode results
@@ -129,11 +131,25 @@ class Phase4InferenceRunner:
         if self.model is None:
             self.load_model()
         
+        # Set random seed if provided
+        if seed is not None:
+            import random
+            import torch
+            np.random.seed(seed)
+            random.seed(seed)
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(seed)
+                torch.cuda.manual_seed_all(seed)
+            print(f"🎲 Random seed set to: {seed}")
+        
         print(f"Running {num_episodes} episodes:")
         print(f"  Scenario: {self.scenario_name}")
         print(f"  Real-time: {real_time}")
         print(f"  Deterministic: {deterministic}")
         print(f"  Render: {render}")
+        if seed is not None:
+            print(f"  Random seed: {seed}")
         print()
         
         episode_results = []
@@ -439,6 +455,13 @@ def main():
         help='Use deterministic policy'
     )
     
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=None,
+        help='Random seed for reproducible inference'
+    )
+    
     args = parser.parse_args()
     
     # Validate checkpoint path
@@ -465,7 +488,8 @@ def main():
                 num_episodes=args.episodes,
                 real_time=args.real_time,
                 deterministic=args.deterministic,
-                render=args.render
+                render=args.render,
+                seed=args.seed
             )
             results = {args.scenario: episode_results}
         
