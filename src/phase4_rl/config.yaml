@@ -60,8 +60,8 @@ training:
     # Entropy coefficient scheduling
     entropy_schedule:
       enabled: true
-      initial_entropy: 0.01      # Starting entropy coefficient
-      final_entropy: 0.02        # Minimum entropy floor
+      initial_entropy: 0.02      # Starting entropy coefficient
+      final_entropy: 0.01        # Minimum entropy floor
       decay_steps: 500000        # Steps over which to decay
     
     # Learning rate scheduling with plateau detection

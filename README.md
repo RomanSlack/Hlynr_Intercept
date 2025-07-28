@@ -41,6 +41,24 @@ For distributed training with multiple environments:
 python train_radar_ppo.py --scenario easy --timesteps 500000 --checkpoint-dir checkpoints --log-dir logs
 ```
 
+#### Advanced Training Features
+
+**Entropy Scheduling**: The training system includes advanced stability features like entropy coefficient scheduling that automatically adjusts exploration during training:
+
+- **Initial Entropy** (`initial_entropy: 0.02`): Higher entropy coefficient at the start encourages exploration of the action space
+- **Final Entropy** (`final_entropy: 0.01`): Lower entropy coefficient toward the end focuses on exploitation of learned policies  
+- **Decay Steps** (`decay_steps: 500000`): Number of training steps over which to linearly decrease entropy
+
+**Other Stability Features**:
+- **Learning Rate Scheduling**: Automatically reduces learning rate when training plateaus
+- **Best Model Checkpointing**: Saves `*_best.zip` whenever evaluation performance improves
+- **Adaptive Clip Range**: Prevents training instability by monitoring policy update magnitudes
+
+**Reproducible Training**:
+```bash
+python train_radar_ppo.py --scenario easy --timesteps 100000 --seed 42
+```
+
 ### Inference
 
 Run inference on a trained model:
