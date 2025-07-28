@@ -90,7 +90,7 @@ class EntropyScheduleCallback(BaseCallback):
             self._callback_logger.debug(f"Step {self.num_timesteps}: entropy_coef = {self.current_entropy:.6f}")
             
         # Log to tensorboard/CSV
-        self._callback_logger.record("train/entropy_coef", self.current_entropy)
+        self.logger.record("train/entropy_coef", self.current_entropy)
         
         return True
     
@@ -197,7 +197,7 @@ class LearningRateSchedulerCallback(BaseCallback):
         
         # Log current learning rate
         current_lr = self._get_current_lr()
-        self._callback_logger.record("train/learning_rate", current_lr)
+        self.logger.record("train/learning_rate", current_lr)
         
         return True
     
@@ -356,8 +356,8 @@ class BestModelCallback(BaseCallback):
         self._callback_logger.info(f"  Path: {model_path}.zip")
         
         # Log to tensorboard
-        self._callback_logger.record("train/best_model_saves", self.n_saves)
-        self._callback_logger.record(f"train/best_{self.monitor_key.replace('/', '_')}", self.best_value)
+        self.logger.record("train/best_model_saves", self.n_saves)
+        self.logger.record(f"train/best_{self.monitor_key.replace('/', '_')}", self.best_value)
     
     def _on_training_end(self) -> None:
         """Called when training ends."""
@@ -462,7 +462,7 @@ class ClipRangeAdaptiveCallback(BaseCallback):
         
         # Log current clip range
         current_clip_range = self._get_current_clip_range()
-        self._callback_logger.record("train/clip_range", current_clip_range)
+        self.logger.record("train/clip_range", current_clip_range)
         
         return True
     
