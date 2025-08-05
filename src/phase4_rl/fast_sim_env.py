@@ -13,11 +13,13 @@ try:
     from .radar_env import RadarEnv
     from .config import get_config
     from .scenarios import get_scenario_loader
+    from .episode_logger import EpisodeLogger
 except ImportError:
     # Fallback for direct execution
     from radar_env import RadarEnv
     from config import get_config
     from scenarios import get_scenario_loader
+    from episode_logger import EpisodeLogger
 
 
 class FastSimEnv(gym.Wrapper):
@@ -34,7 +36,9 @@ class FastSimEnv(gym.Wrapper):
                  config: Optional[Dict[str, Any]] = None,
                  scenario_name: Optional[str] = None,
                  num_missiles: Optional[int] = None,
-                 num_interceptors: Optional[int] = None):
+                 num_interceptors: Optional[int] = None,
+                 enable_episode_logging: bool = False,
+                 episode_log_dir: Optional[str] = None):
         """
         Initialize FastSimEnv wrapper.
         
@@ -43,6 +47,8 @@ class FastSimEnv(gym.Wrapper):
             scenario_name: Name of scenario to load
             num_missiles: Number of missiles (overrides config)
             num_interceptors: Number of interceptors (overrides config)
+            enable_episode_logging: Whether to enable episode logging for Unity replay
+            episode_log_dir: Directory for episode logs (default: "runs")
         """
         # Create RadarEnv with forced headless rendering
         env = RadarEnv(
@@ -64,6 +70,21 @@ class FastSimEnv(gym.Wrapper):
         
         # Update observation space for radar-only observations
         self._setup_radar_observation_space()
+        
+        # Initialize episode logger if enabled
+        self.enable_episode_logging = enable_episode_logging
+        self.episode_logger = None
+        if enable_episode_logging:
+            self.episode_logger = EpisodeLogger(
+                output_dir=episode_log_dir or "runs",
+                coord_frame="ENU_RH",  # Using right-handed East-North-Up
+                dt_nominal=0.01,  # 100 Hz sampling
+                enable_logging=True
+            )
+        
+        # Episode tracking
+        self.current_episode_time = 0.0
+        self.episode_step_count = 0
     
     def _setup_radar_observation_space(self):
         """Setup observation space for radar-only observations."""
@@ -109,6 +130,38 @@ class FastSimEnv(gym.Wrapper):
         """
         obs, info = self.env.reset(seed=seed, options=options)
         
+        # Reset episode tracking
+        self.current_episode_time = 0.0
+        self.episode_step_count = 0
+        
+        # Start episode logging if enabled
+        if self.episode_logger:
+            # Extract entity configurations from the environment
+            interceptor_config = {
+                "mass": 10.0,  # Default mass
+                "max_torque": [8000, 8000, 2000],
+                "sensor_fov": 30.0,
+                "max_thrust": 1000.0
+            }
+            
+            threat_config = {
+                "type": "ballistic",
+                "mass": 100.0,
+                "aim_point": [0, 0, 0]
+            }
+            
+            # Begin new episode
+            self.episode_logger.begin_episode(
+                seed=seed,
+                scenario_name=self.scenario_name,
+                interceptor_config=interceptor_config,
+                threat_config=threat_config,
+                notes=f"FastSimEnv training episode"
+            )
+            
+            # Log initial state
+            self._log_current_state()
+        
         # Verify observation is radar-only
         radar_obs = self._ensure_radar_only_observation(obs)
         
@@ -125,6 +178,20 @@ class FastSimEnv(gym.Wrapper):
             Tuple of (radar_observation, reward, terminated, truncated, info)
         """
         obs, reward, terminated, truncated, info = self.env.step(action)
+        
+        # Update episode tracking
+        self.episode_step_count += 1
+        # Use dt from config or default to 0.1
+        dt = getattr(self.env, 'dt', 0.1)
+        self.current_episode_time += dt
+        
+        # Log step if enabled
+        if self.episode_logger:
+            self._log_current_state(action)
+            
+            # If episode ended, log summary
+            if terminated or truncated:
+                self._log_episode_end(info)
         
         # Ensure observation is radar-only
         radar_obs = self._ensure_radar_only_observation(obs)
@@ -275,10 +342,147 @@ class FastSimEnv(gym.Wrapper):
             'observation_dim': self.env.obs_dim,
             'action_dim': self.env.action_dim
         }
+    
+    def _log_current_state(self, action: Optional[np.ndarray] = None):
+        """Log current state to episode logger."""
+        if not self.episode_logger:
+            return
+        
+        # Try to access entity positions from RadarEnv
+        # These might be stored as numpy arrays
+        missile_positions = getattr(self.env, 'missile_positions', None)
+        missile_velocities = getattr(self.env, 'missile_velocities', None)
+        interceptor_positions = getattr(self.env, 'interceptor_positions', None)
+        interceptor_velocities = getattr(self.env, 'interceptor_velocities', None)
+        interceptor_fuel = getattr(self.env, 'interceptor_fuel', None)
+        interceptor_active = getattr(self.env, 'interceptor_active', None)
+        missile_active = getattr(self.env, 'missile_active', None)
+        
+        # Build state dictionaries
+        interceptor_state = {}
+        threat_state = {}
+        
+        # Log first interceptor (if data available)
+        if interceptor_positions is not None and len(interceptor_positions) > 0:
+            pos = interceptor_positions[0] if hasattr(interceptor_positions[0], '__len__') else [0.0, 0.0, 0.0]
+            vel = interceptor_velocities[0] if interceptor_velocities is not None and len(interceptor_velocities) > 0 else [0.0, 0.0, 0.0]
+            
+            # Handle both 2D and 3D positions
+            if len(pos) == 2:
+                position_3d = [float(pos[0]), float(pos[1]), 0.0]
+            else:
+                position_3d = [float(pos[0]), float(pos[1]), float(pos[2])]
+            
+            if len(vel) == 2:
+                velocity_3d = [float(vel[0]), float(vel[1]), 0.0]
+            else:
+                velocity_3d = [float(vel[0]), float(vel[1]), float(vel[2])]
+            
+            # Get orientation data
+            interceptor_orientations = getattr(self.env, 'interceptor_orientations', None)
+            interceptor_angular_velocities = getattr(self.env, 'interceptor_angular_velocities', None)
+            
+            quaternion = [1.0, 0.0, 0.0, 0.0]  # Default identity
+            angular_velocity = [0.0, 0.0, 0.0]  # Default zero
+            
+            if interceptor_orientations is not None and len(interceptor_orientations) > 0:
+                q = interceptor_orientations[0]
+                quaternion = [float(q[0]), float(q[1]), float(q[2]), float(q[3])]
+            
+            if interceptor_angular_velocities is not None and len(interceptor_angular_velocities) > 0:
+                w = interceptor_angular_velocities[0]
+                angular_velocity = [float(w[0]), float(w[1]), float(w[2])]
+            
+            interceptor_state = {
+                "position": position_3d,
+                "quaternion": quaternion,
+                "velocity": velocity_3d,
+                "angular_velocity": angular_velocity,
+                "fuel": float(interceptor_fuel[0]) if interceptor_fuel is not None and len(interceptor_fuel) > 0 else 100.0,
+                "status": "active" if interceptor_active is None or (len(interceptor_active) > 0 and interceptor_active[0]) else "destroyed"
+            }
+            
+            if action is not None and len(action) >= 6:
+                # Add action for first interceptor
+                interceptor_state["action"] = action[:6].tolist()
+        
+        # Log first missile (if data available)
+        if missile_positions is not None and len(missile_positions) > 0:
+            pos = missile_positions[0] if hasattr(missile_positions[0], '__len__') else [0.0, 0.0, 0.0]
+            vel = missile_velocities[0] if missile_velocities is not None and len(missile_velocities) > 0 else [0.0, 0.0, 0.0]
+            
+            # Handle both 2D and 3D positions
+            if len(pos) == 2:
+                position_3d = [float(pos[0]), float(pos[1]), 0.0]
+            else:
+                position_3d = [float(pos[0]), float(pos[1]), float(pos[2])]
+            
+            if len(vel) == 2:
+                velocity_3d = [float(vel[0]), float(vel[1]), 0.0]
+            else:
+                velocity_3d = [float(vel[0]), float(vel[1]), float(vel[2])]
+            
+            # Get missile orientation data
+            missile_orientations = getattr(self.env, 'missile_orientations', None)
+            missile_angular_velocities = getattr(self.env, 'missile_angular_velocities', None)
+            
+            quaternion = [1.0, 0.0, 0.0, 0.0]  # Default identity
+            angular_velocity = [0.0, 0.0, 0.0]  # Default zero
+            
+            if missile_orientations is not None and len(missile_orientations) > 0:
+                q = missile_orientations[0]
+                quaternion = [float(q[0]), float(q[1]), float(q[2]), float(q[3])]
+            
+            if missile_angular_velocities is not None and len(missile_angular_velocities) > 0:
+                w = missile_angular_velocities[0]
+                angular_velocity = [float(w[0]), float(w[1]), float(w[2])]
+            
+            threat_state = {
+                "position": position_3d,
+                "quaternion": quaternion,
+                "velocity": velocity_3d,
+                "angular_velocity": angular_velocity,
+                "status": "active" if missile_active is None or (len(missile_active) > 0 and missile_active[0]) else "destroyed"
+            }
+        
+        # Log the timestep
+        self.episode_logger.log_step(
+            t=self.current_episode_time,
+            interceptor_state=interceptor_state,
+            threat_state=threat_state,
+            events=None  # Could add events like "lock_acquired" later
+        )
+    
+    def _log_episode_end(self, info: Dict[str, Any]):
+        """Log episode end summary."""
+        if not self.episode_logger:
+            return
+        
+        # Determine outcome from info
+        outcome = "timeout"  # Default
+        miss_distance = None
+        
+        if "episode" in info:
+            episode_info = info["episode"]
+            if "success" in episode_info:
+                outcome = "hit" if episode_info["success"] else "miss"
+            if "miss_distance" in episode_info:
+                miss_distance = episode_info["miss_distance"]
+        
+        # End the episode
+        self.episode_logger.end_episode(
+            outcome=outcome,
+            final_time=self.current_episode_time,
+            miss_distance=miss_distance,
+            impact_time=self.current_episode_time if outcome == "hit" else None,
+            notes=f"Episode ended after {self.episode_step_count} steps"
+        )
 
 
 def make_fast_sim_env(scenario_name: str = "easy", 
                      config_path: Optional[str] = None,
+                     enable_episode_logging: bool = False,
+                     episode_log_dir: Optional[str] = None,
                      **kwargs) -> FastSimEnv:
     """
     Factory function to create FastSimEnv with scenario configuration.
@@ -286,6 +490,8 @@ def make_fast_sim_env(scenario_name: str = "easy",
     Args:
         scenario_name: Name of scenario to load
         config_path: Path to configuration file
+        enable_episode_logging: Whether to enable episode logging
+        episode_log_dir: Directory for episode logs
         **kwargs: Additional arguments for FastSimEnv
         
     Returns:
@@ -304,6 +510,8 @@ def make_fast_sim_env(scenario_name: str = "easy",
     env = FastSimEnv(
         config=env_config,
         scenario_name=scenario_name,
+        enable_episode_logging=enable_episode_logging,
+        episode_log_dir=episode_log_dir,
         **kwargs
     )
     
