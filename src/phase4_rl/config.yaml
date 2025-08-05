@@ -20,17 +20,17 @@ radar:
     - [500, 500]
   onboard_radar_range: 200.0
 
-# Spawn area configuration
+# Spawn area configuration (3D)
 spawn:
   missile_spawn_area:
-    - [-100, -100]
-    - [100, 100]
+    - [-100, -100, 200]  # [x_min, y_min, z_min]
+    - [100, 100, 500]    # [x_max, y_max, z_max]
   interceptor_spawn_area:
-    - [400, 400] 
-    - [600, 600]
+    - [400, 400, 50]     # [x_min, y_min, z_min]
+    - [600, 600, 200]    # [x_max, y_max, z_max]
   target_area:
-    - [800, 800]
-    - [1000, 1000]
+    - [800, 800, 0]      # [x_min, y_min, z_min]
+    - [1000, 1000, 10]   # [x_max, y_max, z_max]
 
 # Environmental conditions
 environment_conditions:
@@ -106,3 +106,13 @@ inference:
   real_time: false
   export_diagnostics: true
   video_recording: false
+
+# Episode logging configuration (for Unity replay)
+episode_logging:
+  enabled: false  # Enable/disable episode logging
+  output_dir: "runs"  # Directory for episode logs
+  log_during_training: false  # Log episodes during training (warning: may slow training)
+  log_during_eval: true  # Log episodes during evaluation callbacks
+  log_interval: 100  # Log every N episodes during training (if enabled)
+  coordinate_frame: "ENU_RH"  # Coordinate frame for Unity (ENU_RH or UNITY_LH)
+  sampling_rate_hz: 100  # Sampling rate for episode logs

@@ -89,12 +89,33 @@ class RadarEnv(gym.Env):
         # Spawn configuration
         self.spawn_config = self.config.get('spawn_config', self.config.get('spawn', {}))
         
-        # Environment state
-        self.missile_positions = np.zeros((self.num_missiles, 2), dtype=np.float64)
-        self.missile_velocities = np.zeros((self.num_missiles, 2), dtype=np.float64)
-        self.interceptor_positions = np.zeros((self.num_interceptors, 2), dtype=np.float64)
-        self.interceptor_velocities = np.zeros((self.num_interceptors, 2), dtype=np.float64)
-        self.target_positions = np.zeros((self.num_missiles, 2), dtype=np.float64)
+        # Environment state - 6DOF 3D
+        self.missile_positions = np.zeros((self.num_missiles, 3), dtype=np.float64)
+        self.missile_velocities = np.zeros((self.num_missiles, 3), dtype=np.float64)
+        self.missile_orientations = np.zeros((self.num_missiles, 4), dtype=np.float64)  # quaternions [w,x,y,z]
+        self.missile_angular_velocities = np.zeros((self.num_missiles, 3), dtype=np.float64)
+        
+        self.interceptor_positions = np.zeros((self.num_interceptors, 3), dtype=np.float64)
+        self.interceptor_velocities = np.zeros((self.num_interceptors, 3), dtype=np.float64)
+        self.interceptor_orientations = np.zeros((self.num_interceptors, 4), dtype=np.float64)  # quaternions [w,x,y,z]
+        self.interceptor_angular_velocities = np.zeros((self.num_interceptors, 3), dtype=np.float64)
+        
+        self.target_positions = np.zeros((self.num_missiles, 3), dtype=np.float64)
+        
+        # Initialize orientations to identity quaternions
+        self.missile_orientations[:, 0] = 1.0  # w = 1
+        self.interceptor_orientations[:, 0] = 1.0  # w = 1
+        
+        # Additional 6DOF state
+        self.interceptor_fuel = np.full(self.num_interceptors, 100.0, dtype=np.float64)  # kg
+        self.interceptor_active = np.ones(self.num_interceptors, dtype=bool)
+        self.missile_active = np.ones(self.num_missiles, dtype=bool)
+        
+        # Physical parameters
+        self.gravity = np.array([0.0, 0.0, -9.81])  # ENU coordinates
+        self.air_density = 1.225  # kg/m³ at sea level
+        self.interceptor_mass = 10.0  # kg
+        self.missile_mass = 100.0  # kg
         
         # Simulation parameters
         self.dt = 0.1  # Time step in seconds
@@ -125,9 +146,9 @@ class RadarEnv(gym.Env):
         # - Environmental data: wind, atmospheric conditions
         # - Relative positioning and distances
         
-        # Base observation dimensions per entity
-        missile_obs_dim = 6  # pos_x, pos_y, vel_x, vel_y, estimated_target_x, estimated_target_y
-        interceptor_obs_dim = 8  # pos_x, pos_y, vel_x, vel_y, fuel, status, target_missile_id, distance_to_target
+        # Base observation dimensions per entity (3D)
+        missile_obs_dim = 9  # pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, target_x, target_y, target_z
+        interceptor_obs_dim = 10  # pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, fuel, status, target_missile_id, distance_to_target
         
         # Radar return dimensions
         ground_radar_dim = 4 * self.num_missiles  # detected_x, detected_y, confidence, range for each missile
@@ -282,29 +303,55 @@ class RadarEnv(gym.Env):
             self._random_target_spawn()
     
     def _random_missile_spawn(self):
-        """Randomly spawn missiles in designated area."""
-        spawn_area = self.spawn_config.get('missile_spawn_area', [[-100, -100], [100, 100]])
+        """Randomly spawn missiles in designated 3D area."""
+        spawn_area = self.spawn_config.get('missile_spawn_area', [[-100, -100, 100], [100, 100, 500]])
         for i in range(self.num_missiles):
-            self.missile_positions[i] = self.np_random.uniform(spawn_area[0], spawn_area[1])
+            # Handle both 2D and 3D spawn areas
+            if len(spawn_area[0]) == 2:
+                # 2D area, add default altitude
+                pos_2d = self.np_random.uniform(spawn_area[0], spawn_area[1])
+                self.missile_positions[i] = [pos_2d[0], pos_2d[1], 300.0]  # Default altitude
+            else:
+                # 3D area
+                self.missile_positions[i] = self.np_random.uniform(spawn_area[0], spawn_area[1])
     
     def _random_interceptor_spawn(self):
-        """Randomly spawn interceptors in designated area."""
-        spawn_area = self.spawn_config.get('interceptor_spawn_area', [[400, 400], [600, 600]])
+        """Randomly spawn interceptors in designated 3D area."""
+        spawn_area = self.spawn_config.get('interceptor_spawn_area', [[400, 400, 50], [600, 600, 200]])
         for i in range(self.num_interceptors):
-            self.interceptor_positions[i] = self.np_random.uniform(spawn_area[0], spawn_area[1])
+            # Handle both 2D and 3D spawn areas
+            if len(spawn_area[0]) == 2:
+                # 2D area, add default altitude
+                pos_2d = self.np_random.uniform(spawn_area[0], spawn_area[1])
+                self.interceptor_positions[i] = [pos_2d[0], pos_2d[1], 100.0]  # Default altitude
+            else:
+                # 3D area
+                self.interceptor_positions[i] = self.np_random.uniform(spawn_area[0], spawn_area[1])
     
     def _random_target_spawn(self):
-        """Randomly spawn targets in designated area."""
-        target_area = self.spawn_config.get('target_area', [[800, 800], [1000, 1000]])
+        """Randomly spawn targets in designated 3D area."""
+        target_area = self.spawn_config.get('target_area', [[800, 800, 0], [1000, 1000, 10]])
         for i in range(self.num_missiles):
-            self.target_positions[i] = self.np_random.uniform(target_area[0], target_area[1])
+            # Handle both 2D and 3D target areas
+            if len(target_area[0]) == 2:
+                # 2D area, add default altitude
+                pos_2d = self.np_random.uniform(target_area[0], target_area[1])
+                self.target_positions[i] = [pos_2d[0], pos_2d[1], 5.0]  # Ground level target
+            else:
+                # 3D area
+                self.target_positions[i] = self.np_random.uniform(target_area[0], target_area[1])
     
     def _initialize_velocities(self):
         """Initialize entity velocities."""
         # Missiles start with velocity toward their targets
         for i in range(self.num_missiles):
             direction = self.target_positions[i] - self.missile_positions[i]
-            direction = direction / (np.linalg.norm(direction) + 1e-8)
+            direction_norm = np.linalg.norm(direction)
+            if direction_norm > 1e-8:
+                direction = direction / direction_norm
+            else:
+                direction = np.array([1.0, 0.0, 0.0])  # Default direction if target == position
+            
             base_speed = 50.0  # Base missile speed
             speed_multiplier = self.adversary_config.get('speed_multiplier', 1.0)
             self.missile_velocities[i] = direction * base_speed * speed_multiplier
@@ -330,44 +377,168 @@ class RadarEnv(gym.Env):
             self._apply_interceptor_action(i, interceptor_action)
     
     def _apply_interceptor_action(self, interceptor_id: int, action: np.ndarray):
-        """Apply action to specific interceptor."""
-        # Extract action components
-        thrust_x = action[0] * 100.0  # Scale thrust
-        thrust_y = action[1] * 100.0
-        thrust_mag = (action[2] + 1.0) * 0.5  # Normalize to [0, 1]
+        """Apply 6DOF action to specific interceptor."""
+        if not self.interceptor_active[interceptor_id]:
+            return
         
-        # Apply thrust to velocity
-        thrust_vector = np.array([thrust_x, thrust_y]) * thrust_mag
-        self.interceptor_velocities[interceptor_id] += thrust_vector * self.dt
+        # Extract 6DOF action components: [thrust_x, thrust_y, thrust_z, torque_x, torque_y, torque_z]
+        thrust_body = np.array([
+            action[0] * 1000.0,  # Body-frame thrust X (N)
+            action[1] * 1000.0,  # Body-frame thrust Y (N) 
+            action[2] * 1000.0   # Body-frame thrust Z (N)
+        ])
         
-        # Apply velocity limits
-        max_velocity = 200.0
+        torque_body = np.array([
+            action[3] * 50.0,    # Torque about X-axis (Nm)
+            action[4] * 50.0,    # Torque about Y-axis (Nm)
+            action[5] * 50.0     # Torque about Z-axis (Nm)
+        ])
+        
+        # Convert body-frame thrust to world-frame using quaternion
+        q = self.interceptor_orientations[interceptor_id]
+        thrust_world = self._rotate_vector_by_quaternion(thrust_body, q)
+        
+        # Apply forces (F = ma, so a = F/m)
+        mass = self.interceptor_mass
+        acceleration = thrust_world / mass + self.gravity
+        
+        # Update velocity (Euler integration)
+        self.interceptor_velocities[interceptor_id] += acceleration * self.dt
+        
+        # Apply angular dynamics
+        # Simplified: torque directly affects angular velocity (assuming identity inertia tensor)
+        inertia_inv = 1.0 / 10.0  # 1/I, simplified
+        angular_acceleration = torque_body * inertia_inv
+        self.interceptor_angular_velocities[interceptor_id] += angular_acceleration * self.dt
+        
+        # Apply limits
+        max_velocity = 300.0  # m/s
+        max_angular_velocity = 10.0  # rad/s
+        
         velocity_norm = np.linalg.norm(self.interceptor_velocities[interceptor_id])
         if velocity_norm > max_velocity:
             self.interceptor_velocities[interceptor_id] *= max_velocity / velocity_norm
+            
+        angular_velocity_norm = np.linalg.norm(self.interceptor_angular_velocities[interceptor_id])
+        if angular_velocity_norm > max_angular_velocity:
+            self.interceptor_angular_velocities[interceptor_id] *= max_angular_velocity / angular_velocity_norm
+        
+        # Consume fuel based on thrust magnitude
+        fuel_consumption_rate = 0.01  # kg/s per 1000N
+        thrust_magnitude = np.linalg.norm(thrust_body)
+        fuel_used = fuel_consumption_rate * (thrust_magnitude / 1000.0) * self.dt
+        self.interceptor_fuel[interceptor_id] = max(0.0, self.interceptor_fuel[interceptor_id] - fuel_used)
+        
+        # Deactivate if out of fuel
+        if self.interceptor_fuel[interceptor_id] <= 0.0:
+            self.interceptor_active[interceptor_id] = False
+    
+    def _rotate_vector_by_quaternion(self, vector: np.ndarray, quaternion: np.ndarray) -> np.ndarray:
+        """Rotate a vector by a quaternion (q = [w, x, y, z])."""
+        w, x, y, z = quaternion
+        v = vector
+        
+        # Quaternion rotation: v' = q * v * q*
+        # Using the formula: v' = v + 2 * cross(q_vec, cross(q_vec, v) + w * v)
+        q_vec = np.array([x, y, z])
+        cross1 = np.cross(q_vec, v)
+        cross2 = np.cross(q_vec, cross1 + w * v)
+        rotated = v + 2 * cross2
+        
+        return rotated
+    
+    def _integrate_quaternion(self, quaternion: np.ndarray, angular_velocity: np.ndarray, dt: float) -> np.ndarray:
+        """Integrate quaternion using angular velocity."""
+        w, x, y, z = quaternion
+        wx, wy, wz = angular_velocity
+        
+        # Quaternion derivative: dq/dt = 0.5 * q * [0, wx, wy, wz]
+        dq = 0.5 * np.array([
+            -wx*x - wy*y - wz*z,
+             wx*w + wz*y - wy*z,
+             wy*w - wz*x + wx*z,
+             wz*w + wy*x - wx*y
+        ])
+        
+        # Euler integration
+        new_q = quaternion + dq * dt
+        
+        # Normalize quaternion
+        norm = np.linalg.norm(new_q)
+        if norm > 1e-6:
+            new_q /= norm
+        else:
+            new_q = np.array([1.0, 0.0, 0.0, 0.0])  # Reset to identity if degenerate
+        
+        return new_q
     
     def _update_missiles(self):
-        """Update missile positions and behaviors."""
+        """Update missile positions and behaviors in 3D."""
         for i in range(self.num_missiles):
-            # Basic ballistic trajectory with evasive maneuvers
+            if not self.missile_active[i]:
+                continue
+                
+            # Apply gravity
+            self.missile_velocities[i] += self.gravity * self.dt
             
             # Apply adversary AI based on scenario configuration
             evasion_iq = self.adversary_config.get('evasion_iq', 0.2)
             maneuver_freq = self.adversary_config.get('maneuver_frequency', 0.1)
             
             if self.np_random.random() < maneuver_freq * evasion_iq:
-                # Apply evasive maneuver
-                maneuver_strength = 20.0 * evasion_iq
-                maneuver = self.np_random.uniform(-maneuver_strength, maneuver_strength, 2)
+                # Apply 3D evasive maneuver
+                maneuver_strength = 50.0 * evasion_iq
+                maneuver = self.np_random.uniform(-maneuver_strength, maneuver_strength, 3)
+                maneuver[2] *= 0.5  # Reduce vertical maneuvering
                 self.missile_velocities[i] += maneuver * self.dt
+            
+            # Apply air resistance
+            drag_coefficient = 0.005
+            velocity_magnitude = np.linalg.norm(self.missile_velocities[i])
+            if velocity_magnitude > 0:
+                drag_force = -drag_coefficient * self.missile_velocities[i] * velocity_magnitude
+                drag_acceleration = drag_force / self.missile_mass
+                self.missile_velocities[i] += drag_acceleration * self.dt
             
             # Update position
             self.missile_positions[i] += self.missile_velocities[i] * self.dt
+            
+            # Update missile orientation to face velocity direction (simplified)
+            if velocity_magnitude > 1.0:
+                velocity_normalized = self.missile_velocities[i] / velocity_magnitude
+                self.missile_orientations[i] = self._velocity_to_quaternion(velocity_normalized)
+    
+    def _velocity_to_quaternion(self, velocity_normalized: np.ndarray) -> np.ndarray:
+        """Convert velocity direction to quaternion (simplified)."""
+        # Simplified orientation - just return identity for now
+        # In a full implementation, would compute proper quaternion from velocity direction
+        return np.array([1.0, 0.0, 0.0, 0.0])
     
     def _update_interceptors(self):
-        """Update interceptor positions."""
+        """Update interceptor positions and orientations."""
         for i in range(self.num_interceptors):
+            if not self.interceptor_active[i]:
+                continue
+                
+            # Update position
             self.interceptor_positions[i] += self.interceptor_velocities[i] * self.dt
+            
+            # Update orientation using angular velocity
+            self.interceptor_orientations[i] = self._integrate_quaternion(
+                self.interceptor_orientations[i],
+                self.interceptor_angular_velocities[i],
+                self.dt
+            )
+            
+            # Apply air resistance
+            drag_coefficient = 0.01
+            drag_force = -drag_coefficient * self.interceptor_velocities[i] * np.linalg.norm(self.interceptor_velocities[i])
+            drag_acceleration = drag_force / self.interceptor_mass
+            self.interceptor_velocities[i] += drag_acceleration * self.dt
+            
+            # Apply angular damping
+            angular_damping = 0.95
+            self.interceptor_angular_velocities[i] *= angular_damping
     
     def _update_environment(self):
         """Update environmental conditions."""
@@ -450,16 +621,17 @@ class RadarEnv(gym.Env):
         radar_returns = []
         
         for i in range(self.num_missiles):
-            # Simulate radar detection with noise
-            detected_pos = self.missile_positions[i] + self.np_random.normal(0, self.radar_noise * 10, 2)
-            distance = np.linalg.norm(self.missile_positions[i])
+            # Simulate radar detection with noise (3D position but radar returns 2D projection)
+            detected_pos_3d = self.missile_positions[i] + self.np_random.normal(0, self.radar_noise * 10, 3)
+            distance = np.linalg.norm(self.missile_positions[i])  # Full 3D distance
             confidence = max(0.0, 1.0 - distance / self.radar_range - self.np_random.uniform(0, self.radar_noise))
             
+            # Ground radar typically provides 2D position (X,Y) with range
             radar_returns.extend([
-                detected_pos[0] / 1000.0,
-                detected_pos[1] / 1000.0,
-                confidence,
-                distance / self.radar_range
+                detected_pos_3d[0] / 1000.0,  # X position
+                detected_pos_3d[1] / 1000.0,  # Y position  
+                confidence,                   # Detection confidence
+                distance / self.radar_range   # Normalized range
             ])
         
         return np.array(radar_returns)

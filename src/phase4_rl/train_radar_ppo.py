@@ -105,11 +105,25 @@ class Phase4Trainer:
         Returns:
             Vectorized environment
         """
+        # Get episode logging configuration
+        episode_logging_config = self.config.get('episode_logging', {})
+        enable_logging = episode_logging_config.get('enabled', False)
+        
+        # Determine if we should log for this environment type
+        if training:
+            # Only log during training if explicitly enabled
+            enable_logging = enable_logging and episode_logging_config.get('log_during_training', False)
+        else:
+            # Log during evaluation if enabled
+            enable_logging = enable_logging and episode_logging_config.get('log_during_eval', True)
+        
         def make_env():
             def _init():
                 env = FastSimEnv(
                     config=self.scenario_config,
-                    scenario_name=self.scenario_name
+                    scenario_name=self.scenario_name,
+                    enable_episode_logging=enable_logging,
+                    episode_log_dir=episode_logging_config.get('output_dir', 'runs')
                 )
                 return env
             return _init
@@ -440,6 +454,19 @@ def main():
         help='Random seed for reproducible training'
     )
     
+    parser.add_argument(
+        '--enable-episode-logging',
+        action='store_true',
+        help='Enable episode logging for Unity replay visualization'
+    )
+    
+    parser.add_argument(
+        '--episode-log-dir',
+        type=str,
+        default='runs',
+        help='Directory for episode logs (if logging enabled)'
+    )
+    
     args = parser.parse_args()
     
     # List scenarios if requested
@@ -463,10 +490,30 @@ def main():
         print(f"Available scenarios: {', '.join(available_scenarios)}")
         sys.exit(1)
     
+    # Override config if episode logging is requested via CLI
+    config_path = args.config
+    if args.enable_episode_logging:
+        # Need to modify config before creating trainer
+        from config import get_config
+        config_loader = get_config(config_path)
+        if 'episode_logging' not in config_loader._config:
+            config_loader._config['episode_logging'] = {}
+        config_loader._config['episode_logging']['enabled'] = True
+        config_loader._config['episode_logging']['output_dir'] = args.episode_log_dir
+        print(f"Episode logging enabled. Logs will be saved to: {args.episode_log_dir}")
+        
+        # Save modified config to temp file
+        import tempfile
+        import yaml
+        temp_config = tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False)
+        yaml.dump(config_loader._config, temp_config, default_flow_style=False)
+        temp_config.close()
+        config_path = temp_config.name
+    
     # Create trainer and start training
     trainer = Phase4Trainer(
         scenario_name=args.scenario,
-        config_path=args.config,
+        config_path=config_path,
         checkpoint_dir=args.checkpoint_dir,
         log_dir=args.log_dir
     )
