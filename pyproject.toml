@@ -24,7 +24,8 @@ dependencies = [
     "tensorboard",
     "scipy",
     "pyquaternion",
-    "tqdm"
+    "tqdm",
+    "flask"
 ]
 
 [project.optional-dependencies]
