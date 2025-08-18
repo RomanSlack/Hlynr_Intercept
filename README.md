@@ -1,274 +1,348 @@
-# Hlynr Intercept – Missile-Defense Path-Finding Simulator
+# Hlynr Unity↔RL Inference API Bridge Server v1.0
 
-A physically realizable Gymnasium-style environment for developing and testing reinforcement learning algorithms in missile interception scenarios. This project provides a sandbox for deterrence-focused RL research, enabling rapid prototyping and evaluation of AI decision-making systems under extreme time constraints.
+A production-ready Unity↔RL Inference API Bridge implementing the PRP specification for serving low-latency RL policy control to Unity environments.
 
-## Overview
+## Features
 
-Hlynr Intercept simulates defensive missile interception scenarios where an AI agent must learn optimal trajectories to intercept incoming threats before they reach defended targets. The environment progresses from simple 2D kinematics to high-fidelity 6-DOF simulations across multiple phases, supporting research into hierarchical reinforcement learning, distributed training, and real-time decision making.
+- **v1.0 API**: Pydantic-validated request/response schemas with versioning
+- **Deterministic Transforms**: ENU↔Unity coordinate system transforms with versioning (tfm_v1.0)
+- **VecNormalize Integration**: Versioned observation normalization statistics tracking
+- **Safety Clamps**: Post-policy safety limits for angular rates and thrust commands
+- **Episode Logging**: JSONL episode logs with manifest generation for Unity replay
+- **Performance Monitoring**: Latency tracking (p50/p95/p99) and comprehensive metrics
+- **Environment Configuration**: Full environment variable support with .env file loading
 
-## Collaborators
+## Quick Start
 
-* **Roman Slack** (RIT Rochester)
-* **Quinn Hasse** (UW Madison)
+### 1. Environment Setup
 
-## Phase Roadmap
-
-| Phase | Scope                                                                                                 | Primary Tools                          |
-|-------|-------------------------------------------------------------------------------------------------------|----------------------------------------|
-| **1** | 2D missile interception with PPO and real-time visualization.                                         | Gymnasium, PyGame, CleanRL             |
-| **2** | 3DOF physics, 3D kinematics, adversary movement, togglable headless mode, basic checkpointing.        | Gymnasium VectorEnv, TorchRL           |
-| **3** | Full 6DOF, realistic physics (wind, drag, IRL constants), modular scenario randomization, curriculum learning, enhanced logging, refined reward shaping. | Gymnasium, Custom PPO Trainer, WandB   |
-| **4** | Scalable distributed training with multiple interceptors, physical body flexibility, and transfer learning benchmarks. | RLlib, Isaac Gym, Optuna               |
-
-
-## Phase 4 Usage
-
-Phase 4 provides a complete multi-entity radar-based RL system with deterministic environments, fast simulation, comprehensive diagnostics, and Unity bridge integration.
-
-### Training
-
-Train a new model using the fast simulation environment:
+Copy the example environment file and configure it:
 
 ```bash
-cd src/phase4_rl
-python train_radar_ppo.py --scenario easy --timesteps 100000
+cp .env.example .env
+# Edit .env with your model path and configuration
 ```
 
-Available scenarios: `easy`, `medium`, `hard`, `impossible`
+Required environment variables:
+- `MODEL_CHECKPOINT`: Path to your trained PPO model (required)
 
-For distributed training with multiple environments:
+### 2. Run the Server
+
+Using environment variables (recommended):
 ```bash
-python train_radar_ppo.py --scenario easy --timesteps 500000 --checkpoint-dir checkpoints --log-dir logs
+python -m src.phase4_rl.hlynr_bridge_server
 ```
 
-#### Advanced Training Features
-
-**Entropy Scheduling**: The training system includes advanced stability features like entropy coefficient scheduling that automatically adjusts exploration during training:
-
-- **Initial Entropy** (`initial_entropy: 0.02`): Higher entropy coefficient at the start encourages exploration of the action space
-- **Final Entropy** (`final_entropy: 0.01`): Lower entropy coefficient toward the end focuses on exploitation of learned policies  
-- **Decay Steps** (`decay_steps: 500000`): Number of training steps over which to linearly decrease entropy
-
-**Other Stability Features**:
-- **Learning Rate Scheduling**: Automatically reduces learning rate when training plateaus
-- **Best Model Checkpointing**: Saves `*_best.zip` whenever evaluation performance improves
-- **Adaptive Clip Range**: Prevents training instability by monitoring policy update magnitudes
-
-**Reproducible Training**:
+Using command-line arguments:
 ```bash
-python train_radar_ppo.py --scenario easy --timesteps 100000 --seed 42
+python -m src.phase4_rl.hlynr_bridge_server \
+  --checkpoint /path/to/model.zip \
+  --host 0.0.0.0 \
+  --port 5000 \
+  --vecnorm-stats-id your_vecnorm_id
 ```
 
-### Inference
+### 3. Test the API
 
-Run inference on a trained model:
-
+Health check:
 ```bash
-cd src/phase4_rl
-python run_inference.py checkpoints/phase4_radar_baseline.zip --episodes 50 --scenario easy
+curl http://localhost:5000/healthz
 ```
 
-Multi-scenario evaluation:
+Metrics:
 ```bash
-python run_inference.py checkpoints/phase4_radar_baseline.zip --multi-scenario --episodes 20
+curl http://localhost:5000/metrics
 ```
 
-### Unity Bridge Server
+## Configuration
 
-Start the bridge server for Unity integration:
+### Environment Variables
+
+The server supports comprehensive configuration via environment variables. See `.env.example` for all available options:
 
 ```bash
-cd src/phase4_rl
-python bridge_server.py --checkpoint checkpoints/phase4_radar_baseline.zip --port 5000
+# Required
+MODEL_CHECKPOINT=/path/to/model.zip
+
+# Optional with defaults
+HOST=0.0.0.0
+PORT=5000
+VECNORM_STATS_ID=your_stats_id
+OBS_VERSION=obs_v1.0
+TRANSFORM_VERSION=tfm_v1.0
+CORS_ORIGINS=*
+LOG_DIR=inference_episodes
+RATE_MAX_RADPS=10.0
 ```
 
-Test the bridge server:
+### Command Line Arguments
+
+All environment variables can be overridden via command-line arguments:
+
 ```bash
-python client_stub.py --test-type all --host localhost --port 5000
+python -m src.phase4_rl.hlynr_bridge_server --help
 ```
 
-#### Bridge Server API
+Print current configuration:
+```bash
+python -m src.phase4_rl.hlynr_bridge_server --print-config
+```
 
-The bridge server provides a REST API for real-time inference with trained RL models:
+## API Endpoints
 
-**POST `/act` - Get Action for Observation**
+### POST /v1/inference
 
-Request body (JSON):
+Main inference endpoint implementing the v1.0 API specification.
+
+**Request Schema:**
 ```json
 {
-  "observation": [0.1, -0.2, 0.5, ...],  // Array of floats (34 dimensions)
-  "deterministic": true                   // Optional: use deterministic policy (default: true)
+  "meta": {
+    "t": 1.234,
+    "episode_id": "ep_001"
+  },
+  "frames": {
+    "unity_lh": true
+  },
+  "blue": {
+    "pos_m": [100, 200, 5000],
+    "vel_mps": [0, 0, -100],
+    "quat_wxyz": [1, 0, 0, 0],
+    "ang_vel_radps": [0, 0, 0],
+    "fuel_frac": 0.8
+  },
+  "red": {
+    "pos_m": [0, 0, 0],
+    "vel_mps": [0, 0, 0],
+    "quat_wxyz": [1, 0, 0, 0]
+  },
+  "guidance": {
+    "los_unit": [0, 0, -1],
+    "los_rate_radps": [0, 0],
+    "range_m": 5000,
+    "closing_speed_mps": 100,
+    "fov_ok": true,
+    "g_limit_ok": true
+  },
+  "env": {
+    "episode_step": 100,
+    "max_steps": 1000,
+    "wind_mps": [0, 0, 0]
+  },
+  "normalization": {
+    "obs_version": "obs_v1.0",
+    "vecnorm_stats_id": "your_stats_id",
+    "transform_version": "tfm_v1.0"
+  }
 }
 ```
 
-Response (JSON):
+**Response Schema:**
 ```json
 {
-  "success": true,
-  "action": [0.3, -0.1, 0.8, 0.2, 0.0, 0.4],  // Action array (6 dimensions)
-  "inference_time": 0.0234,                     // Inference time in seconds
-  "error": null
+  "action": {
+    "rate_cmd_radps": {
+      "pitch": 0.1,
+      "yaw": 0.05,
+      "roll": 0.0
+    },
+    "thrust_cmd": 0.7,
+    "aux": []
+  },
+  "diagnostics": {
+    "policy_latency_ms": 12.5,
+    "obs_clip_fractions": {
+      "low": 0.0,
+      "high": 0.02
+    },
+    "value_estimate": null
+  },
+  "safety": {
+    "clamped": false,
+    "clamp_reason": null
+  }
 }
 ```
 
-**cURL Examples:**
+### GET /healthz
 
-```bash
-# Basic inference request
-curl -X POST http://localhost:5000/act \
-  -H "Content-Type: application/json" \
-  -d '{
-    "observation": [-0.1, -0.1, 0.2, 0.2, 0.9, 0.9, 0.4, 0.5, 0.0, 0.0, 1.0, 1.0, 0.0, 0.3, -0.1, -0.1, 0.8, 0.5, 0.5, 0.2, 0.6, 0.0, 0.0, 1.0, 0.5, 1.0, 0.1, 0.8, 0.3, 0.4, 0.0, 0.0, 0.0, 0.0],
-    "deterministic": true
-  }'
+Health check endpoint.
 
-# Stochastic inference (for exploration)
-curl -X POST http://localhost:5000/act \
-  -H "Content-Type: application/json" \
-  -d '{
-    "observation": [-0.1, -0.1, 0.2, 0.2, 0.9, 0.9, 0.4, 0.5, 0.0, 0.0, 1.0, 1.0, 0.0, 0.3, -0.1, -0.1, 0.8, 0.5, 0.5, 0.2, 0.6, 0.0, 0.0, 1.0, 0.5, 1.0, 0.1, 0.8, 0.3, 0.4, 0.0, 0.0, 0.0, 0.0],
-    "deterministic": false
-  }'
-```
-
-**Other Endpoints:**
-
-```bash
-# Health check
-curl http://localhost:5000/health
-
-# Server statistics
-curl http://localhost:5000/stats
-
-# Reset environment (debugging)
-curl -X POST http://localhost:5000/reset
-```
-
-**Error Responses:**
-
-Invalid observation shape:
+**Response:**
 ```json
 {
-  "success": false,
-  "error": "Observation shape (10,) does not match expected (34,)",
-  "action": null,
-  "inference_time": 0.0
+  "status": "healthy",
+  "model_loaded": true,
+  "loaded_models": {
+    "ppo_policy": "/path/to/model.zip"
+  },
+  "vecnorm_stats_loaded": "your_stats_id",
+  "transform_version": "tfm_v1.0"
 }
 ```
 
-**Performance Characteristics:**
-- Typical inference time: 10-30ms
-- Supported throughput: 20+ requests/second
-- Observation space: 34-dimensional float array (normalized -1 to 1)
-- Action space: 6-dimensional continuous control signals
+### GET /metrics
 
-### Diagnostics and Visualization
+Performance metrics endpoint.
 
-Generate episode plots from diagnostics data:
+**Response:**
+```json
+{
+  "requests_served": 1000,
+  "requests_failed": 5,
+  "latency_p50_ms": 15.2,
+  "latency_p95_ms": 28.7,
+  "latency_p99_ms": 45.1,
+  "latency_mean_ms": 18.3,
+  "requests_per_second": 12.5,
+  "safety_clamps_total": 23,
+  "safety_clamp_rate": 0.023,
+  "model_loaded_at": 1692123456.789,
+  "vecnorm_stats_id": "your_stats_id"
+}
+```
 
+## Performance
+
+The server is designed to meet the following latency SLOs:
+- **p50 < 20ms**: 50th percentile end-to-end latency
+- **p95 < 35ms**: 95th percentile end-to-end latency
+
+Configure latency targets via environment variables:
 ```bash
-cd src/phase4_rl
-python plot_episode.py episode_data.json --plot-type dashboard --output results.png
+LATENCY_SLO_P50_MS=20.0
+LATENCY_SLO_P95_MS=35.0
 ```
 
-Plot types available: `trajectories`, `rewards`, `distances`, `dashboard`, `all`
+## Safety Features
 
-### Phase 4 Architecture
+### Angular Rate Limits
+- Configurable maximum angular rates via `RATE_MAX_RADPS` (default: 10.0 rad/s)
+- Hard clamps applied to pitch, yaw, and roll commands
+- Safety violations logged with detailed statistics
 
-- **RadarEnv**: Multi-entity environment with deterministic seeding
-- **FastSimEnv**: Headless wrapper for accelerated training  
-- **Bridge Server**: HTTP API for Unity integration (`/act`, `/health`, `/stats`)
-- **Diagnostics**: JSON logging with matplotlib visualization
-- **Scenarios**: Configurable difficulty levels with entity variations
+### Thrust Limits
+- Thrust commands clamped to [0, 1] range
+- Safety clamp events tracked and reported in metrics
 
-### Key Files
+## Logging
 
-- `radar_env.py` - Core multi-entity radar environment
-- `fast_sim_env.py` - Headless training wrapper
-- `train_radar_ppo.py` - PPO training with scenario management
-- `run_inference.py` - Multi-scenario evaluation
-- `bridge_server.py` - Unity integration server
-- `diagnostics.py` - Comprehensive logging and analysis
-- `plot_episode.py` - Quick visualization helper
+### Episode Logging
+- JSONL format for each timestep
+- Manifest file for episode replay in Unity
+- Comprehensive diagnostics and safety information
+- Configurable via `ENABLE_LOGGING` environment variable
 
+### Server Logging
+- Structured logging with configurable levels
+- Request/response logging for debugging
+- Performance metrics and error tracking
 
-## Repository Structure
+## Testing
 
-```
-.
-├── README.md              # Project documentation
-├── pyproject.toml         # Python package configuration
-├── .gitignore            # Git ignore patterns
-├── aegis_intercept/      # Main Python package
-│   ├── __init__.py
-│   ├── envs/
-│   │   ├── __init__.py
-│   │   └── aegis_2d_env.py   # 2-D missile vs interceptor simulation
-│   └── utils/
-│       ├── __init__.py
-│       └── maths.py          # Vector math utilities
-├── scripts/
-│   └── train_ppo_phase1.py   # CleanRL PPO training script
-├── tests/
-│   └── test_env_basic.py     # Pytest environment tests
-├── docs/                     # Reserved for design documentation
-└── models/                   # Saved model checkpoints
+Run the test suite:
+```bash
+# Unit tests
+python -m pytest src/phase4_rl/tests/ -v
+
+# Performance validation
+python -m src.phase4_rl.validate_performance
 ```
 
-## Quickstart
+## Development
 
-1. **Setup Environment**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
+### Environment Setup
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-2. **Install Dependencies**
-   ```bash
-   pip install -e .
-   # or alternatively:
-   # pip install -r requirements.txt
-   ```
+# Set up development environment
+cp .env.example .env
+# Edit .env with your configuration
+```
 
-3. **Run Training**
-   ```bash
-   python scripts/train_ppo_phase1.py
-   ```
+### Configuration Management
+The server uses a hierarchical configuration system:
+1. Default values in code
+2. Environment variables (from system or .env file)
+3. Command-line arguments (highest priority)
 
-4. **Run Tests**
-   ```bash
-   pytest tests/
-   ```
+### Module Structure
+```
+src/phase4_rl/
+├── hlynr_bridge_server.py    # Main server implementation
+├── env_config.py            # Environment configuration management
+├── schemas.py               # Pydantic request/response schemas
+├── transforms.py            # ENU↔Unity coordinate transforms
+├── normalize.py             # VecNormalize statistics management
+├── clamps.py               # Safety clamping system
+├── inference_logger.py     # Episode logging system
+└── tests/                  # Comprehensive test suite
+```
 
-## Phase 1 Features
+## Unity Integration
 
-* **Environment**: 2D continuous missile interception with realistic kinematics
-* **Agent**: PPO-based interceptor with continuous action space
-* **Visualization**: Real-time PyGame rendering for debugging and analysis
-* **Testing**: Comprehensive pytest suite for environment validation
+### Coordinate Systems
+- **Unity**: Left-handed coordinate system
+- **RL Training**: ENU (East-North-Up) right-handed coordinate system
+- **Transforms**: Deterministic, versioned transforms between systems
 
----
+### Request Flow
+1. Unity sends state in left-handed coordinates
+2. Server transforms to ENU for RL policy
+3. Policy computes action in ENU frame
+4. Server transforms action back to Unity frame
+5. Safety clamps applied before returning to Unity
 
-## ⚖️ Legal and Ethical Use Notice
+### Versioning
+- `obs_version`: Observation format version
+- `vecnorm_stats_id`: Specific normalization statistics
+- `transform_version`: Coordinate transform version
+- Ensures deterministic, reproducible inference
 
-This repository is released under the [Hippocratic License 2.1](./LICENSE), which permits use, modification, and distribution of this software for purposes that do not violate human rights or enable weaponized, military, or surveillance applications.
+## Troubleshooting
 
-**This project is for academic, research, and peaceful experimentation only.**
+### Common Issues
 
-Use of this code in autonomous weapons, missile guidance systems, surveillance infrastructure, or other military/defense-related applications is explicitly prohibited.
+**Model not loading:**
+```bash
+# Check model path
+python -m src.phase4_rl.hlynr_bridge_server --print-config
 
-If you are unsure whether your intended use violates this principle, do not use this software.
+# Verify model file exists
+ls -la $MODEL_CHECKPOINT
+```
 
+**High latency:**
+```bash
+# Check metrics
+curl http://localhost:5000/metrics
 
----
+# Enable debug logging
+DEBUG_MODE=true python -m src.phase4_rl.hlynr_bridge_server
+```
 
-## ⚖️ Legal and Ethical Disclaimer
+**VecNormalize issues:**
+```bash
+# List available stats
+python -c "from src.phase4_rl.normalize import get_vecnorm_manager; print(get_vecnorm_manager().list_stats())"
 
-This project is a purely academic and simulated environment intended for reinforcement learning research and experimentation. It does not interface with real-world defense systems, targeting software, or weaponized hardware.
+# Check specific stats ID
+VECNORM_STATS_ID=your_id python -m src.phase4_rl.hlynr_bridge_server --print-config
+```
 
-The repository does **not** include any classified, restricted, or export-controlled materials. It is intended only for educational and non-military applications.
+### Logging Configuration
+```bash
+# Enable debug logging
+LOG_LEVEL=DEBUG
 
-Use of this software must comply with applicable U.S. export control laws (ITAR, EAR) and international dual-use regulations. The authors explicitly prohibit any use of this project for real-world weaponization, targeting, or autonomous lethal systems.
+# Disable episode logging
+ENABLE_LOGGING=false
 
-By using this repository, you agree to use it solely for lawful, ethical, and research-related purposes.
+# Custom log directory
+LOG_DIR=/custom/log/path
+```
 
+## License
+
+MIT License - see LICENSE file for details.
