@@ -39,16 +39,16 @@ try:
         InferenceRequest, InferenceResponse, HealthResponse, MetricsResponse,
         ActionCommand, RateCommand, DiagnosticsInfo, SafetyInfo, ClipFractions
     )
-    from .transforms import get_transform, validate_transform_version
+    from hlynr_bridge.transforms import get_transform, validate_transform_version
     from .normalize import get_vecnorm_manager, load_vecnormalize_by_id
     from .seed_manager import set_deterministic_seeds, get_current_seed, validate_deterministic_setup
-    from .clamps import get_safety_clamp_system, SafetyLimits
-    from .episode_logger import get_inference_logger, reset_inference_logger
-    from .config import get_config, reset_config
-    from .scenarios import get_scenario_loader, reset_scenario_loader
-    from .radar_env import RadarEnv
-    from .fast_sim_env import FastSimEnv
-    from .env_config import get_bridge_config, BridgeServerConfig
+    from phase4_rl.clamps import get_safety_clamp_system, SafetyLimits
+    from phase4_rl.episode_logger import get_inference_logger, reset_inference_logger
+    from phase4_rl.config import get_config, reset_config
+    from phase4_rl.scenarios import get_scenario_loader, reset_scenario_loader
+    from phase4_rl.radar_env import RadarEnv
+    from phase4_rl.fast_sim_env import FastSimEnv
+    from phase4_rl.env_config import get_bridge_config, BridgeServerConfig
 except ImportError:
     # Fallback for direct execution - temporary import shim from phase4_rl
     import sys
@@ -63,13 +63,13 @@ except ImportError:
     from transforms import get_transform, validate_transform_version
     from normalize import get_vecnorm_manager, load_vecnormalize_by_id
     from seed_manager import set_deterministic_seeds, get_current_seed, validate_deterministic_setup
-    from clamps import get_safety_clamp_system, SafetyLimits
-    from episode_logger import get_inference_logger, reset_inference_logger
-    from config import get_config, reset_config
-    from scenarios import get_scenario_loader, reset_scenario_loader
-    from radar_env import RadarEnv
-    from fast_sim_env import FastSimEnv
-    from env_config import get_bridge_config, BridgeServerConfig
+    from phase4_rl.clamps import get_safety_clamp_system, SafetyLimits
+    from phase4_rl.episode_logger import get_inference_logger, reset_inference_logger
+    from phase4_rl.config import get_config, reset_config
+    from phase4_rl.scenarios import get_scenario_loader, reset_scenario_loader
+    from phase4_rl.radar_env import RadarEnv
+    from phase4_rl.fast_sim_env import FastSimEnv
+    from phase4_rl.env_config import get_bridge_config, BridgeServerConfig
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
