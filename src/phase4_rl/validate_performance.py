@@ -18,7 +18,7 @@ import numpy as np
 import requests
 from dataclasses import dataclass
 
-from .schemas import InferenceRequest
+from ..hlynr_bridge.schemas import InferenceRequest
 
 
 @dataclass

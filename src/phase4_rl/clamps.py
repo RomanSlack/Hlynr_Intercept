@@ -10,7 +10,7 @@ import time
 from typing import Dict, Any, List, Tuple, Optional
 from dataclasses import dataclass
 import numpy as np
-from .schemas import RateCommand, ActionCommand, SafetyInfo
+from ..hlynr_bridge.schemas import RateCommand, ActionCommand, SafetyInfo
 
 logger = logging.getLogger(__name__)
 
@@ -430,7 +430,7 @@ def apply_safety_clamps(action: ActionCommand,
 
 # Example usage and testing
 if __name__ == "__main__":
-    from .schemas import RateCommand, ActionCommand
+    from ..hlynr_bridge.schemas import RateCommand, ActionCommand
     
     # Test safety clamp system
     safety_system = SafetyClampSystem()
