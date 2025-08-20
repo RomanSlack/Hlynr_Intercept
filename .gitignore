@@ -58,3 +58,7 @@ htmlcov/
 # PyTorch
 *.pt
 *.pth
+
+# Claude
+.serena/
+serena/
