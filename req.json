@@ -37,6 +37,6 @@
   },
   "normalization": {
     "obs_version": "obs_v1.0",
-    "vecnorm_stats_id": "vecnorm_baseline_001"
+    "vecnorm_stats_id": "test_vecnorm_001"
   }
 }
