@@ -432,10 +432,27 @@ def v1_inference(inference_request: InferenceRequest):
             for reason in clamp_reasons:
                 hlynr_safety_clamps_total.labels(reason=reason).inc()
         
+        # CRITICAL: Step the environment with the action to integrate physics
+        try:
+            # First, try to synchronize environment state with the incoming request
+            # This ensures the environment reflects the current simulation state before stepping
+            radar_env = env.envs[0].env if hasattr(env, 'envs') else env
+            if hasattr(radar_env, 'set_state_from_request'):
+                radar_env.set_state_from_request(inference_request)
+            
+            # Use the original RL action from model.predict() for env.step()
+            # Note: We use the original action, not the clamped version, for physics integration
+            # The clamped version is returned to Unity for safety, but physics uses the raw policy output
+            env_obs, reward, terminated, truncated, info = env.step(action.reshape(1, -1))
+            logger.debug(f"Environment stepped successfully - reward: {reward:.3f}, terminated: {terminated}")
+        except Exception as e:
+            logger.warning(f"Environment step failed: {e}. Simulation state will not be updated.")
+            # Continue without environment stepping - graceful degradation
+        
         # Compute diagnostics
         diagnostics = _compute_diagnostics(observation, policy_latency)
         
-        # Extract current simulation state for visualization
+        # Extract current simulation state for visualization (now includes physics updates)
         simulation_state = _extract_simulation_state()
         
         # Create response

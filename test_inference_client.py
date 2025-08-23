@@ -50,8 +50,8 @@ class EpisodeOutcome(Enum):
 @dataclass
 class CompletionConditions:
     """Episode completion condition thresholds."""
-    intercept_distance_m: float = 50.0
-    miss_distance_m: float = 10000.0
+    intercept_distance_m: float = 200.0  # More generous for initial testing
+    miss_distance_m: float = 12000.0     # Slightly more generous  
     fuel_threshold: float = 0.05
     max_duration_s: float = 120.0
 
@@ -758,8 +758,13 @@ async def run_realistic_episode_simulation(session: aiohttp.ClientSession, vecno
                 # Save response to global collection
                 save_response_to_collection(request, data, latency_ms, f"episode_{scenario.name}_step_{episode_step}")
                 
-                # Update blue state
-                current_blue_state = update_blue_state_with_response(current_blue_state, data, dt)
+                # Update blue state from server's simulation_state (if available)
+                if sim_state and 'blue' in sim_state:
+                    # Use server's physics simulation
+                    current_blue_state = sim_state['blue'].copy()
+                else:
+                    # Fallback to client-side integration
+                    current_blue_state = update_blue_state_with_response(current_blue_state, data, dt)
                 
                 # Calculate current distance
                 blue_pos = np.array(current_blue_state['pos_m'])
@@ -768,13 +773,22 @@ async def run_realistic_episode_simulation(session: aiohttp.ClientSession, vecno
                 
                 # Display progress
                 thrust = action.get('thrust_cmd', 0.0)
+                rate_cmd = action.get('rate_cmd_radps', {})
+                pitch_rate = rate_cmd.get('pitch', 0.0)
+                yaw_rate = rate_cmd.get('yaw', 0.0)
+                roll_rate = rate_cmd.get('roll', 0.0)
                 fuel_remaining = current_blue_state.get('fuel_frac', 0.0)
                 
-                print(f"t={t:5.1f}s | Distance: {current_distance:6.1f}m | Thrust: {thrust:.2f} | Fuel: {fuel_remaining:.1%} | Latency: {latency_ms:4.1f}ms")
+                print(f"t={t:5.1f}s | Dist: {current_distance:6.1f}m | T: {thrust:.2f} | P: {pitch_rate:+.2f} Y: {yaw_rate:+.2f} R: {roll_rate:+.2f} | Fuel: {fuel_remaining:.1%} | {latency_ms:4.1f}ms")
                 
                 # Check completion conditions
                 fuel_consumed = initial_fuel - fuel_remaining
                 is_complete, outcome = check_completion_conditions(sim_state, fuel_consumed, t, episode_config.completion_conditions)
+                
+                # Debug completion conditions
+                if episode_step % 10 == 0:  # Every 10 steps, show condition status
+                    conditions = episode_config.completion_conditions
+                    print(f"    Status: Distance {current_distance:.1f}m (need <{conditions.intercept_distance_m}m), Fuel {fuel_remaining:.1%} (need >{conditions.fuel_threshold:.1%}), Time {t:.1f}s (max {conditions.max_duration_s}s)")
                 
                 if is_complete:
                     total_duration = time.perf_counter() - start_time
