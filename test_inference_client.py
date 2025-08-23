@@ -50,7 +50,7 @@ class EpisodeOutcome(Enum):
 @dataclass
 class CompletionConditions:
     """Episode completion condition thresholds."""
-    intercept_distance_m: float = 200.0  # More generous for initial testing
+    intercept_distance_m: float = 100.0  # Realistic intercept distance
     miss_distance_m: float = 12000.0     # Slightly more generous  
     fuel_threshold: float = 0.05
     max_duration_s: float = 120.0

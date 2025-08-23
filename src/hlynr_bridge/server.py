@@ -455,7 +455,7 @@ def v1_inference(inference_request: InferenceRequest):
             else:
                 raise ValueError(f"Unexpected step result length: {len(step_result)}")
                 
-            logger.debug(f"Environment stepped successfully - reward: {reward:.3f}, terminated: {terminated}")
+            logger.debug(f"Environment stepped successfully - reward: {float(reward):.3f}, terminated: {terminated}")
         except Exception as e:
             logger.warning(f"Environment step failed: {e}. Simulation state will not be updated.")
             # Continue without environment stepping - graceful degradation
