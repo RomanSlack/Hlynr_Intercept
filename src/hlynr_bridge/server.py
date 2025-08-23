@@ -77,7 +77,22 @@ logger = logging.getLogger(__name__)
 
 # Global variables  
 app = FastAPI(title="Hlynr Unity Bridge Server v1.0", version="1.0")
-# CORS will be configured based on environment variables
+
+# Configure CORS at module level to avoid middleware conflict
+from phase4_rl.env_config import BridgeServerConfig
+try:
+    env_config = BridgeServerConfig()
+    if env_config.enable_cors:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=env_config.cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        logger.info(f"CORS enabled for origins: {env_config.cors_origins}")
+except Exception as e:
+    logger.warning(f"CORS configuration failed: {e}")
 model = None
 env = None
 vec_normalize = None
@@ -112,14 +127,27 @@ if PROMETHEUS_AVAILABLE:
     hlynr_inference_latency_summary = Summary('hlynr_inference_latency_ms_quantiles', 'Inference latency quantiles in milliseconds')
     hlynr_safety_clamps_total = Counter('hlynr_safety_clamps_total', 'Total number of safety clamps applied', ['type'])
     hlynr_policy_latency_hist = Histogram('hlynr_policy_latency_ms', 'Policy inference latency histogram in milliseconds')
+
+# Global server instance for startup
+_server_instance = None
+
+# Load model on first request
+_model_loaded = False
+
+def ensure_model_loaded():
+    """Ensure model is loaded before processing requests."""
+    global _model_loaded, _server_instance
     
-    logger.info("Prometheus metrics initialized")
-else:
-    hlynr_requests_total = None
-    hlynr_inference_latency_hist = None
-    hlynr_inference_latency_summary = None
-    hlynr_safety_clamps_total = None
-    hlynr_policy_latency_hist = None
+    if not _model_loaded:
+        logger.info("Loading model for first request...")
+        try:
+            _server_instance = HlynrBridgeServer()
+            _server_instance.load_model()
+            _model_loaded = True
+            logger.info("Model loaded successfully")
+        except Exception as e:
+            logger.error(f"Failed to load model: {e}")
+            raise e
 
 
 class HlynrBridgeServer:
@@ -170,16 +198,7 @@ class HlynrBridgeServer:
         self.policy_id = policy_id or env_config.policy_id or f"policy_{int(time.time())}"
         self.rate_max_radps = rate_max_radps or env_config.rate_max_radps
         
-        # Configure CORS if enabled
-        if env_config.enable_cors:
-            app.add_middleware(
-                CORSMiddleware,
-                allow_origins=env_config.cors_origins,
-                allow_credentials=True,
-                allow_methods=["*"],
-                allow_headers=["*"],
-            )
-            logger.info(f"CORS enabled for origins: {env_config.cors_origins}")
+        # CORS is now configured at module level
         
         # Reset global instances
         reset_config()
@@ -187,8 +206,8 @@ class HlynrBridgeServer:
         reset_inference_logger()
         
         # Load configuration
-        self.config_loader = get_config(self.config_path)
-        self.config = self.config_loader._config
+        self.config_loader = get_config()
+        self.config = self.config_loader
         
         # Load scenario
         self.scenario_loader = get_scenario_loader()
@@ -366,6 +385,9 @@ def v1_inference(inference_request: InferenceRequest):
     start_time = time.perf_counter()
     
     try:
+        # Ensure model is loaded
+        ensure_model_loaded()
+        
         # Check model is loaded
         if model is None:
             return _error_response("Model not loaded", 500)
@@ -449,6 +471,12 @@ def v1_inference(inference_request: InferenceRequest):
 def health_check():
     """CRITICAL: Enhanced health check endpoint with all 7 required keys."""
     global model, vec_normalize_info, transform, server_stats
+    
+    # Ensure model is loaded
+    try:
+        ensure_model_loaded()
+    except Exception:
+        pass  # Allow health check to return current state even if model fails to load
     
     # All 7 required keys per PRP requirements
     response = HealthResponse(
