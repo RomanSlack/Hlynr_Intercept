@@ -10,7 +10,12 @@ import time
 from typing import Dict, Any, List, Tuple, Optional
 from dataclasses import dataclass
 import numpy as np
-from .schemas import RateCommand, ActionCommand, SafetyInfo
+
+# Use absolute import
+try:
+    from hlynr_bridge.schemas import RateCommand, ActionCommand, SafetyInfo
+except ImportError:
+    from .schemas import RateCommand, ActionCommand, SafetyInfo
 
 logger = logging.getLogger(__name__)
 

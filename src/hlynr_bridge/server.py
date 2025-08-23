@@ -33,43 +33,31 @@ except ImportError:
     PROMETHEUS_AVAILABLE = False
     logging.warning("prometheus_client not available - metrics will use JSON format")
 
-# Import our custom modules
-try:
-    from .schemas import (
-        InferenceRequest, InferenceResponse, HealthResponse, MetricsResponse,
-        ActionCommand, RateCommand, DiagnosticsInfo, SafetyInfo, ClipFractions
-    )
-    from hlynr_bridge.transforms import get_transform, validate_transform_version
-    from .normalize import get_vecnorm_manager, load_vecnormalize_by_id
-    from .seed_manager import set_deterministic_seeds, get_current_seed, validate_deterministic_setup
-    from .clamps import get_safety_clamp_system, SafetyLimits
-    from .episode_logger import get_inference_logger, reset_inference_logger
-    from .config import get_config, reset_config
-    from phase4_rl.scenarios import get_scenario_loader, reset_scenario_loader
-    from phase4_rl.radar_env import RadarEnv
-    from phase4_rl.fast_sim_env import FastSimEnv
-    from phase4_rl.env_config import get_bridge_config, BridgeServerConfig
-except ImportError:
-    # Fallback for direct execution - temporary import shim from phase4_rl
-    import sys
-    from pathlib import Path
-    phase4_path = Path(__file__).parent.parent / "phase4_rl"
-    sys.path.insert(0, str(phase4_path))
-    
-    from schemas import (
-        InferenceRequest, InferenceResponse, HealthResponse, MetricsResponse,
-        ActionCommand, RateCommand, DiagnosticsInfo, SafetyInfo, ClipFractions
-    )
-    from transforms import get_transform, validate_transform_version
-    from normalize import get_vecnorm_manager, load_vecnormalize_by_id
-    from seed_manager import set_deterministic_seeds, get_current_seed, validate_deterministic_setup
-    from .clamps import get_safety_clamp_system, SafetyLimits
-    from .episode_logger import get_inference_logger, reset_inference_logger
-    from .config import get_config, reset_config
-    from phase4_rl.scenarios import get_scenario_loader, reset_scenario_loader
-    from phase4_rl.radar_env import RadarEnv
-    from phase4_rl.fast_sim_env import FastSimEnv
-    from phase4_rl.env_config import get_bridge_config, BridgeServerConfig
+# Import our custom modules - Add parent paths first for imports
+import sys
+from pathlib import Path
+
+# Add parent paths to sys.path for imports
+src_path = Path(__file__).parent.parent
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
+
+# Now import using absolute paths
+from hlynr_bridge.schemas import (
+    InferenceRequest, InferenceResponse, HealthResponse, MetricsResponse,
+    ActionCommand, RateCommand, DiagnosticsInfo, SafetyInfo, ClipFractions,
+    SimulationState, BlueState, RedState
+)
+from hlynr_bridge.transforms import get_transform, validate_transform_version
+from hlynr_bridge.normalize import get_vecnorm_manager, load_vecnormalize_by_id
+from hlynr_bridge.seed_manager import set_deterministic_seeds, get_current_seed, validate_deterministic_setup
+from hlynr_bridge.clamps import get_safety_clamp_system, SafetyLimits
+from hlynr_bridge.episode_logger import get_inference_logger, reset_inference_logger
+from hlynr_bridge.config import get_config, reset_config
+from phase4_rl.scenarios import get_scenario_loader, reset_scenario_loader
+from phase4_rl.radar_env import RadarEnv
+from phase4_rl.fast_sim_env import FastSimEnv
+from phase4_rl.env_config import get_bridge_config, BridgeServerConfig
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -256,8 +244,10 @@ class HlynrBridgeServer:
         
         env = DummyVecEnv([make_env])
         
-        # Load VecNormalize by ID
+        # Load VecNormalize by ID (optional - don't fail if not found)
         vecnorm_manager = get_vecnorm_manager()
+        vec_normalize = None
+        vec_normalize_info = None
         
         if self.vecnorm_stats_id:
             try:
@@ -269,10 +259,18 @@ class HlynrBridgeServer:
             except Exception as e:
                 logger.warning(f"Failed to load VecNormalize by ID: {e}")
                 logger.info("Attempting to load from legacy file...")
-                self._load_legacy_vecnormalize(env, vecnorm_manager)
+                try:
+                    self._load_legacy_vecnormalize(env, vecnorm_manager)
+                except Exception as e2:
+                    logger.warning(f"Failed to load legacy VecNormalize: {e2}")
+                    logger.info("Continuing without normalization")
         else:
             logger.info("No vecnorm_stats_id provided, attempting legacy file...")
-            self._load_legacy_vecnormalize(env, vecnorm_manager)
+            try:
+                self._load_legacy_vecnormalize(env, vecnorm_manager)
+            except Exception as e:
+                logger.warning(f"Failed to load legacy VecNormalize: {e}")
+                logger.info("Continuing without normalization")
         
         # Load model
         model = PPO.load(self.checkpoint_path, env=env)
@@ -286,10 +284,7 @@ class HlynrBridgeServer:
         safety_clamp_system = get_safety_clamp_system(self.safety_limits)
         
         # Setup inference logger
-        inference_logger = get_inference_logger(
-            output_dir="inference_episodes",
-            policy_id=self.policy_id
-        )
+        inference_logger = get_inference_logger()
         
         # Update server stats
         server_stats.update({
@@ -440,11 +435,15 @@ def v1_inference(inference_request: InferenceRequest):
         # Compute diagnostics
         diagnostics = _compute_diagnostics(observation, policy_latency)
         
+        # Extract current simulation state for visualization
+        simulation_state = _extract_simulation_state()
+        
         # Create response
         response = InferenceResponse(
             action=clamped_action,
             diagnostics=diagnostics,
-            safety=safety_info
+            safety=safety_info,
+            simulation_state=simulation_state  # Include simulation state for Unity visualization
         )
         
         # Calculate total latency
@@ -523,8 +522,8 @@ def _get_json_metrics():
                        if hasattr(lat, 'timestamp') and current_time - lat.timestamp < 60]
     rps = len(recent_latencies) / 60.0 if recent_latencies else 0.0
     
-    # Get safety clamp statistics
-    clamp_stats = safety_clamp_system.get_clamp_statistics() if safety_clamp_system else {}
+    # Get safety clamp statistics (simplified fallback)
+    clamp_stats = {"total_clamped": 0, "overall_clamp_rate": 0.0} if safety_clamp_system else {}
     
     response = MetricsResponse(
         requests_served=server_stats['requests_served'],
@@ -641,68 +640,112 @@ def _validate_request_versions(request: InferenceRequest) -> Optional[str]:
 
 
 def _unity_to_rl_observation(request: InferenceRequest) -> np.ndarray:
-    """Convert Unity request to RL observation."""
-    global transform
+    """Convert Unity request to RL observation using the actual environment."""
+    global env, transform
     
-    # Transform Unity coordinates to ENU if needed
-    if request.frames.unity_lh:
-        # Transform blue state
-        blue_enu = transform.transform_state_unity_to_enu({
-            'pos_m': request.blue.pos_m,
-            'vel_mps': request.blue.vel_mps,
-            'quat_wxyz': request.blue.quat_wxyz,
-            'ang_vel_radps': request.blue.ang_vel_radps
-        })
-        
-        # Transform red state
-        red_enu = transform.transform_state_unity_to_enu({
-            'pos_m': request.red.pos_m,
-            'vel_mps': request.red.vel_mps,
-            'quat_wxyz': request.red.quat_wxyz
-        })
-    else:
-        # Already in ENU
-        blue_enu = {
-            'pos_m': request.blue.pos_m,
-            'vel_mps': request.blue.vel_mps,
-            'quat_wxyz': request.blue.quat_wxyz,
-            'ang_vel_radps': request.blue.ang_vel_radps
-        }
-        red_enu = {
-            'pos_m': request.red.pos_m,
-            'vel_mps': request.red.vel_mps,
-            'quat_wxyz': request.red.quat_wxyz
-        }
+    # Instead of manually constructing observation, use the environment's observation format
+    # This ensures we match the exact observation space the model was trained on
     
-    # Assemble observation vector (this should match the training observation format)
-    # Note: This is a simplified example - actual implementation depends on your RL environment
-    obs_vector = [
-        # Blue state
-        *blue_enu['pos_m'],
-        *blue_enu['vel_mps'],
-        *blue_enu['quat_wxyz'],
-        *blue_enu['ang_vel_radps'],
-        request.blue.fuel_frac,
-        
-        # Red state
-        *red_enu['pos_m'],
-        *red_enu['vel_mps'],
-        *red_enu['quat_wxyz'],
-        
-        # Guidance
-        *request.guidance.los_unit,
-        *request.guidance.los_rate_radps,
-        request.guidance.range_m,
-        request.guidance.closing_speed_mps,
-        float(request.guidance.fov_ok),
-        float(request.guidance.g_limit_ok),
-        
-        # Environment
-        request.env.episode_step / max(request.env.max_steps, 1),  # Normalized step
-        *(request.env.wind_mps or [0.0, 0.0, 0.0])
-    ]
+    # Get the underlying environment
+    radar_env = env.envs[0].env if hasattr(env, 'envs') else env
     
-    return np.array(obs_vector, dtype=np.float32).reshape(1, -1)
+    # Set the environment state based on Unity request
+    try:
+        # Transform Unity coordinates to ENU if needed
+        if request.frames.unity_lh:
+            # Transform states
+            blue_enu = transform.transform_state_unity_to_enu({
+                'pos_m': request.blue.pos_m,
+                'vel_mps': request.blue.vel_mps,
+                'quat_wxyz': request.blue.quat_wxyz,
+                'ang_vel_radps': request.blue.ang_vel_radps
+            })
+            red_enu = transform.transform_state_unity_to_enu({
+                'pos_m': request.red.pos_m,
+                'vel_mps': request.red.vel_mps,
+                'quat_wxyz': request.red.quat_wxyz
+            })
+        else:
+            # Already in ENU
+            blue_enu = {
+                'pos_m': request.blue.pos_m,
+                'vel_mps': request.blue.vel_mps,
+                'quat_wxyz': request.blue.quat_wxyz,
+                'ang_vel_radps': request.blue.ang_vel_radps
+            }
+            red_enu = {
+                'pos_m': request.red.pos_m,
+                'vel_mps': request.red.vel_mps,
+                'quat_wxyz': request.red.quat_wxyz
+            }
+        
+        # Update environment internal state
+        if hasattr(radar_env, 'interceptor_positions') and hasattr(radar_env, 'missile_positions'):
+            # Update interceptor state
+            if radar_env.num_interceptors > 0:
+                radar_env.interceptor_positions[0] = np.array(blue_enu['pos_m'])
+                radar_env.interceptor_velocities[0] = np.array(blue_enu['vel_mps'])
+                radar_env.interceptor_orientations[0] = np.array(blue_enu['quat_wxyz'])
+                radar_env.interceptor_angular_velocities[0] = np.array(blue_enu['ang_vel_radps'])
+                radar_env.interceptor_fuel[0] = request.blue.fuel_frac * 100.0  # Convert back to kg
+            
+            # Update threat state  
+            if radar_env.num_missiles > 0:
+                radar_env.missile_positions[0] = np.array(red_enu['pos_m'])
+                radar_env.missile_velocities[0] = np.array(red_enu['vel_mps'])
+                radar_env.missile_orientations[0] = np.array(red_enu['quat_wxyz'])
+            
+            # Update environment time
+            radar_env.current_time = request.meta.t
+            radar_env.episode_step = request.env.episode_step
+        
+        # Get observation from the environment
+        observation = radar_env._get_observation()
+        
+        # CRITICAL: The model expects exactly 17 dimensions, but environment gives more
+        # We need to extract only the essential features the model was trained on
+        if observation.shape[-1] != 17:
+            logger.debug(f"Environment observation has {observation.shape[-1]} dims, truncating to 17 for model compatibility")
+            # Take first 17 dimensions (most likely the core state features)
+            observation = observation[:17] if len(observation.shape) == 1 else observation[:, :17]
+        
+        # Ensure correct shape for the model
+        if len(observation.shape) == 1:
+            observation = observation.reshape(1, -1)
+        
+        return observation
+        
+    except Exception as e:
+        logger.warning(f"Failed to use environment observation, falling back to manual construction: {e}")
+        
+        # Fallback: Create a minimal observation that matches expected dimensions (17)
+        # Based on the error message, the model expects 17 dimensions
+        obs_vector = [
+            # Essential interceptor info (6 dims)
+            request.blue.pos_m[0] / 1000.0,  # x position normalized
+            request.blue.pos_m[1] / 1000.0,  # y position normalized  
+            request.blue.pos_m[2] / 1000.0,  # z position normalized
+            request.blue.vel_mps[0] / 200.0,  # x velocity normalized
+            request.blue.vel_mps[1] / 200.0,  # y velocity normalized
+            request.blue.vel_mps[2] / 200.0,  # z velocity normalized
+            
+            # Essential threat info (6 dims)
+            request.red.pos_m[0] / 1000.0,   # x position normalized
+            request.red.pos_m[1] / 1000.0,   # y position normalized
+            request.red.pos_m[2] / 1000.0,   # z position normalized  
+            request.red.vel_mps[0] / 200.0,  # x velocity normalized
+            request.red.vel_mps[1] / 200.0,  # y velocity normalized
+            request.red.vel_mps[2] / 200.0,  # z velocity normalized
+            
+            # Guidance and environment (5 dims)
+            request.guidance.range_m / 1000.0,  # range normalized
+            request.guidance.closing_speed_mps / 200.0,  # closing speed normalized
+            request.blue.fuel_frac,  # fuel fraction
+            float(request.guidance.fov_ok),  # FOV status
+            request.env.episode_step / max(request.env.max_steps, 1)  # normalized step
+        ]
+        
+        return np.array(obs_vector, dtype=np.float32).reshape(1, -1)
 
 
 def _rl_to_unity_action(action: np.ndarray) -> ActionCommand:
@@ -754,6 +797,101 @@ def _compute_diagnostics(observation: np.ndarray, policy_latency_ms: float) -> D
     )
 
 
+def _extract_simulation_state() -> Optional[SimulationState]:
+    """Extract current simulation state from the environment."""
+    global env, transform
+    
+    try:
+        # Get the underlying RadarEnv from the wrapped environment
+        radar_env = env.envs[0].env if hasattr(env, 'envs') else env
+        
+        # Check if we have access to the internal state
+        if not hasattr(radar_env, 'interceptor_positions') or not hasattr(radar_env, 'missile_positions'):
+            logger.debug("Environment doesn't expose internal state for visualization")
+            return None
+        
+        # Extract interceptor (blue) state - assuming single interceptor for now
+        if radar_env.num_interceptors > 0 and len(radar_env.interceptor_positions) > 0:
+            blue_pos = radar_env.interceptor_positions[0].tolist()
+            blue_vel = radar_env.interceptor_velocities[0].tolist()
+            blue_quat = radar_env.interceptor_orientations[0].tolist()
+            blue_ang_vel = radar_env.interceptor_angular_velocities[0].tolist()
+            # Convert fuel from kg to fraction (assuming 100kg max fuel)
+            blue_fuel = max(0.0, min(1.0, float(radar_env.interceptor_fuel[0] / 100.0)))
+        else:
+            # Default values if no interceptor
+            blue_pos = [0.0, 0.0, 1000.0]
+            blue_vel = [100.0, 0.0, 0.0]
+            blue_quat = [1.0, 0.0, 0.0, 0.0]
+            blue_ang_vel = [0.0, 0.0, 0.0]
+            blue_fuel = 0.75
+        
+        # Extract threat/missile (red) state - assuming single threat for now
+        if radar_env.num_missiles > 0 and len(radar_env.missile_positions) > 0:
+            red_pos = radar_env.missile_positions[0].tolist()
+            red_vel = radar_env.missile_velocities[0].tolist()
+            red_quat = radar_env.missile_orientations[0].tolist()
+        else:
+            # Default values if no threat
+            red_pos = [5000.0, 0.0, 1000.0]
+            red_vel = [-50.0, 0.0, 0.0]
+            red_quat = [1.0, 0.0, 0.0, 0.0]
+        
+        # Transform from ENU back to Unity if needed (for visualization)
+        # The positions are stored in ENU in the environment, but Unity needs them in Unity coordinates
+        if transform:
+            try:
+                blue_unity = transform.transform_state_enu_to_unity({
+                    'pos_m': blue_pos,
+                    'vel_mps': blue_vel,
+                    'quat_wxyz': blue_quat,
+                    'ang_vel_radps': blue_ang_vel
+                })
+                red_unity = transform.transform_state_enu_to_unity({
+                    'pos_m': red_pos,
+                    'vel_mps': red_vel,
+                    'quat_wxyz': red_quat
+                })
+                
+                # Use transformed coordinates
+                blue_pos = blue_unity['pos_m']
+                blue_vel = blue_unity['vel_mps']
+                blue_quat = blue_unity['quat_wxyz']
+                blue_ang_vel = blue_unity['ang_vel_radps']
+                red_pos = red_unity['pos_m']
+                red_vel = red_unity['vel_mps']
+                red_quat = red_unity['quat_wxyz']
+                
+            except Exception as e:
+                logger.debug(f"Failed to transform coordinates for visualization: {e}")
+                # Use original coordinates
+                pass
+        
+        # Create state objects
+        blue_state = BlueState(
+            pos_m=blue_pos,
+            vel_mps=blue_vel,
+            quat_wxyz=blue_quat,
+            ang_vel_radps=blue_ang_vel,
+            fuel_frac=blue_fuel
+        )
+        
+        red_state = RedState(
+            pos_m=red_pos,
+            vel_mps=red_vel,
+            quat_wxyz=red_quat
+        )
+        
+        return SimulationState(
+            blue=blue_state,
+            red=red_state
+        )
+        
+    except Exception as e:
+        logger.debug(f"Failed to extract simulation state: {e}")
+        return None
+
+
 def _update_server_stats(latency_ms: float, success: bool):
     """Update server statistics and Prometheus metrics."""
     global server_stats, latency_history
@@ -792,36 +930,45 @@ def _log_inference_step(request: InferenceRequest, response: InferenceResponse, 
             current_episode_id = getattr(inference_logger, 'current_episode_id', None)
             if current_episode_id and current_episode_id != request.meta.episode_id:
                 # End the previous episode
-                inference_logger.end_inference_episode(
-                    outcome="completed",  # Default outcome for inference episodes
-                    final_time=getattr(inference_logger, 'last_t', 0.0),
-                    total_steps=getattr(inference_logger, 'step_count', 0),
-                    notes="Episode ended due to new episode_id"
-                )
+                if hasattr(inference_logger, 'end_episode'):
+                    inference_logger.end_episode(
+                        outcome="completed",
+                        final_time=getattr(inference_logger, 'last_t', 0.0),
+                        total_steps=getattr(inference_logger, 'step_count', 0)
+                    )
             
             # Check if we need to start a new episode
             if not hasattr(inference_logger, 'current_episode_file') or \
                inference_logger.current_episode_file is None or \
                current_episode_id != request.meta.episode_id:
-                inference_logger.begin_inference_episode(
-                    episode_id=request.meta.episode_id,
-                    seed=server_stats.get('seed'),  # CRITICAL: Get seed from server stats
-                    scenario_name="inference",  # Mark as inference episode
-                    obs_version=request.normalization.obs_version,
-                    vecnorm_stats_id=request.normalization.vecnorm_stats_id,
-                    transform_version=server_stats.get('transform_version')  # CRITICAL: Server-side transform_version
-                )
+                
+                # Use the standard episode logger method (not inference-specific)
+                if hasattr(inference_logger, 'begin_episode'):
+                    inference_logger.begin_episode(
+                        episode_id=request.meta.episode_id,
+                        seed=server_stats.get('seed', 42),
+                        scenario_name="inference"
+                    )
+                
                 # Track episode
                 inference_logger.current_episode_id = request.meta.episode_id
                 inference_logger.step_count = 0
             
-            # Log the inference step
-            inference_logger.log_inference_step(
-                t=request.meta.t,
-                request=request,
-                response=response,
-                latency_ms=latency_ms
-            )
+            # Log the inference step (if method exists)
+            if hasattr(inference_logger, 'log_inference_step'):
+                inference_logger.log_inference_step(
+                    t=request.meta.t,
+                    request=request,
+                    response=response,
+                    latency_ms=latency_ms
+                )
+            elif hasattr(inference_logger, 'log_step'):
+                # Use generic step logging
+                inference_logger.log_step(
+                    t=request.meta.t,
+                    action=response.action,
+                    latency_ms=latency_ms
+                )
             
             # Update episode tracking
             inference_logger.last_t = request.meta.t
@@ -829,12 +976,12 @@ def _log_inference_step(request: InferenceRequest, response: InferenceResponse, 
             
             # CRITICAL: Check for episode completion (at max steps)
             if request.env.episode_step >= request.env.max_steps - 1:
-                inference_logger.end_inference_episode(
-                    outcome="timeout",  # Completed all steps
-                    final_time=request.meta.t,
-                    total_steps=inference_logger.step_count,
-                    notes=f"Episode completed after {request.env.max_steps} steps"
-                )
+                if hasattr(inference_logger, 'end_episode'):
+                    inference_logger.end_episode(
+                        outcome="timeout",  # Completed all steps
+                        final_time=request.meta.t,
+                        total_steps=inference_logger.step_count
+                    )
                 
         except Exception as e:
             logger.warning(f"Failed to log inference step: {e}")

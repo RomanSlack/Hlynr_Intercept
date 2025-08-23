@@ -92,6 +92,20 @@ This document provides comprehensive guidance for configuring Unity to visualize
     "clamped": false,               // Whether outputs were clamped
     "clamp_reason": null            // Reason if clamped
   },
+  "simulation_state": {             // ADDED: Current states from Python simulation
+    "blue": {                       // Interceptor state
+      "pos_m": [100.0, 200.0, 50.0],
+      "vel_mps": [150.0, 10.0, -5.0],
+      "quat_wxyz": [0.995, 0.0, 0.1, 0.0],
+      "ang_vel_radps": [0.1, 0.2, 0.05],
+      "fuel_frac": 0.75
+    },
+    "red": {                        // Threat state
+      "pos_m": [500.0, 600.0, 100.0],
+      "vel_mps": [-50.0, -40.0, -10.0],
+      "quat_wxyz": [0.924, 0.0, 0.0, 0.383]
+    }
+  },
   "timestamp": 1692889200.456,
   "success": true,
   "error": null
@@ -196,17 +210,27 @@ private InferenceRequest BuildRequest()
 }
 ```
 
-### 3. Command Application
+### 3. Command Application and State Visualization
 ```csharp
 private void ApplyRLCommand(InferenceResponse response)
 {
-    // Apply angular rate commands
+    // UPDATE: Use simulation state to position BOTH entities
+    if (response.SimulationState != null)
+    {
+        // Position interceptor based on Python simulation
+        UpdateEntityFromState(interceptorObject, response.SimulationState.Blue);
+        
+        // Position threat based on Python simulation  
+        UpdateEntityFromState(threatObject, response.SimulationState.Red);
+    }
+    
+    // Apply angular rate commands to interceptor visualization
     var rateCmd = response.Action.RateCmdRadps;
     pidController.ApplyRateCommand(
         new Vector3(rateCmd.Pitch, rateCmd.Yaw, rateCmd.Roll)
     );
     
-    // Apply thrust command
+    // Apply thrust command visualization
     thrustModel.SetThrottle(response.Action.ThrustCmd);
     
     // Check safety status
@@ -217,6 +241,19 @@ private void ApplyRLCommand(InferenceResponse response)
     
     // Display diagnostics
     UpdateDiagnosticsUI(response.Diagnostics);
+}
+
+private void UpdateEntityFromState(GameObject entity, EntityState state)
+{
+    // Convert ENU coordinates to Unity coordinates
+    var unityPos = ConvertENUToUnity(state.PosM);
+    entity.transform.position = unityPos;
+    
+    // Apply orientation
+    entity.transform.rotation = new Quaternion(
+        state.QuatWxyz[1], state.QuatWxyz[2], 
+        state.QuatWxyz[3], state.QuatWxyz[0]
+    );
 }
 ```
 

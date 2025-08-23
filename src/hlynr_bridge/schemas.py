@@ -151,11 +151,20 @@ class SafetyInfo(BaseModel):
     clamp_reason: Optional[str] = Field(None, description="Reason for clamping if applicable")
 
 
+class SimulationState(BaseModel):
+    """Current simulation state for visualization."""
+    blue: BlueState = Field(..., description="Current interceptor state from simulation")
+    red: RedState = Field(..., description="Current threat state from simulation")
+
+
 class InferenceResponse(BaseModel):
     """V1.0 Inference API response schema."""
     action: ActionCommand = Field(..., description="Control action commands")
     diagnostics: DiagnosticsInfo = Field(..., description="Policy diagnostics")
     safety: SafetyInfo = Field(..., description="Safety information")
+    
+    # ADDED: Current simulation state for Unity visualization
+    simulation_state: Optional[SimulationState] = Field(None, description="Current entity states from Python simulation")
     
     # Response metadata
     timestamp: float = Field(default_factory=time.time, description="Response timestamp")
