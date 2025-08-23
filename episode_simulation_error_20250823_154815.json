@@ -1,0 +1,25 @@
+{
+  "test_metadata": {
+    "timestamp": "2025-08-23T15:48:15.168594",
+    "server_url": "http://localhost:5000",
+    "test_type": "episode_simulation",
+    "total_requests": 0,
+    "inference_requests": 0,
+    "simulation_steps": 0
+  },
+  "responses": [],
+  "episode_metadata": {
+    "scenario": "unknown",
+    "outcome": "ERROR",
+    "duration": 0.0,
+    "total_commands": 0,
+    "final_distance": 0.0,
+    "fuel_consumed": 0.0,
+    "intercept_time": null,
+    "performance_metrics": {
+      "average_latency_ms": 0.0,
+      "max_latency_ms": 0.0,
+      "success_rate": 0.0
+    }
+  }
+}

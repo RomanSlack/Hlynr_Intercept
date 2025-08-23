@@ -1,0 +1,28 @@
+{
+  "scenario_name": "hard",
+  "description": "High-speed evasive target with challenging intercept geometry",
+  "initial_conditions": {
+    "blue": {
+      "pos_m": [0.0, 0.0, 500.0],
+      "vel_mps": [180.0, 0.0, 0.0],
+      "fuel_frac": 0.7
+    },
+    "red": {
+      "pos_m": [5000.0, 1000.0, 1500.0],
+      "vel_mps": [-120.0, -60.0, -20.0]
+    },
+    "update_rate_hz": 0.5,
+    "max_duration_s": 120.0
+  },
+  "completion_conditions": {
+    "intercept_distance_m": 50.0,
+    "miss_distance_m": 10000.0,
+    "fuel_threshold": 0.05,
+    "max_duration_s": 120.0
+  },
+  "metadata": {
+    "difficulty": "hard",
+    "expected_outcome": "UNCERTAIN",
+    "description_long": "A challenging scenario with a fast-moving target at different altitude and with 3D velocity components. Limited fuel and challenging intercept geometry make success dependent on optimal guidance performance."
+  }
+}

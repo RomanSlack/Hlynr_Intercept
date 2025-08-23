@@ -1,0 +1,28 @@
+{
+  "scenario_name": "medium",
+  "description": "Crossing trajectory intercept with moderate difficulty",
+  "initial_conditions": {
+    "blue": {
+      "pos_m": [0.0, 0.0, 1000.0],
+      "vel_mps": [150.0, 0.0, 0.0],
+      "fuel_frac": 0.8
+    },
+    "red": {
+      "pos_m": [6000.0, 2000.0, 1000.0],
+      "vel_mps": [-80.0, -40.0, 0.0]
+    },
+    "update_rate_hz": 0.5,
+    "max_duration_s": 90.0
+  },
+  "completion_conditions": {
+    "intercept_distance_m": 50.0,
+    "miss_distance_m": 10000.0,
+    "fuel_threshold": 0.05,
+    "max_duration_s": 90.0
+  },
+  "metadata": {
+    "difficulty": "medium",
+    "expected_outcome": "SUCCESS",
+    "description_long": "A crossing trajectory scenario where the target is moving at an angle relative to the interceptor. Requires more complex guidance calculations and timing to achieve successful intercept."
+  }
+}
