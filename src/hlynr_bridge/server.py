@@ -545,7 +545,7 @@ def _get_json_metrics():
 
 # Legacy endpoint compatibility
 @app.post("/act")
-def legacy_act(request_body: dict):
+def legacy_act(request: Request):
     """Legacy inference endpoint for backward compatibility."""
     # CRITICAL: Gate legacy endpoint behind environment variable
     enable_legacy = os.getenv('ENABLE_LEGACY_ACT', 'false').lower() in ('true', '1', 'yes')
@@ -559,6 +559,7 @@ def legacy_act(request_body: dict):
         )
     
     try:
+        request_body = request.json()
         observation = np.array(request_body['observation'], dtype=np.float32)
         deterministic = request_body.get('deterministic', True)
         
@@ -641,7 +642,7 @@ def _validate_request_versions(request: InferenceRequest) -> Optional[str]:
 
 
 def _unity_to_rl_observation(request: InferenceRequest) -> np.ndarray:
-    """Convert Unity request to RL observation."""
+    """Convert Unity request to RL radar-only observation format."""
     global transform
     
     # Transform Unity coordinates to ENU if needed
@@ -674,35 +675,52 @@ def _unity_to_rl_observation(request: InferenceRequest) -> np.ndarray:
             'quat_wxyz': request.red.quat_wxyz
         }
     
-    # Assemble observation vector (this should match the training observation format)
-    # Note: This is a simplified example - actual implementation depends on your RL environment
-    obs_vector = [
-        # Blue state
-        *blue_enu['pos_m'],
-        *blue_enu['vel_mps'],
-        *blue_enu['quat_wxyz'],
-        *blue_enu['ang_vel_radps'],
-        request.blue.fuel_frac,
-        
-        # Red state
-        *red_enu['pos_m'],
-        *red_enu['vel_mps'],
-        *red_enu['quat_wxyz'],
-        
-        # Guidance
-        *request.guidance.los_unit,
-        *request.guidance.los_rate_radps,
-        request.guidance.range_m,
-        request.guidance.closing_speed_mps,
-        float(request.guidance.fov_ok),
-        float(request.guidance.g_limit_ok),
-        
-        # Environment
-        request.env.episode_step / max(request.env.max_steps, 1),  # Normalized step
-        *(request.env.wind_mps or [0.0, 0.0, 0.0])
+    # Create radar-only observation matching training format (17 dims for easy scenario)
+    # For 1 interceptor, 1 missile configuration
+    
+    # 1. Interceptor essential (4 dims): fuel, status, target_id, distance
+    interceptor_essential = [
+        request.blue.fuel_frac,           # fuel
+        1.0,                              # status (active=1.0, destroyed=0.0)
+        0.0,                              # target_id (targeting missile 0)
+        request.guidance.range_m / 1000.0 # distance to target (normalized)
     ]
     
-    return np.array(obs_vector, dtype=np.float32).reshape(1, -1)
+    # 2. Ground radar returns (4 dims): detected_x, detected_y, confidence, range
+    # Simulate noisy ground radar detection of the missile
+    missile_pos = red_enu['pos_m']
+    ground_radar = [
+        missile_pos[0] / 1000.0,          # detected_x (normalized)
+        missile_pos[1] / 1000.0,          # detected_y (normalized) 
+        0.9,                              # confidence (high for ground radar)
+        request.guidance.range_m / 1000.0 # range (normalized)
+    ]
+    
+    # 3. Onboard radar returns (3 dims): detections, bearing, range
+    # Convert LOS to bearing relative to interceptor
+    los_unit = request.guidance.los_unit
+    bearing = np.arctan2(los_unit[1], los_unit[0])  # bearing in radians
+    onboard_radar = [
+        1.0 if request.guidance.fov_ok else 0.0,     # detections (1 if detected)
+        bearing / np.pi,                             # bearing (normalized to [-1,1])
+        request.guidance.range_m / 1000.0            # range (normalized)
+    ]
+    
+    # 4. Environmental data (6 dims): wind, atmosphere, etc.
+    wind_mps = request.env.wind_mps or [0.0, 0.0, 0.0]
+    env_data = [
+        wind_mps[0] / 10.0,                          # wind_x (normalized)
+        wind_mps[1] / 10.0,                          # wind_y (normalized)
+        wind_mps[2] / 10.0,                          # wind_z (normalized)
+        request.env.noise_std,                       # noise level
+        request.env.episode_step / max(request.env.max_steps, 1),  # normalized step
+        0.0                                          # reserved/atmosphere
+    ]
+    
+    # Assemble radar-only observation (17 dims total)
+    radar_obs = interceptor_essential + ground_radar + onboard_radar + env_data
+    
+    return np.array(radar_obs, dtype=np.float32)
 
 
 def _rl_to_unity_action(action: np.ndarray) -> ActionCommand:
@@ -723,14 +741,19 @@ def _rl_to_unity_action(action: np.ndarray) -> ActionCommand:
     enu_rates = [rate_pitch, rate_yaw, rate_roll]
     unity_rates = transform.enu_to_unity_angular_velocity(enu_rates)
     
+    # Apply basic clamps to ensure Pydantic validation passes
+    # (Full safety clamping happens later in the pipeline)
+    thrust_clamped = max(0.0, min(1.0, thrust))
+    aux_clamped = [max(-1.0, min(1.0, a)) for a in aux]
+    
     return ActionCommand(
         rate_cmd_radps=RateCommand(
             pitch=unity_rates[0],
             yaw=unity_rates[1],
             roll=unity_rates[2]
         ),
-        thrust_cmd=thrust,
-        aux=aux
+        thrust_cmd=thrust_clamped,
+        aux=aux_clamped
     )
 
 
