@@ -8,7 +8,7 @@ CRITICAL FIX: transform_version removed from request (server-side only per PRP r
 """
 
 from typing import List, Optional, Dict, Any, Union
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 import time
 
 
@@ -34,7 +34,8 @@ class BlueState(BaseModel):
     ang_vel_radps: List[float] = Field(..., description="Angular velocity [wx,wy,wz] in rad/s", min_items=3, max_items=3)
     fuel_frac: float = Field(..., description="Fuel fraction remaining [0..1]", ge=0.0, le=1.0)
     
-    @validator('quat_wxyz')
+    @field_validator('quat_wxyz')
+    @classmethod
     def quaternion_normalized(cls, v):
         """Validate quaternion is approximately normalized."""
         magnitude = sum(x*x for x in v) ** 0.5
@@ -49,7 +50,8 @@ class RedState(BaseModel):
     vel_mps: List[float] = Field(..., description="Velocity [vx,vy,vz] in m/s", min_items=3, max_items=3)
     quat_wxyz: List[float] = Field(..., description="Quaternion [w,x,y,z]", min_items=4, max_items=4)
     
-    @validator('quat_wxyz')
+    @field_validator('quat_wxyz')
+    @classmethod
     def quaternion_normalized(cls, v):
         """Validate quaternion is approximately normalized."""
         magnitude = sum(x*x for x in v) ** 0.5
@@ -67,7 +69,8 @@ class GuidanceInfo(BaseModel):
     fov_ok: bool = Field(..., description="Target in field of view")
     g_limit_ok: bool = Field(..., description="Within G-force limits")
     
-    @validator('los_unit')
+    @field_validator('los_unit')
+    @classmethod
     def los_unit_normalized(cls, v):
         """Validate LOS unit vector is normalized."""
         magnitude = sum(x*x for x in v) ** 0.5
@@ -101,20 +104,18 @@ class InferenceRequest(BaseModel):
     env: EnvironmentInfo = Field(..., description="Environment conditions")
     normalization: NormalizationInfo = Field(..., description="Normalization parameters")
     
-    @root_validator
-    def validate_request(cls, values):
+    @model_validator(mode='after')
+    def validate_request(self):
         """Cross-field validation."""
         # Validate coordinate frame consistency
-        frames = values.get('frames')
-        if frames and frames.frame != "ENU":
-            raise ValueError(f"Unsupported coordinate frame: {frames.frame}")
+        if self.frames and self.frames.frame != "ENU":
+            raise ValueError(f"Unsupported coordinate frame: {self.frames.frame}")
         
         # Validate episode step limits
-        env = values.get('env')
-        if env and env.episode_step >= env.max_steps:
-            raise ValueError(f"Episode step {env.episode_step} >= max_steps {env.max_steps}")
+        if self.env and self.env.episode_step >= self.env.max_steps:
+            raise ValueError(f"Episode step {self.env.episode_step} >= max_steps {self.env.max_steps}")
         
-        return values
+        return self
 
 
 class RateCommand(BaseModel):
