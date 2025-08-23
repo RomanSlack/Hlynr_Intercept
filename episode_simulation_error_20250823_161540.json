@@ -1,20 +1,20 @@
 {
   "test_metadata": {
-    "timestamp": "2025-08-23T16:01:46.954099",
+    "timestamp": "2025-08-23T16:15:40.510692",
     "server_url": "http://localhost:5000",
     "test_type": "episode_simulation",
-    "total_requests": 50,
-    "inference_requests": 50,
-    "simulation_steps": 50
+    "total_requests": 80,
+    "inference_requests": 80,
+    "simulation_steps": 80
   },
   "responses": [
     {
-      "timestamp": "2025-08-23T16:00:56.998320",
+      "timestamp": "2025-08-23T16:14:20.535353",
       "endpoint": "episode_easy_step_0",
-      "latency_ms": 78.51222099270672,
+      "latency_ms": 87.6337339868769,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160056",
+          "episode_id": "episode_easy_20250823_161420",
           "t": 0.0,
           "dt": 1.0,
           "sim_tick": 0
@@ -89,7 +89,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 0,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -110,7 +110,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 74.90530301583931,
+          "policy_latency_ms": 80.53797698812559,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -165,18 +165,18 @@
             ]
           }
         },
-        "timestamp": 1755979256.9570754,
+        "timestamp": 1755980060.4908578,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:00:57.883911",
+      "timestamp": "2025-08-23T16:14:21.410879",
       "endpoint": "episode_easy_step_1",
-      "latency_ms": 2.6345429942011833,
+      "latency_ms": 2.5625289999879897,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160057",
+          "episode_id": "episode_easy_20250823_161421",
           "t": 1.0,
           "dt": 1.0,
           "sim_tick": 1
@@ -251,7 +251,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 1,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -272,7 +272,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6612319848500192,
+          "policy_latency_ms": 0.6857159896753728,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -327,18 +327,18 @@
             ]
           }
         },
-        "timestamp": 1755979257.8832731,
+        "timestamp": 1755980061.4102287,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:00:58.885664",
+      "timestamp": "2025-08-23T16:14:22.413144",
       "endpoint": "episode_easy_step_2",
-      "latency_ms": 2.439294010400772,
+      "latency_ms": 2.947336994111538,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160058",
+          "episode_id": "episode_easy_20250823_161422",
           "t": 2.0,
           "dt": 1.0,
           "sim_tick": 2
@@ -413,7 +413,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 2,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -434,7 +434,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.639095000224188,
+          "policy_latency_ms": 0.7367660000454634,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -489,18 +489,18 @@
             ]
           }
         },
-        "timestamp": 1755979258.8850584,
+        "timestamp": 1755980062.412451,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:00:59.887490",
+      "timestamp": "2025-08-23T16:14:23.414103",
       "endpoint": "episode_easy_step_3",
-      "latency_ms": 2.559680986450985,
+      "latency_ms": 2.8019860037602484,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160059",
+          "episode_id": "episode_easy_20250823_161423",
           "t": 3.0,
           "dt": 1.0,
           "sim_tick": 3
@@ -575,7 +575,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 3,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -596,7 +596,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6947729852981865,
+          "policy_latency_ms": 0.7341640011873096,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -651,18 +651,18 @@
             ]
           }
         },
-        "timestamp": 1755979259.8868554,
+        "timestamp": 1755980063.4134538,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:00.889402",
+      "timestamp": "2025-08-23T16:14:24.415052",
       "endpoint": "episode_easy_step_4",
-      "latency_ms": 2.6356990274507552,
+      "latency_ms": 2.7621710032690316,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160100",
+          "episode_id": "episode_easy_20250823_161424",
           "t": 4.0,
           "dt": 1.0,
           "sim_tick": 4
@@ -737,7 +737,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 4,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -758,7 +758,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.706131977494806,
+          "policy_latency_ms": 0.7482499931938946,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -813,18 +813,18 @@
             ]
           }
         },
-        "timestamp": 1755979260.8888235,
+        "timestamp": 1755980064.4144127,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:01.890834",
+      "timestamp": "2025-08-23T16:14:25.416926",
       "endpoint": "episode_easy_step_5",
-      "latency_ms": 2.495716995326802,
+      "latency_ms": 2.63675200403668,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160101",
+          "episode_id": "episode_easy_20250823_161425",
           "t": 5.0,
           "dt": 1.0,
           "sim_tick": 5
@@ -899,7 +899,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 5,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -920,7 +920,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6523710035253316,
+          "policy_latency_ms": 0.6562760099768639,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -975,18 +975,18 @@
             ]
           }
         },
-        "timestamp": 1755979261.890183,
+        "timestamp": 1755980065.4162612,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:02.892502",
+      "timestamp": "2025-08-23T16:14:26.417680",
       "endpoint": "episode_easy_step_6",
-      "latency_ms": 2.388228982454166,
+      "latency_ms": 2.328208996914327,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160102",
+          "episode_id": "episode_easy_20250823_161426",
           "t": 6.0,
           "dt": 1.0,
           "sim_tick": 6
@@ -1061,7 +1061,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 6,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -1082,7 +1082,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6459899886976928,
+          "policy_latency_ms": 0.687257997924462,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -1137,18 +1137,18 @@
             ]
           }
         },
-        "timestamp": 1755979262.8919435,
+        "timestamp": 1755980066.4171686,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:03.894320",
+      "timestamp": "2025-08-23T16:14:27.419358",
       "endpoint": "episode_easy_step_7",
-      "latency_ms": 2.56571700447239,
+      "latency_ms": 2.450685977237299,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160103",
+          "episode_id": "episode_easy_20250823_161427",
           "t": 7.0,
           "dt": 1.0,
           "sim_tick": 7
@@ -1223,7 +1223,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 7,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -1244,7 +1244,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6840179848950356,
+          "policy_latency_ms": 0.6629939889535308,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -1299,18 +1299,18 @@
             ]
           }
         },
-        "timestamp": 1755979263.8937032,
+        "timestamp": 1755980067.4188063,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:04.895651",
+      "timestamp": "2025-08-23T16:14:28.421058",
       "endpoint": "episode_easy_step_8",
-      "latency_ms": 2.3693820112384856,
+      "latency_ms": 2.445179008645937,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160104",
+          "episode_id": "episode_easy_20250823_161428",
           "t": 8.0,
           "dt": 1.0,
           "sim_tick": 8
@@ -1385,7 +1385,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 8,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -1406,7 +1406,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6397519900929183,
+          "policy_latency_ms": 0.6313800113275647,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -1461,18 +1461,18 @@
             ]
           }
         },
-        "timestamp": 1755979264.8950796,
+        "timestamp": 1755980068.4204895,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:05.896670",
+      "timestamp": "2025-08-23T16:14:29.422631",
       "endpoint": "episode_easy_step_9",
-      "latency_ms": 2.394276001723483,
+      "latency_ms": 2.308331982931122,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160105",
+          "episode_id": "episode_easy_20250823_161429",
           "t": 9.0,
           "dt": 1.0,
           "sim_tick": 9
@@ -1547,7 +1547,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 9,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -1568,7 +1568,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6357179954648018,
+          "policy_latency_ms": 0.6934549892321229,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -1623,18 +1623,18 @@
             ]
           }
         },
-        "timestamp": 1755979265.8960562,
+        "timestamp": 1755980069.422125,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:06.897499",
+      "timestamp": "2025-08-23T16:14:30.423566",
       "endpoint": "episode_easy_step_10",
-      "latency_ms": 2.237320994026959,
+      "latency_ms": 2.3460259835701436,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160106",
+          "episode_id": "episode_easy_20250823_161430",
           "t": 10.0,
           "dt": 1.0,
           "sim_tick": 10
@@ -1709,7 +1709,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 10,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -1730,7 +1730,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6176850001793355,
+          "policy_latency_ms": 0.6255820044316351,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -1785,18 +1785,18 @@
             ]
           }
         },
-        "timestamp": 1755979266.8969734,
+        "timestamp": 1755980070.4229944,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:07.899081",
+      "timestamp": "2025-08-23T16:14:31.424611",
       "endpoint": "episode_easy_step_11",
-      "latency_ms": 2.3188360210042447,
+      "latency_ms": 2.3007430136203766,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160107",
+          "episode_id": "episode_easy_20250823_161431",
           "t": 11.0,
           "dt": 1.0,
           "sim_tick": 11
@@ -1871,7 +1871,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 11,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -1892,7 +1892,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6169019907247275,
+          "policy_latency_ms": 0.6287849973887205,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -1947,18 +1947,18 @@
             ]
           }
         },
-        "timestamp": 1755979267.898494,
+        "timestamp": 1755980071.424021,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:08.900630",
+      "timestamp": "2025-08-23T16:14:32.426192",
       "endpoint": "episode_easy_step_12",
-      "latency_ms": 2.3482329852413386,
+      "latency_ms": 2.3386709799524397,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160108",
+          "episode_id": "episode_easy_20250823_161432",
           "t": 12.0,
           "dt": 1.0,
           "sim_tick": 12
@@ -2033,7 +2033,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 12,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -2054,7 +2054,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.622733001364395,
+          "policy_latency_ms": 0.6505119963549078,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -2109,18 +2109,18 @@
             ]
           }
         },
-        "timestamp": 1755979268.9000375,
+        "timestamp": 1755980072.4256284,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:09.902284",
+      "timestamp": "2025-08-23T16:14:33.427793",
       "endpoint": "episode_easy_step_13",
-      "latency_ms": 2.410548011539504,
+      "latency_ms": 2.395601011812687,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160109",
+          "episode_id": "episode_easy_20250823_161433",
           "t": 13.0,
           "dt": 1.0,
           "sim_tick": 13
@@ -2195,7 +2195,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 13,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -2216,7 +2216,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6572410056833178,
+          "policy_latency_ms": 0.6789109902456403,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -2271,18 +2271,18 @@
             ]
           }
         },
-        "timestamp": 1755979269.9017308,
+        "timestamp": 1755980073.4272547,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:10.903605",
+      "timestamp": "2025-08-23T16:14:34.429246",
       "endpoint": "episode_easy_step_14",
-      "latency_ms": 2.295985003001988,
+      "latency_ms": 2.563344984082505,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160110",
+          "episode_id": "episode_easy_20250823_161434",
           "t": 14.0,
           "dt": 1.0,
           "sim_tick": 14
@@ -2357,7 +2357,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 14,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -2378,7 +2378,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6245069962460548,
+          "policy_latency_ms": 0.6822430004831403,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -2433,18 +2433,18 @@
             ]
           }
         },
-        "timestamp": 1755979270.9030752,
+        "timestamp": 1755980074.4286776,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:11.904663",
+      "timestamp": "2025-08-23T16:14:35.430676",
       "endpoint": "episode_easy_step_15",
-      "latency_ms": 2.350682014366612,
+      "latency_ms": 2.4056519905570894,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160111",
+          "episode_id": "episode_easy_20250823_161435",
           "t": 15.0,
           "dt": 1.0,
           "sim_tick": 15
@@ -2519,7 +2519,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 15,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -2540,7 +2540,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6402790022548288,
+          "policy_latency_ms": 0.6615699967369437,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -2595,18 +2595,18 @@
             ]
           }
         },
-        "timestamp": 1755979271.9040525,
+        "timestamp": 1755980075.4300482,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:12.905528",
+      "timestamp": "2025-08-23T16:14:36.431511",
       "endpoint": "episode_easy_step_16",
-      "latency_ms": 2.5328570045530796,
+      "latency_ms": 2.51339198439382,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160112",
+          "episode_id": "episode_easy_20250823_161436",
           "t": 16.0,
           "dt": 1.0,
           "sim_tick": 16
@@ -2681,7 +2681,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 16,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -2702,7 +2702,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.7870759873185307,
+          "policy_latency_ms": 0.7045340025797486,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -2740,14 +2740,14 @@
           },
           "red": {
             "pos_m": [
-              6390.005000240584,
-              -0.09805094763986644,
-              1000.0
+              6390.036998782507,
+              -0.07854341988407998,
+              999.9628595564645
             ],
             "vel_mps": [
-              -99.94999759415538,
-              -0.9805094763986644,
-              0.0
+              -99.63001217493319,
+              -0.7854341988407997,
+              -0.3714044353550031
             ],
             "quat_wxyz": [
               1.0,
@@ -2757,18 +2757,18 @@
             ]
           }
         },
-        "timestamp": 1755979272.9049408,
+        "timestamp": 1755980076.4309576,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:13.906924",
+      "timestamp": "2025-08-23T16:14:37.432722",
       "endpoint": "episode_easy_step_17",
-      "latency_ms": 2.6252010138705373,
+      "latency_ms": 2.4185820075217634,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160113",
+          "episode_id": "episode_easy_20250823_161437",
           "t": 17.0,
           "dt": 1.0,
           "sim_tick": 17
@@ -2843,7 +2843,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 17,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -2864,7 +2864,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6851959915366024,
+          "policy_latency_ms": 0.6870650104247034,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -2919,18 +2919,18 @@
             ]
           }
         },
-        "timestamp": 1755979273.9061844,
+        "timestamp": 1755980077.432194,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:14.908749",
+      "timestamp": "2025-08-23T16:14:38.433680",
       "endpoint": "episode_easy_step_18",
-      "latency_ms": 2.5348890048917383,
+      "latency_ms": 2.3744710197206587,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160114",
+          "episode_id": "episode_easy_20250823_161438",
           "t": 18.0,
           "dt": 1.0,
           "sim_tick": 18
@@ -3005,7 +3005,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 18,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -3026,7 +3026,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.7120129885151982,
+          "policy_latency_ms": 0.6761660042684525,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -3081,18 +3081,18 @@
             ]
           }
         },
-        "timestamp": 1755979274.9081745,
+        "timestamp": 1755980078.433141,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:15.910316",
+      "timestamp": "2025-08-23T16:14:39.434650",
       "endpoint": "episode_easy_step_19",
-      "latency_ms": 2.331310010049492,
+      "latency_ms": 2.3203330056276172,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160115",
+          "episode_id": "episode_easy_20250823_161439",
           "t": 19.0,
           "dt": 1.0,
           "sim_tick": 19
@@ -3167,7 +3167,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 19,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -3188,7 +3188,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6353339995257556,
+          "policy_latency_ms": 0.6158860051073134,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -3243,18 +3243,18 @@
             ]
           }
         },
-        "timestamp": 1755979275.9097803,
+        "timestamp": 1755980079.4341662,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:16.911627",
+      "timestamp": "2025-08-23T16:14:40.435636",
       "endpoint": "episode_easy_step_20",
-      "latency_ms": 2.3259279842022806,
+      "latency_ms": 2.368272020248696,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160116",
+          "episode_id": "episode_easy_20250823_161440",
           "t": 20.0,
           "dt": 1.0,
           "sim_tick": 20
@@ -3329,7 +3329,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 20,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -3350,7 +3350,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6335939979180694,
+          "policy_latency_ms": 0.6345919973682612,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -3405,18 +3405,18 @@
             ]
           }
         },
-        "timestamp": 1755979276.9110968,
+        "timestamp": 1755980080.4350863,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:17.913313",
+      "timestamp": "2025-08-23T16:14:41.437389",
       "endpoint": "episode_easy_step_21",
-      "latency_ms": 2.4193509889300913,
+      "latency_ms": 2.4346740101464093,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160117",
+          "episode_id": "episode_easy_20250823_161441",
           "t": 21.0,
           "dt": 1.0,
           "sim_tick": 21
@@ -3491,7 +3491,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 21,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -3512,7 +3512,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6665859837085009,
+          "policy_latency_ms": 0.6321789987850934,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -3567,18 +3567,18 @@
             ]
           }
         },
-        "timestamp": 1755979277.912785,
+        "timestamp": 1755980081.4367683,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:18.914680",
+      "timestamp": "2025-08-23T16:14:42.438657",
       "endpoint": "episode_easy_step_22",
-      "latency_ms": 2.4139680026564747,
+      "latency_ms": 2.3859439825173467,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160118",
+          "episode_id": "episode_easy_20250823_161442",
           "t": 22.0,
           "dt": 1.0,
           "sim_tick": 22
@@ -3653,7 +3653,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 22,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -3674,7 +3674,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6511709943879396,
+          "policy_latency_ms": 0.6439629942178726,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -3729,18 +3729,18 @@
             ]
           }
         },
-        "timestamp": 1755979278.9140885,
+        "timestamp": 1755980082.43805,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:19.916077",
+      "timestamp": "2025-08-23T16:14:43.439627",
       "endpoint": "episode_easy_step_23",
-      "latency_ms": 2.390978013863787,
+      "latency_ms": 2.330026007257402,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160119",
+          "episode_id": "episode_easy_20250823_161443",
           "t": 23.0,
           "dt": 1.0,
           "sim_tick": 23
@@ -3815,7 +3815,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 23,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -3836,7 +3836,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6162509962450713,
+          "policy_latency_ms": 0.6244909891393036,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -3891,18 +3891,18 @@
             ]
           }
         },
-        "timestamp": 1755979279.9155166,
+        "timestamp": 1755980083.439033,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:20.917810",
+      "timestamp": "2025-08-23T16:14:44.440830",
       "endpoint": "episode_easy_step_24",
-      "latency_ms": 2.4260630016215146,
+      "latency_ms": 2.5482409982942045,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160120",
+          "episode_id": "episode_easy_20250823_161444",
           "t": 24.0,
           "dt": 1.0,
           "sim_tick": 24
@@ -3977,7 +3977,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 24,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -3998,7 +3998,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6304249982349575,
+          "policy_latency_ms": 0.7709960045758635,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -4053,18 +4053,18 @@
             ]
           }
         },
-        "timestamp": 1755979280.9172907,
+        "timestamp": 1755980084.4402423,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:21.918719",
+      "timestamp": "2025-08-23T16:14:45.442401",
       "endpoint": "episode_easy_step_25",
-      "latency_ms": 2.442869998048991,
+      "latency_ms": 2.2911679989192635,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160121",
+          "episode_id": "episode_easy_20250823_161445",
           "t": 25.0,
           "dt": 1.0,
           "sim_tick": 25
@@ -4139,7 +4139,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 25,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -4160,7 +4160,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6260280206333846,
+          "policy_latency_ms": 0.6264019757509232,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -4215,18 +4215,18 @@
             ]
           }
         },
-        "timestamp": 1755979281.9180613,
+        "timestamp": 1755980085.4418614,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:22.920443",
+      "timestamp": "2025-08-23T16:14:46.445190",
       "endpoint": "episode_easy_step_26",
-      "latency_ms": 2.462153002852574,
+      "latency_ms": 3.8462509983219206,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160122",
+          "episode_id": "episode_easy_20250823_161446",
           "t": 26.0,
           "dt": 1.0,
           "sim_tick": 26
@@ -4301,7 +4301,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 26,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -4322,7 +4322,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6244950054679066,
+          "policy_latency_ms": 1.0174020135309547,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -4377,18 +4377,18 @@
             ]
           }
         },
-        "timestamp": 1755979282.919786,
+        "timestamp": 1755980086.4442122,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:23.921980",
+      "timestamp": "2025-08-23T16:14:47.444814",
       "endpoint": "episode_easy_step_27",
-      "latency_ms": 2.4535299744457006,
+      "latency_ms": 2.498896006727591,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160123",
+          "episode_id": "episode_easy_20250823_161447",
           "t": 27.0,
           "dt": 1.0,
           "sim_tick": 27
@@ -4463,7 +4463,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 27,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -4484,7 +4484,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6843879818916321,
+          "policy_latency_ms": 0.6786909943912178,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -4539,18 +4539,18 @@
             ]
           }
         },
-        "timestamp": 1755979283.9214602,
+        "timestamp": 1755980087.4441519,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:24.922888",
+      "timestamp": "2025-08-23T16:14:48.445768",
       "endpoint": "episode_easy_step_28",
-      "latency_ms": 2.3331870033871382,
+      "latency_ms": 2.441584976622835,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160124",
+          "episode_id": "episode_easy_20250823_161448",
           "t": 28.0,
           "dt": 1.0,
           "sim_tick": 28
@@ -4625,7 +4625,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 28,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -4646,7 +4646,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6082020117901266,
+          "policy_latency_ms": 0.6626619724556804,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -4701,18 +4701,18 @@
             ]
           }
         },
-        "timestamp": 1755979284.9223442,
+        "timestamp": 1755980088.4451466,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:25.924492",
+      "timestamp": "2025-08-23T16:14:49.446717",
       "endpoint": "episode_easy_step_29",
-      "latency_ms": 2.3560980043839663,
+      "latency_ms": 2.4414240033365786,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160125",
+          "episode_id": "episode_easy_20250823_161449",
           "t": 29.0,
           "dt": 1.0,
           "sim_tick": 29
@@ -4787,7 +4787,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 29,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -4808,7 +4808,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6216930050868541,
+          "policy_latency_ms": 0.6516930006910115,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -4863,18 +4863,18 @@
             ]
           }
         },
-        "timestamp": 1755979285.923884,
+        "timestamp": 1755980089.4461396,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:26.926051",
+      "timestamp": "2025-08-23T16:14:50.447631",
       "endpoint": "episode_easy_step_30",
-      "latency_ms": 2.3314999998547137,
+      "latency_ms": 2.31972400797531,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160126",
+          "episode_id": "episode_easy_20250823_161450",
           "t": 30.0,
           "dt": 1.0,
           "sim_tick": 30
@@ -4949,7 +4949,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 30,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -4970,7 +4970,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6398569967132062,
+          "policy_latency_ms": 0.6189160048961639,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -5025,18 +5025,18 @@
             ]
           }
         },
-        "timestamp": 1755979286.9255223,
+        "timestamp": 1755980090.4470768,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:27.927683",
+      "timestamp": "2025-08-23T16:14:51.449471",
       "endpoint": "episode_easy_step_31",
-      "latency_ms": 2.3359359765890986,
+      "latency_ms": 2.5732899957802147,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160127",
+          "episode_id": "episode_easy_20250823_161451",
           "t": 31.0,
           "dt": 1.0,
           "sim_tick": 31
@@ -5111,7 +5111,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 31,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -5132,7 +5132,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6416979886125773,
+          "policy_latency_ms": 0.7369010127149522,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -5187,18 +5187,18 @@
             ]
           }
         },
-        "timestamp": 1755979287.9271352,
+        "timestamp": 1755980091.4488995,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:28.929533",
+      "timestamp": "2025-08-23T16:14:52.451145",
       "endpoint": "episode_easy_step_32",
-      "latency_ms": 2.527767006540671,
+      "latency_ms": 2.356145007070154,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160128",
+          "episode_id": "episode_easy_20250823_161452",
           "t": 32.0,
           "dt": 1.0,
           "sim_tick": 32
@@ -5273,7 +5273,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 32,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -5294,7 +5294,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6698770157527179,
+          "policy_latency_ms": 0.6429180211853236,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -5349,18 +5349,18 @@
             ]
           }
         },
-        "timestamp": 1755979288.9289336,
+        "timestamp": 1755980092.4506042,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:29.931146",
+      "timestamp": "2025-08-23T16:14:53.452739",
       "endpoint": "episode_easy_step_33",
-      "latency_ms": 2.329520008061081,
+      "latency_ms": 2.295723999850452,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160129",
+          "episode_id": "episode_easy_20250823_161453",
           "t": 33.0,
           "dt": 1.0,
           "sim_tick": 33
@@ -5435,7 +5435,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 33,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -5456,7 +5456,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6260640220716596,
+          "policy_latency_ms": 0.6296359933912754,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -5511,18 +5511,18 @@
             ]
           }
         },
-        "timestamp": 1755979289.9305558,
+        "timestamp": 1755980093.4522119,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:30.932951",
+      "timestamp": "2025-08-23T16:14:54.454420",
       "endpoint": "episode_easy_step_34",
-      "latency_ms": 2.69188400125131,
+      "latency_ms": 2.4175939906854182,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160130",
+          "episode_id": "episode_easy_20250823_161454",
           "t": 34.0,
           "dt": 1.0,
           "sim_tick": 34
@@ -5597,7 +5597,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 34,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -5618,7 +5618,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.922965002246201,
+          "policy_latency_ms": 0.7460839988198131,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -5673,18 +5673,18 @@
             ]
           }
         },
-        "timestamp": 1755979290.9324005,
+        "timestamp": 1755980094.4538941,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:31.934224",
+      "timestamp": "2025-08-23T16:14:55.455623",
       "endpoint": "episode_easy_step_35",
-      "latency_ms": 2.409407024970278,
+      "latency_ms": 2.3520950053352863,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160131",
+          "episode_id": "episode_easy_20250823_161455",
           "t": 35.0,
           "dt": 1.0,
           "sim_tick": 35
@@ -5759,7 +5759,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 35,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -5780,7 +5780,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.7261749997269362,
+          "policy_latency_ms": 0.6572279962711036,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -5835,18 +5835,18 @@
             ]
           }
         },
-        "timestamp": 1755979291.9336703,
+        "timestamp": 1755980095.455022,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:32.935842",
+      "timestamp": "2025-08-23T16:14:56.456555",
       "endpoint": "episode_easy_step_36",
-      "latency_ms": 2.3560950066894293,
+      "latency_ms": 2.2834230039734393,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160132",
+          "episode_id": "episode_easy_20250823_161456",
           "t": 36.0,
           "dt": 1.0,
           "sim_tick": 36
@@ -5921,7 +5921,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 36,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -5942,7 +5942,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6263280229177326,
+          "policy_latency_ms": 0.6494209810625762,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -5997,18 +5997,18 @@
             ]
           }
         },
-        "timestamp": 1755979292.9353344,
+        "timestamp": 1755980096.4560192,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:33.936468",
+      "timestamp": "2025-08-23T16:14:57.458212",
       "endpoint": "episode_easy_step_37",
-      "latency_ms": 2.3435270122718066,
+      "latency_ms": 2.374033007072285,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160133",
+          "episode_id": "episode_easy_20250823_161457",
           "t": 37.0,
           "dt": 1.0,
           "sim_tick": 37
@@ -6083,7 +6083,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 37,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -6104,7 +6104,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6340270047076046,
+          "policy_latency_ms": 0.6508750084321946,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -6159,18 +6159,18 @@
             ]
           }
         },
-        "timestamp": 1755979293.9358716,
+        "timestamp": 1755980097.4576607,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:34.937752",
+      "timestamp": "2025-08-23T16:14:58.459799",
       "endpoint": "episode_easy_step_38",
-      "latency_ms": 2.267951989779249,
+      "latency_ms": 2.513681974960491,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160134",
+          "episode_id": "episode_easy_20250823_161458",
           "t": 38.0,
           "dt": 1.0,
           "sim_tick": 38
@@ -6245,7 +6245,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 38,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -6266,7 +6266,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6083350162953138,
+          "policy_latency_ms": 0.6378849793691188,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -6321,18 +6321,18 @@
             ]
           }
         },
-        "timestamp": 1755979294.9372237,
+        "timestamp": 1755980098.459153,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:35.939552",
+      "timestamp": "2025-08-23T16:14:59.461967",
       "endpoint": "episode_easy_step_39",
-      "latency_ms": 2.5334669917356223,
+      "latency_ms": 3.575729002477601,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160135",
+          "episode_id": "episode_easy_20250823_161459",
           "t": 39.0,
           "dt": 1.0,
           "sim_tick": 39
@@ -6407,7 +6407,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 39,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -6428,7 +6428,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6963360065128654,
+          "policy_latency_ms": 1.425493974238634,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -6483,18 +6483,18 @@
             ]
           }
         },
-        "timestamp": 1755979295.9389226,
+        "timestamp": 1755980099.4612741,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:36.941072",
+      "timestamp": "2025-08-23T16:15:00.462554",
       "endpoint": "episode_easy_step_40",
-      "latency_ms": 2.2605269914492965,
+      "latency_ms": 2.872648008633405,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160136",
+          "episode_id": "episode_easy_20250823_161500",
           "t": 40.0,
           "dt": 1.0,
           "sim_tick": 40
@@ -6569,7 +6569,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 40,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -6590,7 +6590,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6575740117114037,
+          "policy_latency_ms": 0.8999879937618971,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -6645,18 +6645,18 @@
             ]
           }
         },
-        "timestamp": 1755979296.940583,
+        "timestamp": 1755980100.4620094,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:37.942656",
+      "timestamp": "2025-08-23T16:15:01.463731",
       "endpoint": "episode_easy_step_41",
-      "latency_ms": 2.38765001995489,
+      "latency_ms": 3.094239014899358,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160137",
+          "episode_id": "episode_easy_20250823_161501",
           "t": 41.0,
           "dt": 1.0,
           "sim_tick": 41
@@ -6731,7 +6731,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 41,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -6752,7 +6752,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.628520007012412,
+          "policy_latency_ms": 0.6823189905844629,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -6807,18 +6807,18 @@
             ]
           }
         },
-        "timestamp": 1755979297.9421365,
+        "timestamp": 1755980101.4631517,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:38.944323",
+      "timestamp": "2025-08-23T16:15:02.463562",
       "endpoint": "episode_easy_step_42",
-      "latency_ms": 2.451943000778556,
+      "latency_ms": 2.255180006613955,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160138",
+          "episode_id": "episode_easy_20250823_161502",
           "t": 42.0,
           "dt": 1.0,
           "sim_tick": 42
@@ -6893,7 +6893,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 42,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -6914,7 +6914,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.7079180213622749,
+          "policy_latency_ms": 0.634053023532033,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -6969,18 +6969,18 @@
             ]
           }
         },
-        "timestamp": 1755979298.9437666,
+        "timestamp": 1755980102.4630651,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:39.945825",
+      "timestamp": "2025-08-23T16:15:03.464580",
       "endpoint": "episode_easy_step_43",
-      "latency_ms": 2.5337279948871583,
+      "latency_ms": 2.3064870038069785,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160139",
+          "episode_id": "episode_easy_20250823_161503",
           "t": 43.0,
           "dt": 1.0,
           "sim_tick": 43
@@ -7055,7 +7055,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 43,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -7076,7 +7076,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.7240469858516008,
+          "policy_latency_ms": 0.6406230095308274,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -7131,18 +7131,18 @@
             ]
           }
         },
-        "timestamp": 1755979299.945198,
+        "timestamp": 1755980103.4640503,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:40.946760",
+      "timestamp": "2025-08-23T16:15:04.466344",
       "endpoint": "episode_easy_step_44",
-      "latency_ms": 2.4875240051187575,
+      "latency_ms": 2.488585014361888,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160140",
+          "episode_id": "episode_easy_20250823_161504",
           "t": 44.0,
           "dt": 1.0,
           "sim_tick": 44
@@ -7217,7 +7217,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 44,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -7238,7 +7238,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6422860024031252,
+          "policy_latency_ms": 0.6369950133375823,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -7293,18 +7293,18 @@
             ]
           }
         },
-        "timestamp": 1755979300.946136,
+        "timestamp": 1755980104.4657404,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:41.947660",
+      "timestamp": "2025-08-23T16:15:05.467664",
       "endpoint": "episode_easy_step_45",
-      "latency_ms": 2.388100983807817,
+      "latency_ms": 2.3462920216843486,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160141",
+          "episode_id": "episode_easy_20250823_161505",
           "t": 45.0,
           "dt": 1.0,
           "sim_tick": 45
@@ -7379,7 +7379,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 45,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -7400,7 +7400,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6211849977262318,
+          "policy_latency_ms": 0.62587097636424,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -7455,18 +7455,18 @@
             ]
           }
         },
-        "timestamp": 1755979301.947077,
+        "timestamp": 1755980105.4671218,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:42.948892",
+      "timestamp": "2025-08-23T16:15:06.469223",
       "endpoint": "episode_easy_step_46",
-      "latency_ms": 2.429147018119693,
+      "latency_ms": 2.3260289744939655,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160142",
+          "episode_id": "episode_easy_20250823_161506",
           "t": 46.0,
           "dt": 1.0,
           "sim_tick": 46
@@ -7541,7 +7541,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 46,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -7562,7 +7562,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6218960043042898,
+          "policy_latency_ms": 0.653701979899779,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -7617,18 +7617,18 @@
             ]
           }
         },
-        "timestamp": 1755979302.948286,
+        "timestamp": 1755980106.4686902,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:43.949697",
+      "timestamp": "2025-08-23T16:15:07.470709",
       "endpoint": "episode_easy_step_47",
-      "latency_ms": 2.3555890074931085,
+      "latency_ms": 2.389152010437101,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160143",
+          "episode_id": "episode_easy_20250823_161507",
           "t": 47.0,
           "dt": 1.0,
           "sim_tick": 47
@@ -7703,7 +7703,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 47,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -7724,7 +7724,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6187609978951514,
+          "policy_latency_ms": 0.621577026322484,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -7779,18 +7779,18 @@
             ]
           }
         },
-        "timestamp": 1755979303.9490805,
+        "timestamp": 1755980107.4701383,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:44.951508",
+      "timestamp": "2025-08-23T16:15:08.472050",
       "endpoint": "episode_easy_step_48",
-      "latency_ms": 2.4271550064440817,
+      "latency_ms": 2.4722109956201166,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160144",
+          "episode_id": "episode_easy_20250823_161508",
           "t": 48.0,
           "dt": 1.0,
           "sim_tick": 48
@@ -7865,7 +7865,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 48,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -7886,7 +7886,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6942089821677655,
+          "policy_latency_ms": 0.6149100081529468,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -7941,18 +7941,18 @@
             ]
           }
         },
-        "timestamp": 1755979304.9509528,
+        "timestamp": 1755980108.4714057,
         "success": true,
         "error": null
       }
     },
     {
-      "timestamp": "2025-08-23T16:01:45.952518",
+      "timestamp": "2025-08-23T16:15:09.473746",
       "endpoint": "episode_easy_step_49",
-      "latency_ms": 2.2548869892489165,
+      "latency_ms": 2.410640998277813,
       "request": {
         "meta": {
-          "episode_id": "episode_easy_20250823_160145",
+          "episode_id": "episode_easy_20250823_161509",
           "t": 49.0,
           "dt": 1.0,
           "sim_tick": 49
@@ -8027,7 +8027,7 @@
           ],
           "noise_std": 0.01,
           "episode_step": 49,
-          "max_steps": 60
+          "max_steps": 80
         },
         "normalization": {
           "obs_version": "obs_v1.0",
@@ -8048,7 +8048,7 @@
           ]
         },
         "diagnostics": {
-          "policy_latency_ms": 0.6183500227052718,
+          "policy_latency_ms": 0.6858940178062767,
           "obs_clip_fractions": {
             "low": 0.11764705882352941,
             "high": 0.11764705882352941
@@ -8103,7 +8103,4867 @@
             ]
           }
         },
-        "timestamp": 1755979305.9519916,
+        "timestamp": 1755980109.4731903,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:10.475382",
+      "endpoint": "episode_easy_step_50",
+      "latency_ms": 2.332680014660582,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161510",
+          "t": 50.0,
+          "dt": 1.0,
+          "sim_tick": 50
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1344.2194173488565,
+            118.8752967264751,
+            832.8549959201263
+          ],
+          "vel_mps": [
+            272.48953293368425,
+            49.54550257227587,
+            -26.4349631716608
+          ],
+          "quat_wxyz": [
+            -0.5821614413814564,
+            0.7005945773762619,
+            -0.06578405688524078,
+            0.4073423034492752
+          ],
+          "ang_vel_radps": [
+            0.6293107988890073,
+            0.8518858488538419,
+            -0.6067921613935106
+          ],
+          "fuel_frac": 0.9995264619140216
+        },
+        "red": {
+          "pos_m": [
+            3000.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.9924149017979612,
+            -0.07124954668698646,
+            0.1001806607396944
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1668.4358322828089,
+          "closing_speed_mps": -363.48579657133064,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 50,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.7448129653930664,
+            "yaw": 0.20298680663108826,
+            "roll": -0.21373772621154785
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.1185484305024147,
+            0.1959465742111206
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6216990004759282,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1372.172641563194,
+              123.91597112293967,
+              830.5457117348311
+            ],
+            "vel_mps": [
+              271.56619149451393,
+              48.97026324819012,
+              -22.43474693546966
+            ],
+            "quat_wxyz": [
+              -0.619977112452537,
+              0.6641732734849032,
+              -0.10542014807393783,
+              0.4042138483568212
+            ],
+            "ang_vel_radps": [
+              0.5968545821112402,
+              0.902366179161432,
+              -0.632763057812482
+            ],
+            "fuel_frac": 0.999518451709201
+          },
+          "red": {
+            "pos_m": [
+              2989.927990372505,
+              -0.09199955901916207,
+              999.9951638471974
+            ],
+            "vel_mps": [
+              -100.72009627494813,
+              -0.9199955901916207,
+              -0.04836152802534116
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980110.4748285,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:11.476827",
+      "endpoint": "episode_easy_step_51",
+      "latency_ms": 2.521660993807018,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161511",
+          "t": 51.0,
+          "dt": 1.0,
+          "sim_tick": 51
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1372.172641563194,
+            123.91597112293967,
+            830.5457117348311
+          ],
+          "vel_mps": [
+            271.56619149451393,
+            48.97026324819012,
+            -22.43474693546966
+          ],
+          "quat_wxyz": [
+            -0.619977112452537,
+            0.6641732734849032,
+            -0.10542014807393783,
+            0.4042138483568212
+          ],
+          "ang_vel_radps": [
+            0.5968545821112402,
+            0.902366179161432,
+            -0.632763057812482
+          ],
+          "fuel_frac": 0.999518451709201
+        },
+        "red": {
+          "pos_m": [
+            2900.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.9906917759792194,
+            -0.08035105067733507,
+            0.10987954159982959
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1542.182337111531,
+          "closing_speed_mps": -361.7076383324194,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 51,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.7289572954177856,
+            "yaw": 0.19857031106948853,
+            "roll": -0.21537992358207703
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.12601476907730103,
+            0.20960184931755066
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6607199902646244,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1400.014173789048,
+              128.8342514298738,
+              828.6680869055582
+            ],
+            "vel_mps": [
+              270.5264553099759,
+              47.78921385728218,
+              -18.24422540198885
+            ],
+            "quat_wxyz": [
+              -0.6548279757970873,
+              0.6249936184745805,
+              -0.1481188136966191,
+              0.39830153904880383
+            ],
+            "ang_vel_radps": [
+              0.5628385373632766,
+              0.9568087486291971,
+              -0.6609819202335758
+            ],
+            "fuel_frac": 0.9995105955178942
+          },
+          "red": {
+            "pos_m": [
+              2890.0050002405846,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980111.4762635,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:12.479069",
+      "endpoint": "episode_easy_step_52",
+      "latency_ms": 3.3283340162597597,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161512",
+          "t": 52.0,
+          "dt": 1.0,
+          "sim_tick": 52
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1400.014173789048,
+            128.8342514298738,
+            828.6680869055582
+          ],
+          "vel_mps": [
+            270.5264553099759,
+            47.78921385728218,
+            -18.24422540198885
+          ],
+          "quat_wxyz": [
+            -0.6548279757970873,
+            0.6249936184745805,
+            -0.1481188136966191,
+            0.39830153904880383
+          ],
+          "ang_vel_radps": [
+            0.5628385373632766,
+            0.9568087486291971,
+            -0.6609819202335758
+          ],
+          "fuel_frac": 0.9995105955178942
+        },
+        "red": {
+          "pos_m": [
+            2800.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.988479280275244,
+            -0.09096519817837942,
+            0.12097125768918704
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1416.3026521113554,
+          "closing_speed_mps": -359.70354166598213,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 52,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.7116970419883728,
+            "yaw": 0.19347910583019257,
+            "roll": -0.2170572727918625
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.1342088282108307,
+            0.22461742162704468
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 1.0105170076712966,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1427.7283728403672,
+              133.56190734377233,
+              827.2325270279549
+            ],
+            "vel_mps": [
+              269.3401191291646,
+              45.94566866945126,
+              -13.951471869518047
+            ],
+            "quat_wxyz": [
+              -0.6863758772991876,
+              0.5829596685534331,
+              -0.19383293633495782,
+              0.3891978580280348
+            ],
+            "ang_vel_radps": [
+              0.5273315536693111,
+              1.0156615864705834,
+              -0.6916820176220416
+            ],
+            "fuel_frac": 0.9995029074706543
+          },
+          "red": {
+            "pos_m": [
+              2790.0050002405846,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980112.478382,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:13.479701",
+      "endpoint": "episode_easy_step_53",
+      "latency_ms": 2.413046022411436,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161513",
+          "t": 53.0,
+          "dt": 1.0,
+          "sim_tick": 53
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1427.7283728403672,
+            133.56190734377233,
+            827.2325270279549
+          ],
+          "vel_mps": [
+            269.3401191291646,
+            45.94566866945126,
+            -13.951471869518047
+          ],
+          "quat_wxyz": [
+            -0.6863758772991876,
+            0.5829596685534331,
+            -0.19383293633495782,
+            0.3891978580280348
+          ],
+          "ang_vel_radps": [
+            0.5273315536693111,
+            1.0156615864705834,
+            -0.6916820176220416
+          ],
+          "fuel_frac": 0.9995029074706543
+        },
+        "red": {
+          "pos_m": [
+            2700.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.9855873107855383,
+            -0.10346605101633634,
+            0.13383732329068615
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1290.876630854348,
+          "closing_speed_mps": -357.395890228209,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 53,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.6929280757904053,
+            "yaw": 0.18765708804130554,
+            "roll": -0.21872325241565704
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.14315566420555115,
+            0.24113333225250244
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6463499739766121,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1455.2958361089954,
+              138.0264017067453,
+              826.2385300634819
+            ],
+            "vel_mps": [
+              267.97109376436646,
+              43.39737123771469,
+              -9.662203996528053
+            ],
+            "quat_wxyz": [
+              -0.714228640948171,
+              0.5379410993424253,
+              -0.2424522580625764,
+              0.3764488340371761
+            ],
+            "ang_vel_radps": [
+              0.49042333208504874,
+              1.0794168399669928,
+              -0.7250968572385763
+            ],
+            "fuel_frac": 0.9994954027763763
+          },
+          "red": {
+            "pos_m": [
+              2690.0050002405846,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980113.4791462,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:14.480622",
+      "endpoint": "episode_easy_step_54",
+      "latency_ms": 2.3491090105380863,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161514",
+          "t": 54.0,
+          "dt": 1.0,
+          "sim_tick": 54
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1455.2958361089954,
+            138.0264017067453,
+            826.2385300634819
+          ],
+          "vel_mps": [
+            267.97109376436646,
+            43.39737123771469,
+            -9.662203996528053
+          ],
+          "quat_wxyz": [
+            -0.714228640948171,
+            0.5379410993424253,
+            -0.2424522580625764,
+            0.3764488340371761
+          ],
+          "ang_vel_radps": [
+            0.49042333208504874,
+            1.0794168399669928,
+            -0.7250968572385763
+          ],
+          "fuel_frac": 0.9994954027763763
+        },
+        "red": {
+          "pos_m": [
+            2600.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.9817230069281996,
+            -0.11837442231225068,
+            0.14902158840280516
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1166.0154196373285,
+          "closing_speed_mps": -354.66867289584303,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 54,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.6725630760192871,
+            "yaw": 0.1810591220855713,
+            "roll": -0.22033189237117767
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.15285462141036987,
+            0.2592751383781433
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6276839994825423,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1482.6928612440374,
+              142.1529603039046,
+              825.672968689686
+            ],
+            "vel_mps": [
+              266.3780352600147,
+              40.122041209892394,
+              -5.49888635091329
+            ],
+            "quat_wxyz": [
+              -0.7379262355929236,
+              0.48977309739361663,
+              -0.29378116932559084,
+              0.35955501448708577
+            ],
+            "ang_vel_radps": [
+              0.45222409536959607,
+              1.148601688698261,
+              -0.7614479595465732
+            ],
+            "fuel_frac": 0.9994880975067733
+          },
+          "red": {
+            "pos_m": [
+              2590.0050002405846,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980114.4800112,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:15.481620",
+      "endpoint": "episode_easy_step_55",
+      "latency_ms": 2.2745460155420005,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161515",
+          "t": 55.0,
+          "dt": 1.0,
+          "sim_tick": 55
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1482.6928612440374,
+            142.1529603039046,
+            825.672968689686
+          ],
+          "vel_mps": [
+            266.3780352600147,
+            40.122041209892394,
+            -5.49888635091329
+          ],
+          "quat_wxyz": [
+            -0.7379262355929236,
+            0.48977309739361663,
+            -0.29378116932559084,
+            0.35955501448708577
+          ],
+          "ang_vel_radps": [
+            0.45222409536959607,
+            1.148601688698261,
+            -0.7614479595465732
+          ],
+          "fuel_frac": 0.9994880975067733
+        },
+        "red": {
+          "pos_m": [
+            2500.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.976416116588663,
+            -0.13643907151900675,
+            0.16731989430114422
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1041.8786841722379,
+          "closing_speed_mps": -351.3431312588339,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 55,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.6505436897277832,
+            "yaw": 0.1736588180065155,
+            "roll": -0.22184406220912933
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.1632682979106903,
+            0.2791384756565094
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6301380053628236,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1509.8910490723435,
+              145.86727100952467,
+              825.5086073430698
+            ],
+            "vel_mps": [
+              264.515668377055,
+              36.123486794757355,
+              -1.5984944191855848
+            ],
+            "quat_wxyz": [
+              -0.7569257336446931,
+              0.43825986654764176,
+              -0.34751054114168684,
+              0.33797654787795334
+            ],
+            "ang_vel_radps": [
+              0.4128618711307226,
+              1.22376238020019,
+              -0.8009280030768224
+            ],
+            "fuel_frac": 0.999481008224262
+          },
+          "red": {
+            "pos_m": [
+              2490.0050002405846,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980115.481059,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:16.482753",
+      "endpoint": "episode_easy_step_56",
+      "latency_ms": 2.4298510106746107,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161516",
+          "t": 56.0,
+          "dt": 1.0,
+          "sim_tick": 56
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1509.8910490723435,
+            145.86727100952467,
+            825.5086073430698
+          ],
+          "vel_mps": [
+            264.515668377055,
+            36.123486794757355,
+            -1.5984944191855848
+          ],
+          "quat_wxyz": [
+            -0.7569257336446931,
+            0.43825986654764176,
+            -0.34751054114168684,
+            0.33797654787795334
+          ],
+          "ang_vel_radps": [
+            0.4128618711307226,
+            1.22376238020019,
+            -0.8009280030768224
+          ],
+          "fuel_frac": 0.999481008224262
+        },
+        "red": {
+          "pos_m": [
+            2400.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.96887376836914,
+            -0.15877491446123781,
+            0.18993195493125606
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 918.7047683476201,
+          "closing_speed_mps": -347.1305605542112,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 56,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.6268552541732788,
+            "yaw": 0.16545644402503967,
+            "roll": -0.22323490679264069
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.1743115484714508,
+            0.30077341198921204
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6201420037541538,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1536.8571381151148,
+              149.09883528535462,
+              825.7030368824563
+            ],
+            "vel_mps": [
+              262.3369742707356,
+              31.43795872430706,
+              1.891488861829456
+            ],
+            "quat_wxyz": [
+              -0.7705861688724305,
+              0.3831834508596005,
+              -0.40318312062201656,
+              0.3111442922107528
+            ],
+            "ang_vel_radps": [
+              0.37247713267761956,
+              1.3054416318850561,
+              -0.8436795884469204
+            ],
+            "fuel_frac": 0.9994741514234907
+          },
+          "red": {
+            "pos_m": [
+              2390.0050002405846,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980116.4821894,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:17.483684",
+      "endpoint": "episode_easy_step_57",
+      "latency_ms": 2.419433993054554,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161517",
+          "t": 57.0,
+          "dt": 1.0,
+          "sim_tick": 57
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1536.8571381151148,
+            149.09883528535462,
+            825.7030368824563
+          ],
+          "vel_mps": [
+            262.3369742707356,
+            31.43795872430706,
+            1.891488861829456
+          ],
+          "quat_wxyz": [
+            -0.7705861688724305,
+            0.3831834508596005,
+            -0.40318312062201656,
+            0.3111442922107528
+          ],
+          "ang_vel_radps": [
+            0.37247713267761956,
+            1.3054416318850561,
+            -0.8436795884469204
+          ],
+          "fuel_frac": 0.9994741514234907
+        },
+        "red": {
+          "pos_m": [
+            2300.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.9576791589742998,
+            -0.18710631300075606,
+            0.21872781282118914
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 796.8669410141824,
+          "closing_speed_mps": -341.53404946143917,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 57,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.6015422940254211,
+            "yaw": 0.15648490190505981,
+            "roll": -0.2244996577501297
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.18584413826465607,
+            0.3241710066795349
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.7120810041669756,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1563.553172948634,
+              151.78493776789884,
+              826.19825352079
+            ],
+            "vel_mps": [
+              259.79636075897554,
+              26.140198495487336,
+              4.819273020457685
+            ],
+            "quat_wxyz": [
+              -0.7781551904644397,
+              0.32431979356720925,
+              -0.4601526717214621,
+              0.2784792447586976
+            ],
+            "ang_vel_radps": [
+              0.33121534907033606,
+              1.3941507784635823,
+              -0.8897715747002859
+            ],
+            "fuel_frac": 0.9994675427870781
+          },
+          "red": {
+            "pos_m": [
+              2290.0050002405846,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980117.483168,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:18.484593",
+      "endpoint": "episode_easy_step_58",
+      "latency_ms": 2.3096990189515054,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161518",
+          "t": 58.0,
+          "dt": 1.0,
+          "sim_tick": 58
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1563.553172948634,
+            151.78493776789884,
+            826.19825352079
+          ],
+          "vel_mps": [
+            259.79636075897554,
+            26.140198495487336,
+            4.819273020457685
+          ],
+          "quat_wxyz": [
+            -0.7781551904644397,
+            0.32431979356720925,
+            -0.4601526717214621,
+            0.2784792447586976
+          ],
+          "ang_vel_radps": [
+            0.33121534907033606,
+            1.3941507784635823,
+            -0.8897715747002859
+          ],
+          "fuel_frac": 0.9994675427870781
+        },
+        "red": {
+          "pos_m": [
+            2200.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.9401179118310438,
+            -0.22420685071660415,
+            0.25672865041942655
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 676.9861727363269,
+          "closing_speed_mps": -333.6274372379017,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 58,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.5747213959693909,
+            "yaw": 0.14681249856948853,
+            "roll": -0.22565527260303497
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.19767090678215027,
+            0.34925565123558044
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6500679883174598,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1589.9371112266415,
+              153.87511559475712,
+              826.9211421356212
+            ],
+            "vel_mps": [
+              256.85384654617263,
+              20.348372905404418,
+              7.037490741046323
+            ],
+            "quat_wxyz": [
+              -0.7787603180835989,
+              0.26146392868135393,
+              -0.5175381010808388,
+              0.23942283706130332
+            ],
+            "ang_vel_radps": [
+              0.28921909369081295,
+              1.4903396738773038,
+              -0.9391766766867929
+            ],
+            "fuel_frac": 0.9994611963006896
+          },
+          "red": {
+            "pos_m": [
+              2190.0050002405846,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980118.4840398,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:19.486200",
+      "endpoint": "episode_easy_step_59",
+      "latency_ms": 2.3083970008883625,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161519",
+          "t": 59.0,
+          "dt": 1.0,
+          "sim_tick": 59
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1589.9371112266415,
+            153.87511559475712,
+            826.9211421356212
+          ],
+          "vel_mps": [
+            256.85384654617263,
+            20.348372905404418,
+            7.037490741046323
+          ],
+          "quat_wxyz": [
+            -0.7787603180835989,
+            0.26146392868135393,
+            -0.5175381010808388,
+            0.23942283706130332
+          ],
+          "ang_vel_radps": [
+            0.28921909369081295,
+            1.4903396738773038,
+            -0.9391766766867929
+          ],
+          "fuel_frac": 0.9994611963006896
+        },
+        "red": {
+          "pos_m": [
+            2100.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.9105391959814186,
+            -0.2746902923522715,
+            0.3089718690575812
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 560.1767513408257,
+          "closing_speed_mps": -321.5143006824865,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 59,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.546589732170105,
+            "yaw": 0.13653866946697235,
+            "roll": -0.22673511505126953
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.2095535546541214,
+            0.3758894205093384
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6173820002004504,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1615.9639613117092,
+              155.33589669698202,
+              827.7851379650201
+            ],
+            "vel_mps": [
+              253.4801450231838,
+              14.226808254892724,
+              8.41460981331494
+            ],
+            "quat_wxyz": [
+              -0.7714084756458817,
+              0.19446579939984326,
+              -0.5741753021634989,
+              0.19348059063102876
+            ],
+            "ang_vel_radps": [
+              0.24662267522461745,
+              1.5943701649253743,
+              -0.991755781313161
+            ],
+            "fuel_frac": 0.999455123311673
+          },
+          "red": {
+            "pos_m": [
+              2090.0050002405846,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980119.485668,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:20.487910",
+      "endpoint": "episode_easy_step_60",
+      "latency_ms": 2.405064005870372,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161520",
+          "t": 60.0,
+          "dt": 1.0,
+          "sim_tick": 60
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1615.9639613117092,
+            155.33589669698202,
+            827.7851379650201
+          ],
+          "vel_mps": [
+            253.4801450231838,
+            14.226808254892724,
+            8.41460981331494
+          ],
+          "quat_wxyz": [
+            -0.7714084756458817,
+            0.19446579939984326,
+            -0.5741753021634989,
+            0.19348059063102876
+          ],
+          "ang_vel_radps": [
+            0.24662267522461745,
+            1.5943701649253743,
+            -0.991755781313161
+          ],
+          "fuel_frac": 0.999455123311673
+        },
+        "red": {
+          "pos_m": [
+            2000.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.8560152666619977,
+            -0.3462432835403107,
+            0.3838664505330115
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 448.63223080801606,
+          "closing_speed_mps": -300.8885501989273,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 60,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.5174241065979004,
+            "yaw": 0.1257828176021576,
+            "roll": -0.22777560353279114
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.2212354838848114,
+            0.4038875997066498
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6531330000143498,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1641.5875108308248,
+              156.15544276388727,
+              828.6933154810177
+            ],
+            "vel_mps": [
+              249.66235433928955,
+              7.985224701223611,
+              8.848802802782014
+            ],
+            "quat_wxyz": [
+              -0.7549980361867954,
+              0.12327751601265721,
+              -0.6285712358116667,
+              0.1402812208031626
+            ],
+            "ang_vel_radps": [
+              0.20355180770034745,
+              1.706498266539764,
+              -1.0472548470927883
+            ],
+            "fuel_frac": 0.9994493316733135
+          },
+          "red": {
+            "pos_m": [
+              1990.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980120.4873564,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:21.488799",
+      "endpoint": "episode_easy_step_61",
+      "latency_ms": 2.527533011743799,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161521",
+          "t": 61.0,
+          "dt": 1.0,
+          "sim_tick": 61
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1641.5875108308248,
+            156.15544276388727,
+            828.6933154810177
+          ],
+          "vel_mps": [
+            249.66235433928955,
+            7.985224701223611,
+            8.848802802782014
+          ],
+          "quat_wxyz": [
+            -0.7549980361867954,
+            0.12327751601265721,
+            -0.6285712358116667,
+            0.1402812208031626
+          ],
+          "ang_vel_radps": [
+            0.20355180770034745,
+            1.706498266539764,
+            -1.0472548470927883
+          ],
+          "fuel_frac": 0.9994493316733135
+        },
+        "red": {
+          "pos_m": [
+            1900.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.7444001129231366,
+            -0.4498316997012467,
+            0.49347736911018414
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 347.1419263417786,
+          "closing_speed_mps": -261.06337278218086,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 61,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.4875708520412445,
+            "yaw": 0.11466842889785767,
+            "roll": -0.22879761457443237
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.23247390985488892,
+            0.43304261565208435
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.7201589760370553,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1666.7626560695292,
+              156.3475879301016,
+              829.543075844129
+            ],
+            "vel_mps": [
+              245.40977908248988,
+              1.8730498809570095,
+              8.283547165542139
+            ],
+            "quat_wxyz": [
+              -0.7283477761874918,
+              0.0480120028964389,
+              -0.6788666032482235,
+              0.07965236653626154
+            ],
+            "ang_vel_radps": [
+              0.16013012734682755,
+              1.826868595647516,
+              -1.105317211919221
+            ],
+            "fuel_frac": 0.9994438251087513
+          },
+          "red": {
+            "pos_m": [
+              1890.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980121.488163,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:22.489779",
+      "endpoint": "episode_easy_step_62",
+      "latency_ms": 2.4446069728583097,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161522",
+          "t": 62.0,
+          "dt": 1.0,
+          "sim_tick": 62
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1666.7626560695292,
+            156.3475879301016,
+            829.543075844129
+          ],
+          "vel_mps": [
+            245.40977908248988,
+            1.8730498809570095,
+            8.283547165542139
+          ],
+          "quat_wxyz": [
+            -0.7283477761874918,
+            0.0480120028964389,
+            -0.6788666032482235,
+            0.07965236653626154
+          ],
+          "ang_vel_radps": [
+            0.16013012734682755,
+            1.826868595647516,
+            -1.105317211919221
+          ],
+          "fuel_frac": 0.9994438251087513
+        },
+        "red": {
+          "pos_m": [
+            1800.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.49914469351321294,
+            -0.5857221898661193,
+            0.6385797454007123
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 266.93130401263875,
+          "closing_speed_mps": -176.60207687858008,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 62,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.4574255049228668,
+            "yaw": 0.10330672562122345,
+            "roll": -0.229788675904274
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.24307340383529663,
+            0.4631469249725342
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6385059969034046,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1691.4482703273186,
+              155.95463113984022,
+              830.2324573489858
+            ],
+            "vel_mps": [
+              240.75919956841315,
+              -3.832514001893065,
+              6.723549091115567
+            ],
+            "quat_wxyz": [
+              -0.6902468473806396,
+              -0.030987848129812343,
+              -0.7228152292923253,
+              0.011712696207736276
+            ],
+            "ang_vel_radps": [
+              0.11649150966107673,
+              1.9555199552270937,
+              -1.1655112181450258
+            ],
+            "fuel_frac": 0.9994386029137368
+          },
+          "red": {
+            "pos_m": [
+              1789.9942775607387,
+              -0.0772174986015186,
+              999.9968294853243
+            ],
+            "vel_mps": [
+              -100.05722439261223,
+              -0.7721749860151859,
+              -0.031705146756793645
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980122.4891343,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:23.490766",
+      "endpoint": "episode_easy_step_63",
+      "latency_ms": 2.5002899928949773,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161523",
+          "t": 63.0,
+          "dt": 1.0,
+          "sim_tick": 63
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1691.4482703273186,
+            155.95463113984022,
+            830.2324573489858
+          ],
+          "vel_mps": [
+            240.75919956841315,
+            -3.832514001893065,
+            6.723549091115567
+          ],
+          "quat_wxyz": [
+            -0.6902468473806396,
+            -0.030987848129812343,
+            -0.7228152292923253,
+            0.011712696207736276
+          ],
+          "ang_vel_radps": [
+            0.11649150966107673,
+            1.9555199552270937,
+            -1.1655112181450258
+          ],
+          "fuel_frac": 0.9994386029137368
+        },
+        "red": {
+          "pos_m": [
+            1700.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            0.03707087696920236,
+            -0.676047438944547,
+            0.735925003228762
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 230.68592846578693,
+          "closing_speed_mps": -20.171231525611404,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 63,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.4274016320705414,
+            "yaw": 0.09178389608860016,
+            "roll": -0.2306932955980301
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.25290971994400024,
+            0.49400794506073
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6667950074188411,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1715.6104562486476,
+              155.04815326960411,
+              830.6678702754344
+            ],
+            "vel_mps": [
+              235.77869268340459,
+              -8.845564217020616,
+              4.248832904017337
+            ],
+            "quat_wxyz": [
+              -0.6395293796851175,
+              -0.11307123813112856,
+              -0.7577897462355723,
+              -0.06302196543499412
+            ],
+            "ang_vel_radps": [
+              0.07279481772407725,
+              2.0923977313695854,
+              -1.2273677742111746
+            ],
+            "fuel_frac": 0.999433660082207
+          },
+          "red": {
+            "pos_m": [
+              1690.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980123.4901862,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:24.491024",
+      "endpoint": "episode_easy_step_64",
+      "latency_ms": 2.478365000570193,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161524",
+          "t": 64.0,
+          "dt": 1.0,
+          "sim_tick": 64
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1715.6104562486476,
+            155.04815326960411,
+            830.6678702754344
+          ],
+          "vel_mps": [
+            235.77869268340459,
+            -8.845564217020616,
+            4.248832904017337
+          ],
+          "quat_wxyz": [
+            -0.6395293796851175,
+            -0.11307123813112856,
+            -0.7577897462355723,
+            -0.06302196543499412
+          ],
+          "ang_vel_radps": [
+            0.07279481772407725,
+            2.0923977313695854,
+            -1.2273677742111746
+          ],
+          "fuel_frac": 0.999433660082207
+        },
+        "red": {
+          "pos_m": [
+            1600.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.44974374211994067,
+            -0.6031628878817232,
+            0.6587299121082419
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 257.0585100388474,
+          "closing_speed_mps": 142.88021638806856,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 64,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.39789018034935,
+            "yaw": 0.0801556408405304,
+            "roll": -0.23141680657863617
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.26193881034851074,
+            0.525446355342865
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6060920131858438,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1739.2259190584452,
+              153.72712984338378,
+              830.7727695714894
+            ],
+            "vel_mps": [
+              230.568953628374,
+              -12.897777678776706,
+              1.024181534046609
+            ],
+            "quat_wxyz": [
+              -0.575176728850565,
+              -0.19719548297189396,
+              -0.7808243357812206,
+              -0.14352361734592967
+            ],
+            "ang_vel_radps": [
+              0.029236132970786026,
+              2.237364863588967,
+              -1.2904203204161584
+            ],
+            "fuel_frac": 0.9994289878743698
+          },
+          "red": {
+            "pos_m": [
+              1590.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980124.4904528,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:25.493219",
+      "endpoint": "episode_easy_step_65",
+      "latency_ms": 2.9603609873447567,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161525",
+          "t": 65.0,
+          "dt": 1.0,
+          "sim_tick": 65
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1739.2259190584452,
+            153.72712984338378,
+            830.7727695714894
+          ],
+          "vel_mps": [
+            230.568953628374,
+            -12.897777678776706,
+            1.024181534046609
+          ],
+          "quat_wxyz": [
+            -0.575176728850565,
+            -0.19719548297189396,
+            -0.7808243357812206,
+            -0.14352361734592967
+          ],
+          "ang_vel_radps": [
+            0.029236132970786026,
+            2.237364863588967,
+            -1.2904203204161584
+          ],
+          "fuel_frac": 0.9994289878743698
+        },
+        "red": {
+          "pos_m": [
+            1500.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.7229417421835969,
+            -0.4645640384924524,
+            0.5114054082116545
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 330.90621982330066,
+          "closing_speed_mps": 232.46647958637308,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 65,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.36921221017837524,
+            "yaw": 0.06844979524612427,
+            "roll": -0.2318422943353653
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.27018940448760986,
+            0.5572819709777832
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.9687260026112199,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1762.285084124048,
+              152.11273208463456,
+              830.4964563923619
+            ],
+            "vel_mps": [
+              225.26100345058438,
+              -15.770773055729373,
+              -2.699255754482781
+            ],
+            "quat_wxyz": [
+              -0.4964496482861024,
+              -0.28184058012023877,
+              -0.7887060069428731,
+              -0.22813695168981576
+            ],
+            "ang_vel_radps": [
+              -0.013945698546599215,
+              2.3902055566239655,
+              -1.354239271526965
+            ],
+            "fuel_frac": 0.9994245747815762
+          },
+          "red": {
+            "pos_m": [
+              1490.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980125.4926093,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:26.494308",
+      "endpoint": "episode_easy_step_66",
+      "latency_ms": 2.591273980215192,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161526",
+          "t": 66.0,
+          "dt": 1.0,
+          "sim_tick": 66
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1762.285084124048,
+            152.11273208463456,
+            830.4964563923619
+          ],
+          "vel_mps": [
+            225.26100345058438,
+            -15.770773055729373,
+            -2.699255754482781
+          ],
+          "quat_wxyz": [
+            -0.4964496482861024,
+            -0.28184058012023877,
+            -0.7887060069428731,
+            -0.22813695168981576
+          ],
+          "ang_vel_radps": [
+            -0.013945698546599215,
+            2.3902055566239655,
+            -1.354239271526965
+          ],
+          "fuel_frac": 0.9994245747815762
+        },
+        "red": {
+          "pos_m": [
+            1400.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.8466078809422322,
+            -0.35546547019973695,
+            0.39610528325457006
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 427.9254803544266,
+          "closing_speed_mps": 270.831753089981,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 66,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.3415674865245819,
+            "yaw": 0.05667463317513466,
+            "roll": -0.23185597360134125
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.2777436375617981,
+            0.5893117189407349
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6320649990811944,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1784.7944774794685,
+              150.33947634040624,
+              829.8218839946611
+            ],
+            "vel_mps": [
+              220.00924009373767,
+              -17.33199303150371,
+              -6.593343421697292
+            ],
+            "quat_wxyz": [
+              -0.40305129970568776,
+              -0.36492993137305335,
+              -0.7781258178988567,
+              -0.3144773545310531
+            ],
+            "ang_vel_radps": [
+              -0.05647315793173444,
+              2.550618345289616,
+              -1.4184555357924709
+            ],
+            "fuel_frac": 0.9994204077976023
+          },
+          "red": {
+            "pos_m": [
+              1390.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980126.4937267,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:27.495672",
+      "endpoint": "episode_easy_step_67",
+      "latency_ms": 2.4039879790507257,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161527",
+          "t": 67.0,
+          "dt": 1.0,
+          "sim_tick": 67
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1784.7944774794685,
+            150.33947634040624,
+            829.8218839946611
+          ],
+          "vel_mps": [
+            220.00924009373767,
+            -17.33199303150371,
+            -6.593343421697292
+          ],
+          "quat_wxyz": [
+            -0.40305129970568776,
+            -0.36492993137305335,
+            -0.7781258178988567,
+            -0.3144773545310531
+          ],
+          "ang_vel_radps": [
+            -0.05647315793173444,
+            2.550618345289616,
+            -1.4184555357924709
+          ],
+          "fuel_frac": 0.9994204077976023
+        },
+        "red": {
+          "pos_m": [
+            1300.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9055834672912925,
+            -0.28083022926115775,
+            0.31788829186021683
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 535.339364056133,
+          "closing_speed_mps": 287.02367631071985,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 67,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.31499022245407104,
+            "yaw": 0.044831715524196625,
+            "roll": -0.23137252032756805
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.2847122848033905,
+            0.6212910413742065
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6517839792650193,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1806.7778079287589,
+              148.54279724897833,
+              828.7710731222816
+            ],
+            "vel_mps": [
+              214.97902334968612,
+              -17.57005460291577,
+              -10.276072389963096
+            ],
+            "quat_wxyz": [
+              -0.29531923586354164,
+              -0.4437693789592267,
+              -0.7458998893795787,
+              -0.39936029127925143
+            ],
+            "ang_vel_radps": [
+              -0.0980434995372105,
+              2.718200672677883,
+              -1.4827710942844576
+            ],
+            "fuel_frac": 0.9994164738178601
+          },
+          "red": {
+            "pos_m": [
+              1290.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980127.4950728,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:28.496662",
+      "endpoint": "episode_easy_step_68",
+      "latency_ms": 2.3230819788295776,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161528",
+          "t": 68.0,
+          "dt": 1.0,
+          "sim_tick": 68
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1806.7778079287589,
+            148.54279724897833,
+            828.7710731222816
+          ],
+          "vel_mps": [
+            214.97902334968612,
+            -17.57005460291577,
+            -10.276072389963096
+          ],
+          "quat_wxyz": [
+            -0.29531923586354164,
+            -0.4437693789592267,
+            -0.7458998893795787,
+            -0.39936029127925143
+          ],
+          "ang_vel_radps": [
+            -0.0980434995372105,
+            2.718200672677883,
+            -1.4827710942844576
+          ],
+          "fuel_frac": 0.9994164738178601
+        },
+        "red": {
+          "pos_m": [
+            1200.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9367652647184012,
+            -0.22932567896960462,
+            0.26434933664035093
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 647.7373049385653,
+          "closing_speed_mps": 293.7486164071205,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 68,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.28931984305381775,
+            "yaw": 0.0329311341047287,
+            "roll": -0.2303512990474701
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.29121002554893494,
+            0.652925968170166
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6419949932023883,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1828.2751495701348,
+              146.84370797430682,
+              827.4065522629043
+            ],
+            "vel_mps": [
+              210.3283760157249,
+              -16.623761849677834,
+              -13.350369602910602
+            ],
+            "quat_wxyz": [
+              -0.17443944682618795,
+              -0.5150223059081213,
+              -0.6892660066418328,
+              -0.4787852085184711
+            ],
+            "ang_vel_radps": [
+              -0.13835001841486075,
+              2.8924304739248177,
+              -1.5469573017059788
+            ],
+            "fuel_frac": 0.9994127609732344
+          },
+          "red": {
+            "pos_m": [
+              1190.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980128.4960775,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:29.497584",
+      "endpoint": "episode_easy_step_69",
+      "latency_ms": 2.308798982994631,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161529",
+          "t": 69.0,
+          "dt": 1.0,
+          "sim_tick": 69
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1828.2751495701348,
+            146.84370797430682,
+            827.4065522629043
+          ],
+          "vel_mps": [
+            210.3283760157249,
+            -16.623761849677834,
+            -13.350369602910602
+          ],
+          "quat_wxyz": [
+            -0.17443944682618795,
+            -0.5150223059081213,
+            -0.6892660066418328,
+            -0.4787852085184711
+          ],
+          "ang_vel_radps": [
+            -0.13835001841486075,
+            2.8924304739248177,
+            -1.5469573017059788
+          ],
+          "fuel_frac": 0.9994127609732344
+        },
+        "red": {
+          "pos_m": [
+            1100.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9548439957073146,
+            -0.19252727894041965,
+            0.22628784926612333
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 762.7163734015569,
+          "closing_speed_mps": 296.1356853258951,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 69,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.2642016112804413,
+            "yaw": 0.02100772224366665,
+            "roll": -0.2287982553243637
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.2973329424858093,
+            0.6838836669921875
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6614970043301582,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1849.3396573721361,
+              145.33201982458425,
+              825.8271918093504
+            ],
+            "vel_mps": [
+              206.18410923947906,
+              -14.796741396863307,
+              -15.45913302817
+            ],
+            "quat_wxyz": [
+              -0.04266764872934895,
+              -0.5747442325693767,
+              -0.606253995973606,
+              -0.548000575954243
+            ],
+            "ang_vel_radps": [
+              -0.17710744260535188,
+              3.0726536920498657,
+              -1.6108425843014391
+            ],
+            "fuel_frac": 0.999409259652663
+          },
+          "red": {
+            "pos_m": [
+              1090.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980129.4970632,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:30.499308",
+      "endpoint": "episode_easy_step_70",
+      "latency_ms": 2.452772983815521,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161530",
+          "t": 70.0,
+          "dt": 1.0,
+          "sim_tick": 70
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1849.3396573721361,
+            145.33201982458425,
+            825.8271918093504
+          ],
+          "vel_mps": [
+            206.18410923947906,
+            -14.796741396863307,
+            -15.45913302817
+          ],
+          "quat_wxyz": [
+            -0.04266764872934895,
+            -0.5747442325693767,
+            -0.606253995973606,
+            -0.548000575954243
+          ],
+          "ang_vel_radps": [
+            -0.17710744260535188,
+            3.0726536920498657,
+            -1.6108425843014391
+          ],
+          "fuel_frac": 0.999409259652663
+        },
+        "red": {
+          "pos_m": [
+            1000.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9661351757654302,
+            -0.16531710876659234,
+            0.19812388977040632
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 879.1105827393546,
+          "closing_speed_mps": 296.4319072577886,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 70,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.23912419378757477,
+            "yaw": 0.009137624874711037,
+            "roll": -0.2267514318227768
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.3031376302242279,
+            0.7138200998306274
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6940919847693294,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1870.0314389414598,
+              144.0506749927826,
+              824.1570750367721
+            ],
+            "vel_mps": [
+              202.6142188053215,
+              -12.546946779132076,
+              -16.353807141058237
+            ],
+            "quat_wxyz": [
+              0.09646765377764877,
+              -0.6185041259469254,
+              -0.4961162197218385,
+              -0.6016771015172323
+            ],
+            "ang_vel_radps": [
+              -0.21407765191392372,
+              3.2580855548669203,
+              -1.6742908294428753
+            ],
+            "fuel_frac": 0.9994059629863458
+          },
+          "red": {
+            "pos_m": [
+              990.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980130.4987292,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:31.500645",
+      "endpoint": "episode_easy_step_71",
+      "latency_ms": 2.3499839880969375,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161531",
+          "t": 71.0,
+          "dt": 1.0,
+          "sim_tick": 71
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1870.0314389414598,
+            144.0506749927826,
+            824.1570750367721
+          ],
+          "vel_mps": [
+            202.6142188053215,
+            -12.546946779132076,
+            -16.353807141058237
+          ],
+          "quat_wxyz": [
+            0.09646765377764877,
+            -0.6185041259469254,
+            -0.4961162197218385,
+            -0.6016771015172323
+          ],
+          "ang_vel_radps": [
+            -0.21407765191392372,
+            3.2580855548669203,
+            -1.6742908294428753
+          ],
+          "fuel_frac": 0.9994059629863458
+        },
+        "red": {
+          "pos_m": [
+            900.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9736247457103498,
+            -0.14458428477565685,
+            0.1764943034105299
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 996.3093514367607,
+          "closing_speed_mps": 295.7049543059595,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 71,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.2135010063648224,
+            "yaw": -0.0025472231209278107,
+            "roll": -0.22425320744514465
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.3086181879043579,
+            0.7424200773239136
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6435030081775039,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1890.4086865003244,
+              142.9849957881895,
+              822.5269655969745
+            ],
+            "vel_mps": [
+              199.60123187447968,
+              -10.438646407240698,
+              -15.96740930461267
+            ],
+            "quat_wxyz": [
+              0.23801802094910496,
+              -0.6416191750191467,
+              -0.35978861618266067,
+              -0.6342116426056739
+            ],
+            "ang_vel_radps": [
+              -0.24909165820247384,
+              3.447830813852433,
+              -1.7371699272253014
+            ],
+            "fuel_frac": 0.9994028665582566
+          },
+          "red": {
+            "pos_m": [
+              890.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980131.5000622,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:32.501660",
+      "endpoint": "episode_easy_step_72",
+      "latency_ms": 2.3416089825332165,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161532",
+          "t": 72.0,
+          "dt": 1.0,
+          "sim_tick": 72
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1890.4086865003244,
+            142.9849957881895,
+            822.5269655969745
+          ],
+          "vel_mps": [
+            199.60123187447968,
+            -10.438646407240698,
+            -15.96740930461267
+          ],
+          "quat_wxyz": [
+            0.23801802094910496,
+            -0.6416191750191467,
+            -0.35978861618266067,
+            -0.6342116426056739
+          ],
+          "ang_vel_radps": [
+            -0.24909165820247384,
+            3.447830813852433,
+            -1.7371699272253014
+          ],
+          "fuel_frac": 0.9994028665582566
+        },
+        "red": {
+          "pos_m": [
+            800.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9788479255394396,
+            -0.12835606341301203,
+            0.1593155976427004
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1113.971494498907,
+          "closing_speed_mps": 294.4680381053713,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 72,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.18679308891296387,
+            "yaw": -0.013849873095750809,
+            "roll": -0.22131763398647308
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.31368136405944824,
+            0.7694367170333862
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6416600081138313,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1910.5170764463871,
+              142.0615868617016,
+              821.0498713974688
+            ],
+            "vel_mps": [
+              197.0252819015347,
+              -9.047711156372001,
+              -14.472809699501173
+            ],
+            "quat_wxyz": [
+              0.3755729571958497,
+              -0.6395224604468889,
+              -0.20033413672417194,
+              -0.6401735780787136
+            ],
+            "ang_vel_radps": [
+              -0.28206366696435337,
+              3.6409217137506698,
+              -1.7993100787922742
+            ],
+            "fuel_frac": 0.9993999671622477
+          },
+          "red": {
+            "pos_m": [
+              790.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980132.5010436,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:33.502674",
+      "endpoint": "episode_easy_step_73",
+      "latency_ms": 2.3706819920334965,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161533",
+          "t": 73.0,
+          "dt": 1.0,
+          "sim_tick": 73
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1910.5170764463871,
+            142.0615868617016,
+            821.0498713974688
+          ],
+          "vel_mps": [
+            197.0252819015347,
+            -9.047711156372001,
+            -14.472809699501173
+          ],
+          "quat_wxyz": [
+            0.3755729571958497,
+            -0.6395224604468889,
+            -0.20033413672417194,
+            -0.6401735780787136
+          ],
+          "ang_vel_radps": [
+            -0.28206366696435337,
+            3.6409217137506698,
+            -1.7993100787922742
+          ],
+          "fuel_frac": 0.9993999671622477
+        },
+        "red": {
+          "pos_m": [
+            700.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9826492421693921,
+            -0.11531990203792468,
+            0.14526454164001262
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1231.891324491262,
+          "closing_speed_mps": 292.93067306871404,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 73,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.15865541994571686,
+            "yaw": -0.024514328688383102,
+            "roll": -0.21790388226509094
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.31812894344329834,
+            0.7947249412536621
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6408949848264456,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1930.379717451266,
+              141.161220798776,
+              819.7952330947154
+            ],
+            "vel_mps": [
+              194.6692590550841,
+              -8.824284459706247,
+              -12.296426679570441
+            ],
+            "quat_wxyz": [
+              0.5013791110168279,
+              -0.6082669145496952,
+              -0.023301486591312096,
+              -0.6148881104906846
+            ],
+            "ang_vel_radps": [
+              -0.31299271456702765,
+              3.8363699751586258,
+              -1.860455822988227
+            ],
+            "fuel_frac": 0.9993972606036118
+          },
+          "red": {
+            "pos_m": [
+              690.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980133.502069,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:34.503802",
+      "endpoint": "episode_easy_step_74",
+      "latency_ms": 2.5246349978260696,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161534",
+          "t": 74.0,
+          "dt": 1.0,
+          "sim_tick": 74
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1930.379717451266,
+            141.161220798776,
+            819.7952330947154
+          ],
+          "vel_mps": [
+            194.6692590550841,
+            -8.824284459706247,
+            -12.296426679570441
+          ],
+          "quat_wxyz": [
+            0.5013791110168279,
+            -0.6082669145496952,
+            -0.023301486591312096,
+            -0.6148881104906846
+          ],
+          "ang_vel_radps": [
+            -0.31299271456702765,
+            3.8363699751586258,
+            -1.860455822988227
+          ],
+          "fuel_frac": 0.9993972606036118
+        },
+        "red": {
+          "pos_m": [
+            600.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9855177107950078,
+            -0.1045693055522206,
+            0.1334919549849118
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1349.9297910922994,
+          "closing_speed_mps": 291.1204983644654,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 74,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.1290709376335144,
+            "yaw": -0.03425726667046547,
+            "roll": -0.2139100879430771
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.3216659724712372,
+            0.8182554244995117
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.7309909851755947,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1949.9911061353828,
+              140.14704335299186,
+              818.7695233652296
+            ],
+            "vel_mps": [
+              192.25743203006604,
+              -9.942342915633828,
+              -10.055398002433167
+            ],
+            "quat_wxyz": [
+              0.6066752326491842,
+              -0.545143732899027,
+              0.163083895464743,
+              -0.5551280173176429
+            ],
+            "ang_vel_radps": [
+              -0.34194744865038995,
+              4.033222803037962,
+              -1.920224368762653
+            ],
+            "fuel_frac": 0.9993947388900479
+          },
+          "red": {
+            "pos_m": [
+              590.0050002405844,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980134.503186,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:35.504651",
+      "endpoint": "episode_easy_step_75",
+      "latency_ms": 2.3417029879055917,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161535",
+          "t": 75.0,
+          "dt": 1.0,
+          "sim_tick": 75
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1949.9911061353828,
+            140.14704335299186,
+            818.7695233652296
+          ],
+          "vel_mps": [
+            192.25743203006604,
+            -9.942342915633828,
+            -10.055398002433167
+          ],
+          "quat_wxyz": [
+            0.6066752326491842,
+            -0.545143732899027,
+            0.163083895464743,
+            -0.5551280173176429
+          ],
+          "ang_vel_radps": [
+            -0.34194744865038995,
+            4.033222803037962,
+            -1.920224368762653
+          ],
+          "fuel_frac": 0.9993947388900479
+        },
+        "red": {
+          "pos_m": [
+            500.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9877470541445035,
+            -0.09546943331806533,
+            0.12345583959773954
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1467.978163084711,
+          "closing_speed_mps": 288.96862529840564,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 75,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.09841520339250565,
+            "yaw": -0.04283195361495018,
+            "roll": -0.20919840037822723
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.32395297288894653,
+            0.8401064872741699
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6486699858214706,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1969.3186848802713,
+              138.90345187063963,
+              817.9124250816665
+            ],
+            "vel_mps": [
+              189.52884612068354,
+              -12.194825943113008,
+              -8.40482146470033
+            ],
+            "quat_wxyz": [
+              0.6822815021816201,
+              -0.4493617498102773,
+              0.3479888019282899,
+              -0.4598584166031445
+            ],
+            "ang_vel_radps": [
+              -0.36903267201475354,
+              4.230612244341295,
+              -1.9780908124467698
+            ],
+            "fuel_frac": 0.9993923876329537
+          },
+          "red": {
+            "pos_m": [
+              490.0050002405845,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980135.504069,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:36.505682",
+      "endpoint": "episode_easy_step_76",
+      "latency_ms": 2.338835009140894,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161536",
+          "t": 76.0,
+          "dt": 1.0,
+          "sim_tick": 76
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1969.3186848802713,
+            138.90345187063963,
+            817.9124250816665
+          ],
+          "vel_mps": [
+            189.52884612068354,
+            -12.194825943113008,
+            -8.40482146470033
+          ],
+          "quat_wxyz": [
+            0.6822815021816201,
+            -0.4493617498102773,
+            0.3479888019282899,
+            -0.4598584166031445
+          ],
+          "ang_vel_radps": [
+            -0.36903267201475354,
+            4.230612244341295,
+            -1.9780908124467698
+          ],
+          "fuel_frac": 0.9993923876329537
+        },
+        "red": {
+          "pos_m": [
+            400.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9895184984994027,
+            -0.08758420864778381,
+            0.11481353371022493
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1585.9417355614182,
+          "closing_speed_mps": 286.3910621583441,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 76,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.06740141659975052,
+            "yaw": -0.05010845884680748,
+            "roll": -0.20365042984485626
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.3246992826461792,
+            0.8604311943054199
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6674339820165187,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              1988.3137378603174,
+              137.37392997781853,
+              817.1147315864131
+            ],
+            "vel_mps": [
+              186.32756121446903,
+              -15.003489825107263,
+              -7.82478910289692
+            ],
+            "quat_wxyz": [
+              0.7194489841186379,
+              -0.3227024768157861,
+              0.5183901864717204,
+              -0.3309499739801047
+            ],
+            "ang_vel_radps": [
+              -0.39434252199388986,
+              4.427786449419304,
+              -2.0334184310813663
+            ],
+            "fuel_frac": 0.9993901847415313
+          },
+          "red": {
+            "pos_m": [
+              390.0050002405845,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980136.5051508,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:37.507411",
+      "endpoint": "episode_easy_step_77",
+      "latency_ms": 2.4524199834559113,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161537",
+          "t": 77.0,
+          "dt": 1.0,
+          "sim_tick": 77
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            1988.3137378603174,
+            137.37392997781853,
+            817.1147315864131
+          ],
+          "vel_mps": [
+            186.32756121446903,
+            -15.003489825107263,
+            -7.82478910289692
+          ],
+          "quat_wxyz": [
+            0.7194489841186379,
+            -0.3227024768157861,
+            0.5183901864717204,
+            -0.3309499739801047
+          ],
+          "ang_vel_radps": [
+            -0.39434252199388986,
+            4.427786449419304,
+            -2.0334184310813663
+          ],
+          "fuel_frac": 0.9993901847415313
+        },
+        "red": {
+          "pos_m": [
+            300.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9909470289898747,
+            -0.08063091872053765,
+            0.10734356376803574
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1703.7376251900223,
+          "closing_speed_mps": 283.3656416828202,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 77,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.03688963130116463,
+            "yaw": -0.05613135173916817,
+            "roll": -0.19723151624202728
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.3237643241882324,
+            0.879397988319397
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6611380085814744,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              2006.9295519256661,
+              135.58231540646682,
+              816.2560170770399
+            ],
+            "vel_mps": [
+              182.67297483614215,
+              -17.580727996085372,
+              -8.42638057145918
+            ],
+            "quat_wxyz": [
+              0.7109273102618576,
+              -0.17004186266535962,
+              0.6599090380076696,
+              -0.17374747773975774
+            ],
+            "ang_vel_radps": [
+              -0.4179140833245175,
+              4.624111171400052,
+              -2.085535563516708
+            ],
+            "fuel_frac": 0.999388101190607
+          },
+          "red": {
+            "pos_m": [
+              290.0050002405845,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980137.5068057,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:38.510158",
+      "endpoint": "episode_easy_step_78",
+      "latency_ms": 3.48110098275356,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161538",
+          "t": 78.0,
+          "dt": 1.0,
+          "sim_tick": 78
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            2006.9295519256661,
+            135.58231540646682,
+            816.2560170770399
+          ],
+          "vel_mps": [
+            182.67297483614215,
+            -17.580727996085372,
+            -8.42638057145918
+          ],
+          "quat_wxyz": [
+            0.7109273102618576,
+            -0.17004186266535962,
+            0.6599090380076696,
+            -0.17374747773975774
+          ],
+          "ang_vel_radps": [
+            -0.4179140833245175,
+            4.624111171400052,
+            -2.085535563516708
+          ],
+          "fuel_frac": 0.999388101190607
+        },
+        "red": {
+          "pos_m": [
+            200.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9921090179519451,
+            -0.07444254683100908,
+            0.10088609279648116
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1821.301408645384,
+          "closing_speed_mps": 279.9837579113387,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 78,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.007610472850501537,
+            "yaw": -0.06111164018511772,
+            "roll": -0.19002975523471832
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.3212130069732666,
+            0.8971182107925415
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 1.5752839972265065,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              2025.1407185829069,
+              133.62557847968787,
+              815.2501612316638
+            ],
+            "vel_mps": [
+              178.7710855100563,
+              -19.208433541999273,
+              -9.874048419244872
+            ],
+            "quat_wxyz": [
+              0.6521551885444512,
+              0.0003794738420513646,
+              0.7580807916207053,
+              0.0026418610636173502
+            ],
+            "ang_vel_radps": [
+              -0.43970017675212364,
+              4.819036762956506,
+              -2.1338349636531744
+            ],
+            "fuel_frac": 0.9993861035955593
+          },
+          "red": {
+            "pos_m": [
+              190.00500024058445,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980138.5095384,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-23T16:15:39.510863",
+      "endpoint": "episode_easy_step_79",
+      "latency_ms": 2.5408740038983524,
+      "request": {
+        "meta": {
+          "episode_id": "episode_easy_20250823_161539",
+          "t": 79.0,
+          "dt": 1.0,
+          "sim_tick": 79
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            2025.1407185829069,
+            133.62557847968787,
+            815.2501612316638
+          ],
+          "vel_mps": [
+            178.7710855100563,
+            -19.208433541999273,
+            -9.874048419244872
+          ],
+          "quat_wxyz": [
+            0.6521551885444512,
+            0.0003794738420513646,
+            0.7580807916207053,
+            0.0026418610636173502
+          ],
+          "ang_vel_radps": [
+            -0.43970017675212364,
+            4.819036762956506,
+            -2.1338349636531744
+          ],
+          "fuel_frac": 0.9993861035955593
+        },
+        "red": {
+          "pos_m": [
+            100.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            -0.9930591811714138,
+            -0.0689290430916002,
+            0.09530083792725803
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 1938.5961633344032,
+          "closing_speed_mps": 276.4531720556324,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 79,
+          "max_steps": 80
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": -0.020093288272619247,
+            "yaw": -0.06534399092197418,
+            "roll": -0.18224240839481354
+          },
+          "thrust_cmd": 0.0,
+          "aux": [
+            0.31729385256767273,
+            0.913583517074585
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6328890158329159,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              2042.9556952068508,
+              131.63708359499321,
+              814.0808267683327
+            ],
+            "vel_mps": [
+              174.94953565020526,
+              -19.527741409021314,
+              -11.483288791106455
+            ],
+            "quat_wxyz": [
+              0.5424302552686358,
+              0.1770499645501707,
+              0.8000117037075172,
+              0.185483158677497
+            ],
+            "ang_vel_radps": [
+              -0.4595750161530452,
+              5.012037095419108,
+              -2.17785779544016
+            ],
+            "fuel_frac": 0.9993841571661926
+          },
+          "red": {
+            "pos_m": [
+              90.00500024058447,
+              -0.09805094763986644,
+              1000.0
+            ],
+            "vel_mps": [
+              -99.94999759415538,
+              -0.9805094763986644,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1755980139.5103047,
         "success": true,
         "error": null
       }
@@ -8112,14 +12972,14 @@
   "episode_metadata": {
     "scenario": "unknown",
     "outcome": "ERROR",
-    "duration": 50.0,
-    "total_commands": 50,
-    "final_distance": 0.0,
+    "duration": 80.0,
+    "total_commands": 80,
+    "final_distance": 2055.617239013783,
     "fuel_consumed": 0.0,
     "intercept_time": null,
     "performance_metrics": {
-      "average_latency_ms": 3.914444981823109,
-      "max_latency_ms": 78.51222099270672,
+      "average_latency_ms": 3.5332430234569827,
+      "max_latency_ms": 87.6337339868769,
       "success_rate": 0.0
     }
   }

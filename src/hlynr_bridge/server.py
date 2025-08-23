@@ -443,7 +443,18 @@ def v1_inference(inference_request: InferenceRequest):
             # Use the original RL action from model.predict() for env.step()
             # Note: We use the original action, not the clamped version, for physics integration
             # The clamped version is returned to Unity for safety, but physics uses the raw policy output
-            env_obs, reward, terminated, truncated, info = env.step(action.reshape(1, -1))
+            step_result = env.step(action.reshape(1, -1))
+            
+            # Handle both old (4 values) and new (5 values) gym step formats
+            if len(step_result) == 5:
+                env_obs, reward, terminated, truncated, info = step_result
+            elif len(step_result) == 4:
+                env_obs, reward, done, info = step_result
+                terminated = done
+                truncated = False
+            else:
+                raise ValueError(f"Unexpected step result length: {len(step_result)}")
+                
             logger.debug(f"Environment stepped successfully - reward: {reward:.3f}, terminated: {terminated}")
         except Exception as e:
             logger.warning(f"Environment step failed: {e}. Simulation state will not be updated.")
@@ -774,10 +785,15 @@ def _rl_to_unity_action(action: np.ndarray) -> ActionCommand:
         rate_pitch = float(action[0])
         rate_yaw = float(action[1])
         rate_roll = float(action[2])
-        thrust = float(action[3])
+        thrust_raw = float(action[3])
         aux = action[4:].tolist() if len(action) > 4 else []
     else:
         raise ValueError(f"Invalid action dimension: {len(action)}")
+    
+    # Clamp thrust to valid range [0, 1] to prevent ActionCommand validation errors
+    thrust = max(0.0, min(1.0, thrust_raw))
+    if thrust != thrust_raw:
+        logger.debug(f"Thrust clamped from {thrust_raw:.6f} to {thrust:.6f}")
     
     # Transform angular rates from ENU to Unity if needed
     enu_rates = [rate_pitch, rate_yaw, rate_roll]
@@ -961,11 +977,19 @@ def _log_inference_step(request: InferenceRequest, response: InferenceResponse, 
                 
                 # Use the standard episode logger method (not inference-specific)
                 if hasattr(inference_logger, 'begin_episode'):
-                    inference_logger.begin_episode(
-                        episode_id=request.meta.episode_id,
-                        seed=server_stats.get('seed', 42),
-                        scenario_name="inference"
-                    )
+                    try:
+                        # Try with episode_id first (newer interface)
+                        inference_logger.begin_episode(
+                            episode_id=request.meta.episode_id,
+                            seed=server_stats.get('seed', 42),
+                            scenario_name="inference"
+                        )
+                    except TypeError:
+                        # Fallback to older interface without episode_id
+                        inference_logger.begin_episode(
+                            seed=server_stats.get('seed', 42),
+                            scenario_name="inference"
+                        )
                 
                 # Track episode
                 inference_logger.current_episode_id = request.meta.episode_id
