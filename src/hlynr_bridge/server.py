@@ -19,8 +19,8 @@ import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
-from flask import Flask, request, jsonify, Response
-from flask_cors import CORS
+from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 import collections
@@ -76,7 +76,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Global variables  
-app = Flask(__name__)
+app = FastAPI(title="Hlynr Unity Bridge Server v1.0", version="1.0")
 # CORS will be configured based on environment variables
 model = None
 env = None
@@ -172,7 +172,13 @@ class HlynrBridgeServer:
         
         # Configure CORS if enabled
         if env_config.enable_cors:
-            CORS(app, origins=env_config.cors_origins)
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=env_config.cors_origins,
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
             logger.info(f"CORS enabled for origins: {env_config.cors_origins}")
         
         # Reset global instances
@@ -320,7 +326,7 @@ class HlynrBridgeServer:
         logger.warning("No VecNormalize file found - running without normalization")
     
     def run(self):
-        """Start the bridge server."""
+        """Start the bridge server using uvicorn ASGI server."""
         # Load model before starting server
         self.load_model()
         
@@ -331,11 +337,20 @@ class HlynrBridgeServer:
         logger.info(f"  GET /healthz - Health check")
         logger.info(f"  GET /metrics - Performance metrics")
         
-        app.run(host=self.host, port=self.port, debug=False)
+        # Note: FastAPI apps should be run with uvicorn
+        # This method now loads the model but uvicorn handles the server
+        logger.info("Model loaded. Use uvicorn to start the server:")
+        logger.info(f"  uvicorn hlynr_bridge.server:app --host {self.host} --port {self.port}")
+        
+        # For compatibility, we'll raise an error suggesting uvicorn
+        raise RuntimeError(
+            f"FastAPI server must be run with uvicorn. "
+            f"Use: uvicorn hlynr_bridge.server:app --host {self.host} --port {self.port}"
+        )
 
 
-@app.route('/v1/inference', methods=['POST'])
-def v1_inference():
+@app.post("/v1/inference")
+def v1_inference(inference_request: InferenceRequest):
     """
     Unity RL Inference API v1.0 endpoint.
     
@@ -351,16 +366,6 @@ def v1_inference():
     start_time = time.perf_counter()
     
     try:
-        # Validate request
-        if not request.is_json:
-            return _error_response("Request must be JSON", 400)
-        
-        # Parse and validate request schema
-        try:
-            inference_request = InferenceRequest(**request.get_json())
-        except Exception as e:
-            return _error_response(f"Invalid request schema: {e}", 400)
-        
         # Check model is loaded
         if model is None:
             return _error_response("Model not loaded", 500)
@@ -431,7 +436,7 @@ def v1_inference():
         
         logger.debug(f"v1/inference completed in {total_latency:.2f}ms")
         
-        return jsonify(response.dict())
+        return response  # FastAPI auto-serializes Pydantic models
         
     except Exception as e:
         total_latency = (time.perf_counter() - start_time) * 1000
@@ -440,7 +445,7 @@ def v1_inference():
         return _error_response(f"Internal server error: {e}", 500)
 
 
-@app.route('/healthz', methods=['GET'])
+@app.get("/healthz")
 def health_check():
     """CRITICAL: Enhanced health check endpoint with all 7 required keys."""
     global model, vec_normalize_info, transform, server_stats
@@ -460,17 +465,17 @@ def health_check():
         model_loaded=model is not None
     )
     
-    return jsonify(response.dict())
+    return response  # FastAPI auto-serializes Pydantic models
 
 
-@app.route('/metrics', methods=['GET'])
+@app.get("/metrics")
 def get_metrics():
     """CRITICAL: Prometheus metrics endpoint with p50/p95 percentiles."""
     global server_stats, safety_clamp_system, latency_history
     
     if PROMETHEUS_AVAILABLE:
         # Return Prometheus exposition format
-        return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
     else:
         # Fallback to JSON format for backward compatibility
         return _get_json_metrics()
@@ -507,49 +512,49 @@ def _get_json_metrics():
         vecnorm_stats_id=server_stats.get('vecnorm_stats_id')
     )
     
-    return jsonify(response.dict())
+    return response  # FastAPI auto-serializes Pydantic models
 
 
 # Legacy endpoint compatibility
-@app.route('/act', methods=['POST'])
-def legacy_act():
+@app.post("/act")
+def legacy_act(request_body: dict):
     """Legacy inference endpoint for backward compatibility."""
     # CRITICAL: Gate legacy endpoint behind environment variable
     enable_legacy = os.getenv('ENABLE_LEGACY_ACT', 'false').lower() in ('true', '1', 'yes')
     
     if not enable_legacy:
         # Return 404 with deprecation header when disabled
-        response = jsonify({
-            'error': 'Legacy /act endpoint is disabled. Use /v1/inference instead.',
-            'success': False
-        })
-        response.status_code = 404
-        response.headers['X-Deprecated'] = 'Use /v1/inference'
-        return response
+        raise HTTPException(
+            status_code=404,
+            detail='Legacy /act endpoint is disabled. Use /v1/inference instead.',
+            headers={'X-Deprecated': 'Use /v1/inference'}
+        )
     
     try:
-        data = request.get_json()
-        observation = np.array(data['observation'], dtype=np.float32)
-        deterministic = data.get('deterministic', True)
+        observation = np.array(request_body['observation'], dtype=np.float32)
+        deterministic = request_body.get('deterministic', True)
         
         # Simple inference without full v1.0 pipeline
         action, _states = model.predict(observation.reshape(1, -1), deterministic=deterministic)
         action = action[0] if len(action.shape) > 1 else action
         
-        return jsonify({
+        return {
             'success': True,
             'action': action.tolist(),
             'inference_time': 0.0,  # Not tracked for legacy endpoint
             'error': None
-        })
+        }
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'action': None,
-            'inference_time': 0.0
-        }), 500
+        raise HTTPException(
+            status_code=500,
+            detail={
+                'success': False,
+                'error': str(e),
+                'action': None,
+                'inference_time': 0.0
+            }
+        )
 
 
 def _parse_canonical_clamp_reasons(original: ActionCommand, clamped: ActionCommand) -> List[str]:
@@ -576,11 +581,14 @@ def _parse_canonical_clamp_reasons(original: ActionCommand, clamped: ActionComma
 
 def _error_response(message: str, status_code: int):
     """Create standardized error response."""
-    return jsonify({
-        'success': False,
-        'error': message,
-        'timestamp': time.time()
-    }), status_code
+    raise HTTPException(
+        status_code=status_code,
+        detail={
+            'success': False,
+            'error': message,
+            'timestamp': time.time()
+        }
+    )
 
 
 def _validate_request_versions(request: InferenceRequest) -> Optional[str]:
