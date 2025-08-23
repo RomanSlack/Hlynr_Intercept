@@ -42,9 +42,9 @@ try:
     from hlynr_bridge.transforms import get_transform, validate_transform_version
     from .normalize import get_vecnorm_manager, load_vecnormalize_by_id
     from .seed_manager import set_deterministic_seeds, get_current_seed, validate_deterministic_setup
-    from phase4_rl.clamps import get_safety_clamp_system, SafetyLimits
-    from phase4_rl.episode_logger import get_inference_logger, reset_inference_logger
-    from phase4_rl.config import get_config, reset_config
+    from .clamps import get_safety_clamp_system, SafetyLimits
+    from .episode_logger import get_inference_logger, reset_inference_logger
+    from .config import get_config, reset_config
     from phase4_rl.scenarios import get_scenario_loader, reset_scenario_loader
     from phase4_rl.radar_env import RadarEnv
     from phase4_rl.fast_sim_env import FastSimEnv
@@ -63,9 +63,9 @@ except ImportError:
     from transforms import get_transform, validate_transform_version
     from normalize import get_vecnorm_manager, load_vecnormalize_by_id
     from seed_manager import set_deterministic_seeds, get_current_seed, validate_deterministic_setup
-    from phase4_rl.clamps import get_safety_clamp_system, SafetyLimits
-    from phase4_rl.episode_logger import get_inference_logger, reset_inference_logger
-    from phase4_rl.config import get_config, reset_config
+    from .clamps import get_safety_clamp_system, SafetyLimits
+    from .episode_logger import get_inference_logger, reset_inference_logger
+    from .config import get_config, reset_config
     from phase4_rl.scenarios import get_scenario_loader, reset_scenario_loader
     from phase4_rl.radar_env import RadarEnv
     from phase4_rl.fast_sim_env import FastSimEnv
