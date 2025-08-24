@@ -14,12 +14,14 @@ try:
     from .config import get_config
     from .scenarios import get_scenario_loader
     from .episode_logger import EpisodeLogger
+    from .radar_observations import Radar17DObservation
 except ImportError:
     # Fallback for direct execution
     from radar_env import RadarEnv
     from config import get_config
     from scenarios import get_scenario_loader
     from episode_logger import EpisodeLogger
+    from radar_observations import Radar17DObservation
 
 
 class FastSimEnv(gym.Wrapper):
@@ -65,10 +67,13 @@ class FastSimEnv(gym.Wrapper):
         self.config = self.env.config
         self.scenario_name = scenario_name
         
-        # Flag to ensure we're radar-only
-        self._radar_only = True
+        # Initialize 17D radar observation system
+        self.radar_observer = Radar17DObservation(
+            max_range=10000.0,
+            max_velocity=1000.0
+        )
         
-        # Update observation space for radar-only observations
+        # Update observation space to exactly 17 dimensions
         self._setup_radar_observation_space()
         
         # Initialize episode logger if enabled
@@ -87,30 +92,22 @@ class FastSimEnv(gym.Wrapper):
         self.episode_step_count = 0
     
     def _setup_radar_observation_space(self):
-        """Setup observation space for radar-only observations."""
-        # Calculate expected radar-only observation size
-        num_missiles = self.env.num_missiles
-        num_interceptors = self.env.num_interceptors
-        
-        # Components in radar-only observation:
-        # 1. Interceptor essential state: 4 * num_interceptors (fuel, status, target_id, distance)
-        # 2. Ground radar returns: 4 * num_missiles (detected_x, detected_y, confidence, range)
-        # 3. Onboard radar returns: 3 * num_interceptors (detections, bearing, range)
-        # 4. Environmental data: 6 (wind, atmosphere, etc.)
-        
-        interceptor_essential_dim = 4 * num_interceptors
-        ground_radar_dim = 4 * num_missiles
-        onboard_radar_dim = 3 * num_interceptors
-        env_data_dim = 6
-        
-        radar_obs_dim = interceptor_essential_dim + ground_radar_dim + onboard_radar_dim + env_data_dim
-        
-        # Update observation space to match radar-only observations
+        """Setup observation space for exactly 17-dimensional radar observations."""
+        # Fixed 17-dimensional observation space for 1v1 scenarios
         from gymnasium import spaces
+        
+        # Verify we're in 1v1 scenario
+        if self.env.num_missiles != 1 or self.env.num_interceptors != 1:
+            raise ValueError(
+                f"Radar17D observation only supports 1v1 scenarios. "
+                f"Got {self.env.num_missiles} missiles and {self.env.num_interceptors} interceptors."
+            )
+        
+        # Set observation space to exactly 17 dimensions
         self.observation_space = spaces.Box(
             low=-1.0,
             high=1.0,
-            shape=(radar_obs_dim,),
+            shape=(17,),
             dtype=np.float32
         )
         
@@ -200,111 +197,46 @@ class FastSimEnv(gym.Wrapper):
     
     def _ensure_radar_only_observation(self, obs: np.ndarray) -> np.ndarray:
         """
-        Ensure observation contains only radar-based information.
+        Generate consistent 17-dimensional radar observation.
         
-        This method filters the raw observation from RadarEnv to extract only
-        radar-based components and exclude omniscient information like perfect
-        missile/interceptor positions and velocities.
+        Uses the Radar17DObservation system to create a consistent observation
+        vector from the current environment state.
         
         Args:
-            obs: Raw observation from RadarEnv
+            obs: Raw observation from RadarEnv (unused, we query state directly)
             
         Returns:
-            Radar-only observation containing only radar returns and essential state
+            17-dimensional radar observation vector
         """
-        # Calculate component dimensions based on environment configuration
-        num_missiles = self.env.num_missiles
-        num_interceptors = self.env.num_interceptors
+        # Get interceptor state
+        interceptor_state = {
+            'position': self.env.interceptor_positions[0],
+            'velocity': self.env.interceptor_velocities[0],
+            'orientation': self.env.interceptor_orientations[0],
+            'fuel': self.env.interceptor_fuel[0] if hasattr(self.env, 'interceptor_fuel') else 100.0
+        }
         
-        # RadarEnv observation structure (from _get_observation):
-        # 1. Missile data: 6 * num_missiles (pos_x, pos_y, vel_x, vel_y, target_x, target_y)
-        # 2. Interceptor data: 8 * num_interceptors (pos_x, pos_y, vel_x, vel_y, fuel, status, target_id, distance)
-        # 3. Ground radar returns: 4 * num_missiles (detected_x, detected_y, confidence, range)
-        # 4. Onboard radar returns: 3 * num_interceptors (detections, bearing, range)
-        # 5. Environmental data: 6 (wind, atmosphere, etc.)
-        # 6. Relative positioning: 3 * num_missiles * num_interceptors (distance, bearing, rel_velocity)
+        # Get missile state
+        missile_state = {
+            'position': self.env.missile_positions[0],
+            'velocity': self.env.missile_velocities[0]
+        }
         
-        missile_data_dim = 6 * num_missiles
-        interceptor_data_dim = 8 * num_interceptors
-        ground_radar_dim = 4 * num_missiles
-        onboard_radar_dim = 3 * num_interceptors
-        env_data_dim = 6
-        relative_pos_dim = 3 * num_missiles * num_interceptors
+        # Get radar quality (simulated based on range)
+        rel_pos = missile_state['position'] - interceptor_state['position']
+        range_to_target = np.linalg.norm(rel_pos)
+        radar_quality = np.clip(1.0 - range_to_target / self.radar_observer.max_range, 0.1, 1.0)
         
-        # Calculate start indices for each component
-        start_idx = 0
+        # Get radar noise from config
+        radar_noise = self.env.radar_noise if hasattr(self.env, 'radar_noise') else 0.05
         
-        # Skip omniscient missile data (direct positions/velocities)
-        start_idx += missile_data_dim
-        
-        # Extract limited interceptor state (fuel, status) but skip perfect positions/velocities
-        interceptor_start = start_idx
-        interceptor_essential = []
-        for i in range(num_interceptors):
-            interceptor_offset = interceptor_start + i * 8
-            # Extract only fuel (idx 4), status (idx 5), target_id (idx 6), distance (idx 7)
-            # Skip perfect position (idx 0,1) and velocity (idx 2,3)
-            if interceptor_offset + 7 < len(obs):
-                interceptor_essential.extend([
-                    obs[interceptor_offset + 4],  # fuel
-                    obs[interceptor_offset + 5],  # status
-                    obs[interceptor_offset + 6],  # target_id
-                    obs[interceptor_offset + 7]   # distance to target
-                ])
-        
-        start_idx += interceptor_data_dim
-        
-        # Extract ground radar returns (this is proper radar data with noise)
-        ground_radar_start = start_idx
-        ground_radar_end = ground_radar_start + ground_radar_dim
-        ground_radar_data = obs[ground_radar_start:ground_radar_end] if ground_radar_end <= len(obs) else []
-        
-        start_idx += ground_radar_dim
-        
-        # Extract onboard radar returns (this is proper radar data)
-        onboard_radar_start = start_idx
-        onboard_radar_end = onboard_radar_start + onboard_radar_dim
-        onboard_radar_data = obs[onboard_radar_start:onboard_radar_end] if onboard_radar_end <= len(obs) else []
-        
-        start_idx += onboard_radar_dim
-        
-        # Extract environmental data (acceptable as it's external conditions)
-        env_data_start = start_idx
-        env_data_end = env_data_start + env_data_dim
-        env_data = obs[env_data_start:env_data_end] if env_data_end <= len(obs) else []
-        
-        # Skip relative positioning as it's derived from perfect position data
-        
-        # Construct radar-only observation
-        radar_obs_components = []
-        
-        # Add interceptor essential state (non-positional)
-        if interceptor_essential:
-            radar_obs_components.extend(interceptor_essential)
-        
-        # Add ground radar returns
-        if len(ground_radar_data) > 0:
-            radar_obs_components.extend(ground_radar_data)
-        
-        # Add onboard radar returns
-        if len(onboard_radar_data) > 0:
-            radar_obs_components.extend(onboard_radar_data)
-        
-        # Add environmental data
-        if len(env_data) > 0:
-            radar_obs_components.extend(env_data)
-        
-        # Convert to numpy array and ensure consistent size
-        if radar_obs_components:
-            radar_obs = np.array(radar_obs_components, dtype=np.float32)
-        else:
-            # Fallback to minimal observation if extraction failed
-            radar_obs = np.zeros(10, dtype=np.float32)
-        
-        # Ensure observation is not empty and has reasonable size
-        if len(radar_obs) < 5:
-            # Pad with zeros if too small
-            radar_obs = np.pad(radar_obs, (0, 5 - len(radar_obs)))
+        # Compute 17D observation
+        radar_obs = self.radar_observer.compute_observation(
+            interceptor_state=interceptor_state,
+            missile_state=missile_state,
+            radar_quality=radar_quality,
+            radar_noise=radar_noise
+        )
         
         return radar_obs
     

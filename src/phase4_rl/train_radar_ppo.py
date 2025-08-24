@@ -165,6 +165,10 @@ class Phase4Trainer:
         n_envs = self.training_config.get('n_envs', 8)
         self.env = self.create_environment(n_envs=n_envs, training=True)
         
+        # Log observation space dimensions
+        print(f"📊 Observation space: {self.env.observation_space.shape[0]} dimensions")
+        assert self.env.observation_space.shape[0] == 17, f"Expected 17D observations, got {self.env.observation_space.shape[0]}D"
+        
         # Create evaluation environment with same normalization but training=False
         self.eval_env = self.create_environment(n_envs=1, training=False)
         
@@ -176,12 +180,12 @@ class Phase4Trainer:
             'n_epochs': self.training_config.get('n_epochs', 10),
             'gamma': self.training_config.get('gamma', 0.99),
             'gae_lambda': self.training_config.get('gae_lambda', 0.95),
-            'clip_range': self.training_config.get('clip_range', 0.2),
+            'clip_range': lambda _: self.training_config.get('clip_range', 0.2),  # Make it callable
             'ent_coef': self.training_config.get('ent_coef', 0.0),
             'vf_coef': self.training_config.get('vf_coef', 0.5),
             'max_grad_norm': self.training_config.get('max_grad_norm', 0.5),
-            'tensorboard_log': str(self.log_dir / "tensorboard"),
-            'verbose': 1
+            'tensorboard_log': None,  # Disable to avoid pickle issues
+            'verbose': 0  # Set to 0 to avoid TTY pickle issues
         }
         
         if resume_checkpoint:
@@ -217,15 +221,16 @@ class Phase4Trainer:
         )
         callbacks.append(checkpoint_callback)
         
-        # Evaluation callback
+        # Evaluation callback (disable best model saving to avoid pickle issues)
         eval_callback = EvalCallback(
             self.eval_env,
-            best_model_save_path=str(self.checkpoint_dir / "legacy_best_model"),
+            best_model_save_path=None,  # Disable best model saving to avoid pickle issues
             log_path=str(self.log_dir),
             eval_freq=checkpoint_interval // 2,
             deterministic=True,
             render=False,
-            n_eval_episodes=10
+            n_eval_episodes=10,
+            verbose=0  # Prevent TTY pickle issues
         )
         callbacks.append(eval_callback)
         
@@ -239,7 +244,7 @@ class Phase4Trainer:
                 initial_entropy=entropy_config.get('initial_entropy', 0.01),
                 final_entropy=entropy_config.get('final_entropy', 0.02),
                 decay_steps=entropy_config.get('decay_steps', 500000),
-                verbose=1
+                verbose=0
             )
             callbacks.append(entropy_callback)
             print(f"✅ Entropy scheduling enabled: {entropy_config['initial_entropy']} → {entropy_config['final_entropy']}")
@@ -255,7 +260,7 @@ class Phase4Trainer:
                 min_lr=lr_config.get('min_lr', 1e-6),
                 early_stopping=lr_config.get('early_stopping', False),
                 early_stopping_patience=lr_config.get('early_stopping_patience', 10),
-                verbose=1
+                verbose=0
             )
             callbacks.append(lr_callback)
             print(f"✅ Learning rate scheduling enabled: patience={lr_config['patience']}, factor={lr_config['factor']}")
@@ -269,7 +274,7 @@ class Phase4Trainer:
                 name_prefix=best_config.get('name_prefix', 'best'),
                 save_freq=checkpoint_interval // 2,
                 save_vecnormalize=best_config.get('save_vecnormalize', True),
-                verbose=1
+                verbose=0
             )
             callbacks.append(best_callback)
             print(f"✅ Enhanced best model checkpointing enabled: monitor={best_config.get('monitor_key', 'eval/mean_reward')}")
@@ -283,7 +288,7 @@ class Phase4Trainer:
                 reduction_factor=clip_config.get('reduction_factor', 0.75),
                 min_clip_range=clip_config.get('min_clip_range', 0.05),
                 check_freq=checkpoint_interval // 2,
-                verbose=1
+                verbose=0
             )
             callbacks.append(clip_callback)
             print(f"✅ Adaptive clip range enabled: threshold={clip_config['clip_fraction_threshold']}")
@@ -331,8 +336,9 @@ class Phase4Trainer:
         # Setup callbacks
         callbacks = self.setup_callbacks()
         
-        # Configure logger
-        new_logger = configure(str(self.log_dir), ["stdout", "csv", "tensorboard"])
+        # Configure logger (exclude stdout to avoid TTY pickle issues, include tensorboard here)
+        tensorboard_dir = str(self.log_dir / "tensorboard")
+        new_logger = configure(tensorboard_dir, ["csv", "tensorboard"])
         self.model.set_logger(new_logger)
         
         # Save training configuration

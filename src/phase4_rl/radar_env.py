@@ -15,10 +15,12 @@ import math
 try:
     from .config import get_config
     from .scenarios import get_scenario_loader
+    from .radar_observations import Radar17DObservation
 except ImportError:
     # Fallback for direct execution
     from config import get_config
     from scenarios import get_scenario_loader
+    from radar_observations import Radar17DObservation
 
 
 class RadarEnv(gym.Env):
@@ -92,13 +94,17 @@ class RadarEnv(gym.Env):
         # Environment state - 6DOF 3D
         self.missile_positions = np.zeros((self.num_missiles, 3), dtype=np.float64)
         self.missile_velocities = np.zeros((self.num_missiles, 3), dtype=np.float64)
-        self.missile_orientations = np.zeros((self.num_missiles, 4), dtype=np.float64)  # quaternions [w,x,y,z]
+        # Initialize orientations with identity quaternions [w,x,y,z]
+        self.missile_orientations = np.tile([1.0, 0.0, 0.0, 0.0], (self.num_missiles, 1)).astype(np.float64)
         self.missile_angular_velocities = np.zeros((self.num_missiles, 3), dtype=np.float64)
         
         self.interceptor_positions = np.zeros((self.num_interceptors, 3), dtype=np.float64)
         self.interceptor_velocities = np.zeros((self.num_interceptors, 3), dtype=np.float64)
-        self.interceptor_orientations = np.zeros((self.num_interceptors, 4), dtype=np.float64)  # quaternions [w,x,y,z]
+        # Initialize orientations with identity quaternions [w,x,y,z]
+        self.interceptor_orientations = np.tile([1.0, 0.0, 0.0, 0.0], (self.num_interceptors, 1)).astype(np.float64)
+        self.interceptor_fuel = np.full(self.num_interceptors, 100.0, dtype=np.float64)  # Fuel levels
         self.interceptor_angular_velocities = np.zeros((self.num_interceptors, 3), dtype=np.float64)
+        self.interceptor_active = np.ones(self.num_interceptors, dtype=bool)  # Active status
         
         self.target_positions = np.zeros((self.num_missiles, 3), dtype=np.float64)
         
@@ -139,43 +145,56 @@ class RadarEnv(gym.Env):
     def _setup_spaces(self):
         """Setup observation and action spaces based on entity configuration."""
         
-        # Observation space components:
-        # - Radar returns: ground radar + onboard radar for each interceptor  
-        # - Missile states: position, velocity, estimated trajectory
-        # - Interceptor states: position, velocity, fuel, status
-        # - Environmental data: wind, atmospheric conditions
-        # - Relative positioning and distances
-        
-        # Base observation dimensions per entity (3D)
-        missile_obs_dim = 9  # pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, target_x, target_y, target_z
-        interceptor_obs_dim = 10  # pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, fuel, status, target_missile_id, distance_to_target
-        
-        # Radar return dimensions
-        ground_radar_dim = 4 * self.num_missiles  # detected_x, detected_y, confidence, range for each missile
-        onboard_radar_dim = 3 * self.num_interceptors  # local_detections, bearing, range for each interceptor
-        
-        # Environmental data
-        env_data_dim = 6  # wind_x, wind_y, atmospheric_density, temperature, visibility, em_interference
-        
-        # Relative positioning matrix (interceptor-missile pairs)
-        relative_pos_dim = self.num_interceptors * self.num_missiles * 3  # distance, bearing, relative_velocity
-        
-        total_obs_dim = (
-            self.num_missiles * missile_obs_dim +
-            self.num_interceptors * interceptor_obs_dim +
-            ground_radar_dim +
-            onboard_radar_dim +
-            env_data_dim +
-            relative_pos_dim
-        )
-        
-        # Observation space: normalized values between -1 and 1
-        self.observation_space = spaces.Box(
-            low=-1.0,
-            high=1.0,
-            shape=(total_obs_dim,),
-            dtype=np.float32
-        )
+        # Special case: 1v1 scenarios use 17D radar observations
+        if self.num_missiles == 1 and self.num_interceptors == 1:
+            # Use 17D radar observation space for 1v1 scenarios
+            self.use_radar_17d = True
+            self.radar_observer = Radar17DObservation(
+                max_range=10000.0,
+                max_velocity=1000.0
+            )
+            
+            # Set observation space to exactly 17 dimensions
+            self.observation_space = spaces.Box(
+                low=-1.0,
+                high=1.0,
+                shape=(17,),
+                dtype=np.float32
+            )
+        else:
+            # Use original observation space for multi-entity scenarios
+            self.use_radar_17d = False
+            
+            # Base observation dimensions per entity (3D)
+            missile_obs_dim = 9  # pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, target_x, target_y, target_z
+            interceptor_obs_dim = 10  # pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, fuel, status, target_missile_id, distance_to_target
+            
+            # Radar return dimensions
+            ground_radar_dim = 4 * self.num_missiles  # detected_x, detected_y, confidence, range for each missile
+            onboard_radar_dim = 3 * self.num_interceptors  # local_detections, bearing, range for each interceptor
+            
+            # Environmental data
+            env_data_dim = 6  # wind_x, wind_y, atmospheric_density, temperature, visibility, em_interference
+            
+            # Relative positioning matrix (interceptor-missile pairs)
+            relative_pos_dim = self.num_interceptors * self.num_missiles * 3  # distance, bearing, relative_velocity
+            
+            total_obs_dim = (
+                self.num_missiles * missile_obs_dim +
+                self.num_interceptors * interceptor_obs_dim +
+                ground_radar_dim +
+                onboard_radar_dim +
+                env_data_dim +
+                relative_pos_dim
+            )
+            
+            # Observation space: normalized values between -1 and 1
+            self.observation_space = spaces.Box(
+                low=-1.0,
+                high=1.0,
+                shape=(total_obs_dim,),
+                dtype=np.float32
+            )
         
         # Action space: continuous control for each interceptor
         # Actions per interceptor: thrust_x, thrust_y, thrust_magnitude, steering_angle, special_action, confidence
@@ -190,7 +209,10 @@ class RadarEnv(gym.Env):
         )
         
         # Store dimensions for easy access
-        self.obs_dim = total_obs_dim
+        if hasattr(self, 'use_radar_17d') and self.use_radar_17d:
+            self.obs_dim = 17
+        else:
+            self.obs_dim = total_obs_dim
         self.action_dim = total_action_dim
     
     def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
@@ -205,6 +227,11 @@ class RadarEnv(gym.Env):
             Tuple of (observation, info)
         """
         super().reset(seed=seed)
+        
+        # Seed the radar observer if using 17D observations
+        if hasattr(self, 'use_radar_17d') and self.use_radar_17d and hasattr(self, 'radar_observer'):
+            if seed is not None:
+                self.radar_observer.seed(seed)
         
         self.current_step = 0
         self.episode_length = 0
@@ -366,7 +393,23 @@ class RadarEnv(gym.Env):
     
     def _process_actions(self, action: np.ndarray):
         """Process actions for all interceptors."""
+        # Ensure action is a numpy array
+        action = np.asarray(action, dtype=np.float32)
+        
+        # Handle scalar or 1D case
+        if action.ndim == 0:
+            action = np.array([action])
+        
         actions_per_interceptor = self.action_dim // self.num_interceptors
+        expected_actions = self.num_interceptors * actions_per_interceptor
+        
+        # Ensure we have the right number of actions
+        if len(action) != expected_actions:
+            # Pad or truncate to expected size
+            if len(action) < expected_actions:
+                action = np.pad(action, (0, expected_actions - len(action)), 'constant', constant_values=0)
+            else:
+                action = action[:expected_actions]
         
         for i in range(self.num_interceptors):
             start_idx = i * actions_per_interceptor
@@ -548,6 +591,38 @@ class RadarEnv(gym.Env):
     def _get_observation(self) -> np.ndarray:
         """Generate current observation with radar processing."""
         
+        # Use 17D observation for 1v1 scenarios
+        if hasattr(self, 'use_radar_17d') and self.use_radar_17d:
+            # Get interceptor state
+            interceptor_state = {
+                'position': self.interceptor_positions[0],
+                'velocity': self.interceptor_velocities[0],
+                'orientation': self.interceptor_orientations[0],
+                'fuel': self.interceptor_fuel[0] if hasattr(self, 'interceptor_fuel') else 100.0
+            }
+            
+            # Get missile state
+            missile_state = {
+                'position': self.missile_positions[0],
+                'velocity': self.missile_velocities[0]
+            }
+            
+            # Get radar quality (simulated based on range)
+            rel_pos = missile_state['position'] - interceptor_state['position']
+            range_to_target = np.linalg.norm(rel_pos)
+            radar_quality = np.clip(1.0 - range_to_target / self.radar_observer.max_range, 0.1, 1.0)
+            
+            # Compute 17D observation
+            obs = self.radar_observer.compute_observation(
+                interceptor_state=interceptor_state,
+                missile_state=missile_state,
+                radar_quality=radar_quality,
+                radar_noise=self.radar_noise
+            )
+            
+            return obs
+        
+        # Original observation generation for multi-entity scenarios
         obs_components = []
         
         # Process radar returns

@@ -5,8 +5,8 @@
 environment:
   num_missiles: 1
   num_interceptors: 1
-  observation_dim: 34  # Based on existing successful training
-  action_dim: 6        # Based on existing successful training  
+  observation_dim: 17  # Fixed 17-dimensional radar observations for 1v1 scenarios
+  action_dim: 6        # 6D action space for interceptor control  
   max_episode_steps: 1000
   render_mode: "none"
 
