@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0",
+  "coord_frame": "ENU_RH",
+  "units": {
+    "pos": "m",
+    "vel": "m/s",
+    "ang": "rad",
+    "time": "s"
+  },
+  "dt_nominal": 0.01,
+  "gravity": [
+    0.0,
+    0.0,
+    -9.81
+  ],
+  "episodes": [
+    {
+      "id": "ep_000001",
+      "file": "ep_000001.jsonl",
+      "seed": null,
+      "scenario": "easy",
+      "notes": "FastSimEnv training episode"
+    },
+    {
+      "id": "ep_000002",
+      "file": "ep_000002.jsonl",
+      "seed": null,
+      "scenario": "easy",
+      "notes": "FastSimEnv training episode"
+    },
+    {
+      "id": "ep_000003",
+      "file": "ep_000003.jsonl",
+      "seed": null,
+      "scenario": "easy",
+      "notes": "FastSimEnv training episode"
+    },
+    {
+      "id": "ep_000004",
+      "file": "ep_000004.jsonl",
+      "seed": null,
+      "scenario": "easy",
+      "notes": "FastSimEnv training episode"
+    },
+    {
+      "id": "ep_000005",
+      "file": "ep_000005.jsonl",
+      "seed": null,
+      "scenario": "easy",
+      "notes": "FastSimEnv training episode"
+    },
+    {
+      "id": "ep_000006",
+      "file": "ep_000006.jsonl",
+      "seed": null,
+      "scenario": "easy",
+      "notes": "FastSimEnv training episode"
+    },
+    {
+      "id": "ep_000007",
+      "file": "ep_000007.jsonl",
+      "seed": null,
+      "scenario": "easy",
+      "notes": "FastSimEnv training episode"
+    },
+    {
+      "id": "ep_000008",
+      "file": "ep_000008.jsonl",
+      "seed": null,
+      "scenario": "easy",
+      "notes": "FastSimEnv training episode"
+    },
+    {
+      "id": "ep_000009",
+      "file": "ep_000009.jsonl",
+      "seed": null,
+      "scenario": "easy",
+      "notes": "FastSimEnv training episode"
+    }
+  ]
+}
