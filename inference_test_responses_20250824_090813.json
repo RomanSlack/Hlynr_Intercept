@@ -1,0 +1,1794 @@
+{
+  "test_metadata": {
+    "timestamp": "2025-08-24T09:08:13.632284",
+    "server_url": "http://localhost:5000",
+    "test_type": "standard_testing",
+    "total_requests": 11,
+    "inference_requests": 11,
+    "simulation_steps": 10
+  },
+  "responses": [
+    {
+      "timestamp": "2025-08-24T09:08:13.016108",
+      "endpoint": "inference",
+      "latency_ms": 81.32031600689515,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090812",
+          "t": 0.0,
+          "dt": 0.01,
+          "sim_tick": 0
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.9
+        },
+        "red": {
+          "pos_m": [
+            5000.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 5000.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 0,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.9755165576934814,
+            "yaw": 0.19683295488357544,
+            "roll": -0.17293213307857513
+          },
+          "thrust_cmd": 0.1671268343925476,
+          "aux": [
+            -0.017421428114175797,
+            0.13898974657058716
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 77.69887399626896,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.975516557693481,
+              0.09873295488357545,
+              999.8270678669214
+            ],
+            "vel_mps": [
+              108.55034768757147,
+              0.9764913135975185,
+              -1.7103380121889804
+            ],
+            "quat_wxyz": [
+              0.9999851400079285,
+              0.00417810877222784,
+              -0.0004355292307973036,
+              0.0034746920296013775
+            ],
+            "ang_vel_radps": [
+              0.07938524633646012,
+              0.06602012962102889,
+              0.008275178354233503
+            ],
+            "fuel_frac": 0.899989899102569
+          },
+          "red": {
+            "pos_m": [
+              4995.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040892.9745877,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-24T09:08:13.102068",
+      "endpoint": "simulation_step_1",
+      "latency_ms": 3.2238870044238865,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090813",
+          "t": 0.0,
+          "dt": 0.01,
+          "sim_tick": 0
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.9
+        },
+        "red": {
+          "pos_m": [
+            5000.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 5000.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 0,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.9755165576934814,
+            "yaw": 0.19683295488357544,
+            "roll": -0.17293213307857513
+          },
+          "thrust_cmd": 0.1671268343925476,
+          "aux": [
+            -0.017421428114175797,
+            0.13898974657058716
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.8984369924291968,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.975516557693481,
+              0.09873295488357545,
+              999.8270678669214
+            ],
+            "vel_mps": [
+              108.55034768757147,
+              0.9764913135975185,
+              -1.7103380121889804
+            ],
+            "quat_wxyz": [
+              0.9999851400079285,
+              0.00417810877222784,
+              -0.0004355292307973036,
+              0.0034746920296013775
+            ],
+            "ang_vel_radps": [
+              0.07938524633646012,
+              0.06602012962102889,
+              0.008275178354233503
+            ],
+            "fuel_frac": 0.899989899102569
+          },
+          "red": {
+            "pos_m": [
+              4995.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040893.060792,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-24T09:08:13.155264",
+      "endpoint": "simulation_step_2",
+      "latency_ms": 2.913364995038137,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090813",
+          "t": 0.01,
+          "dt": 0.01,
+          "sim_tick": 1
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.8999
+        },
+        "red": {
+          "pos_m": [
+            4999.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 4999.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 1,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.9755109548568726,
+            "yaw": 0.19683822989463806,
+            "roll": -0.17291419208049774
+          },
+          "thrust_cmd": 0.16712036728858948,
+          "aux": [
+            -0.017429329454898834,
+            0.13902829587459564
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.7124390103854239,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.975510954856873,
+              0.09873822989463807,
+              999.8270858079195
+            ],
+            "vel_mps": [
+              108.55029291489718,
+              0.9765434904165872,
+              -1.710160581742647
+            ],
+            "quat_wxyz": [
+              0.9999851372483144,
+              0.004177947085501722,
+              -0.0004357267601775775,
+              0.0034756557382889203
+            ],
+            "ang_vel_radps": [
+              0.07938217446208,
+              0.06603844054043292,
+              0.008278931491076946
+            ],
+            "fuel_frac": 0.8998898991771148
+          },
+          "red": {
+            "pos_m": [
+              4994.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040893.1545923,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-24T09:08:13.208346",
+      "endpoint": "simulation_step_3",
+      "latency_ms": 2.7468189946375787,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090813",
+          "t": 0.02,
+          "dt": 0.01,
+          "sim_tick": 2
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.8998
+        },
+        "red": {
+          "pos_m": [
+            4998.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 4998.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 2,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.975505530834198,
+            "yaw": 0.19684340059757233,
+            "roll": -0.17289623618125916
+          },
+          "thrust_cmd": 0.16711390018463135,
+          "aux": [
+            -0.01743721216917038,
+            0.13906694948673248
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6757869850844145,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.975505530834198,
+              0.09874340059757233,
+              999.8271037638187
+            ],
+            "vel_mps": [
+              108.55023989123539,
+              0.9765946354298051,
+              -1.7099830036112158
+            ],
+            "quat_wxyz": [
+              0.9999851344788437,
+              0.004177785398735316,
+              -0.00043592382389809933,
+              0.0034766220546013187
+            ],
+            "ang_vel_radps": [
+              0.07937910258769988,
+              0.06605680100619793,
+              0.00828267578035593
+            ],
+            "fuel_frac": 0.899789899250159
+          },
+          "red": {
+            "pos_m": [
+              4993.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040893.2076373,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-24T09:08:13.261180",
+      "endpoint": "simulation_step_4",
+      "latency_ms": 2.5479640171397477,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090813",
+          "t": 0.03,
+          "dt": 0.01,
+          "sim_tick": 3
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.8997
+        },
+        "red": {
+          "pos_m": [
+            4997.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 4997.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 3,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.9755000472068787,
+            "yaw": 0.19684860110282898,
+            "roll": -0.17287826538085938
+          },
+          "thrust_cmd": 0.16710743308067322,
+          "aux": [
+            -0.017445087432861328,
+            0.13910558819770813
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.672385998768732,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.975500047206879,
+              0.09874860110282899,
+              999.8271217346191
+            ],
+            "vel_mps": [
+              108.55018628460321,
+              0.976646075254125,
+              -1.7098052782048003
+            ],
+            "quat_wxyz": [
+              0.9999851317097512,
+              0.004177623711971386,
+              -0.00043612070135594903,
+              0.0034775879983861896
+            ],
+            "ang_vel_radps": [
+              0.07937603071331978,
+              0.06607515439391136,
+              0.00828641653060913
+            ],
+            "fuel_frac": 0.899689899323743
+          },
+          "red": {
+            "pos_m": [
+              4992.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040893.2605941,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-24T09:08:13.314484",
+      "endpoint": "simulation_step_5",
+      "latency_ms": 2.953093993710354,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090813",
+          "t": 0.04,
+          "dt": 0.01,
+          "sim_tick": 4
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.8996000000000001
+        },
+        "red": {
+          "pos_m": [
+            4996.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 4996.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 4,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.9754945635795593,
+            "yaw": 0.1968538612127304,
+            "roll": -0.1728603094816208
+          },
+          "thrust_cmd": 0.1671009510755539,
+          "aux": [
+            -0.017452988773584366,
+            0.13914424180984497
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6983710045460612,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.97549456357956,
+              0.09875386121273041,
+              999.8271396905184
+            ],
+            "vel_mps": [
+              108.55013267788235,
+              0.9766981045817142,
+              -1.709627700170809
+            ],
+            "quat_wxyz": [
+              0.9999851289396366,
+              0.004177461652680591,
+              -0.00043631823072836983,
+              0.003478554314685645
+            ],
+            "ang_vel_radps": [
+              0.0793729517608881,
+              0.06609351485967636,
+              0.008290169667452574
+            ],
+            "fuel_frac": 0.8995898993971823
+          },
+          "red": {
+            "pos_m": [
+              4991.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040893.3136122,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-24T09:08:13.367348",
+      "endpoint": "simulation_step_6",
+      "latency_ms": 2.5367130001541227,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090813",
+          "t": 0.05,
+          "dt": 0.01,
+          "sim_tick": 5
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.8995000000000001
+        },
+        "red": {
+          "pos_m": [
+            4995.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 4995.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 5,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.97548907995224,
+            "yaw": 0.19685903191566467,
+            "roll": -0.172842338681221
+          },
+          "thrust_cmd": 0.16709446907043457,
+          "aux": [
+            -0.017460856586694717,
+            0.13918286561965942
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.7287990010809153,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.97548907995224,
+              0.09875903191566468,
+              999.8271576613188
+            ],
+            "vel_mps": [
+              108.5500790712714,
+              0.9767492496556942,
+              -1.7094499747606375
+            ],
+            "quat_wxyz": [
+              0.9999851261714813,
+              0.00417729959339888,
+              -0.00043651492192270147,
+              0.0034795198859395864
+            ],
+            "ang_vel_radps": [
+              0.07936987280845642,
+              0.06611186116933822,
+              0.00829390687867999
+            ],
+            "fuel_frac": 0.8994898994708178
+          },
+          "red": {
+            "pos_m": [
+              4990.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040893.3666909,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-24T09:08:13.420915",
+      "endpoint": "simulation_step_7",
+      "latency_ms": 3.2122230040840805,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090813",
+          "t": 0.06,
+          "dt": 0.01,
+          "sim_tick": 6
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.8994
+        },
+        "red": {
+          "pos_m": [
+            4994.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 4994.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 6,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.9754835367202759,
+            "yaw": 0.19686423242092133,
+            "roll": -0.17282435297966003
+          },
+          "thrust_cmd": 0.16708801686763763,
+          "aux": [
+            -0.017468750476837158,
+            0.13922159373760223
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.85219502216205,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.975483536720276,
+              0.09876423242092133,
+              999.8271756470203
+            ],
+            "vel_mps": [
+              108.55002488169002,
+              0.9768006895407966,
+              -1.709272102075424
+            ],
+            "quat_wxyz": [
+              0.9999851233898561,
+              0.004177138279108774,
+              -0.00043671226502616536,
+              0.003480488064805715
+            ],
+            "ang_vel_radps": [
+              0.07936680801212788,
+              0.06613025702536106,
+              0.008297656476497649
+            ],
+            "fuel_frac": 0.8993898995449934
+          },
+          "red": {
+            "pos_m": [
+              4989.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040893.4201603,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-24T09:08:13.473587",
+      "endpoint": "simulation_step_8",
+      "latency_ms": 2.312357013579458,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090813",
+          "t": 0.07,
+          "dt": 0.01,
+          "sim_tick": 7
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.8993
+        },
+        "red": {
+          "pos_m": [
+            4993.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 4993.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 7,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.9754780530929565,
+            "yaw": 0.1968693882226944,
+            "roll": -0.17280636727809906
+          },
+          "thrust_cmd": 0.16708150506019592,
+          "aux": [
+            -0.017476610839366913,
+            0.13926027715206146
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.6263130053412169,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.975478053092957,
+              0.0987693882226944,
+              999.8271936327219
+            ],
+            "vel_mps": [
+              108.54997127511133,
+              0.9768516872403964,
+              -1.7090942292857882
+            ],
+            "quat_wxyz": [
+              0.9999851206177093,
+              0.00417697547476521,
+              -0.0004369087699548272,
+              0.003481455126128995
+            ],
+            "ang_vel_radps": [
+              0.07936371490359306,
+              0.06614863164722919,
+              0.008301390148699283
+            ],
+            "fuel_frac": 0.8992898996186771
+          },
+          "red": {
+            "pos_m": [
+              4988.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040893.4730315,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-24T09:08:13.526971",
+      "endpoint": "simulation_step_9",
+      "latency_ms": 2.9477069911081344,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090813",
+          "t": 0.08,
+          "dt": 0.01,
+          "sim_tick": 8
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.8992
+        },
+        "red": {
+          "pos_m": [
+            4992.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 4992.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 8,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.9754724502563477,
+            "yaw": 0.19687461853027344,
+            "roll": -0.17278839647769928
+          },
+          "thrust_cmd": 0.1670750379562378,
+          "aux": [
+            -0.01748448610305786,
+            0.1392989456653595
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.8575739921070635,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.975472450256348,
+              0.09877461853027344,
+              999.8272116035223
+            ],
+            "vel_mps": [
+              108.54991650250389,
+              0.9769034219367412,
+              -1.708916504074293
+            ],
+            "quat_wxyz": [
+              0.9999851178410288,
+              0.004176813787974071,
+              -0.0004371056474039037,
+              0.00348242181490764
+            ],
+            "ang_vel_radps": [
+              0.07936064302921295,
+              0.06616699919104575,
+              0.008305130898952484
+            ],
+            "fuel_frac": 0.8991898996933384
+          },
+          "red": {
+            "pos_m": [
+              4987.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040893.5262501,
+        "success": true,
+        "error": null
+      }
+    },
+    {
+      "timestamp": "2025-08-24T09:08:13.580718",
+      "endpoint": "simulation_step_10",
+      "latency_ms": 3.3687739924062043,
+      "request": {
+        "meta": {
+          "episode_id": "test_ep_20250824_090813",
+          "t": 0.09,
+          "dt": 0.01,
+          "sim_tick": 9
+        },
+        "frames": {
+          "frame": "ENU",
+          "unity_lh": true
+        },
+        "blue": {
+          "pos_m": [
+            0.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            100.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ang_vel_radps": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fuel_frac": 0.8991
+        },
+        "red": {
+          "pos_m": [
+            4991.0,
+            0.0,
+            1000.0
+          ],
+          "vel_mps": [
+            -50.0,
+            0.0,
+            0.0
+          ],
+          "quat_wxyz": [
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "guidance": {
+          "los_unit": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "los_rate_radps": [
+            0.0,
+            0.01,
+            0.0
+          ],
+          "range_m": 4991.0,
+          "closing_speed_mps": 150.0,
+          "fov_ok": true,
+          "g_limit_ok": true
+        },
+        "env": {
+          "wind_mps": [
+            2.0,
+            1.0,
+            0.0
+          ],
+          "noise_std": 0.01,
+          "episode_step": 9,
+          "max_steps": 1000
+        },
+        "normalization": {
+          "obs_version": "obs_v1.0",
+          "vecnorm_stats_id": "vecnorm_checkpoints_obs_v1.0_43d32970"
+        }
+      },
+      "response": {
+        "action": {
+          "rate_cmd_radps": {
+            "pitch": 0.9754669070243835,
+            "yaw": 0.1968797743320465,
+            "roll": -0.1727704405784607
+          },
+          "thrust_cmd": 0.1670684963464737,
+          "aux": [
+            -0.01749236136674881,
+            0.1393376886844635
+          ]
+        },
+        "diagnostics": {
+          "policy_latency_ms": 0.9280260128434747,
+          "obs_clip_fractions": {
+            "low": 0.11764705882352941,
+            "high": 0.11764705882352941
+          },
+          "value_estimate": null
+        },
+        "safety": {
+          "clamped": false,
+          "clamp_reason": null
+        },
+        "simulation_state": {
+          "blue": {
+            "pos_m": [
+              10.975466907024384,
+              0.09877977433204652,
+              999.8272295594215
+            ],
+            "vel_mps": [
+              108.54986231290283,
+              0.9769544196958727,
+              -1.708738926134307
+            ],
+            "quat_wxyz": [
+              0.9999851150646406,
+              0.0041766502385676245,
+              -0.0004373025248520146,
+              0.003483390366299358
+            ],
+            "ang_vel_radps": [
+              0.07935753576457501,
+              0.06618540212512015,
+              0.008308871649205685
+            ],
+            "fuel_frac": 0.8990898997675404
+          },
+          "red": {
+            "pos_m": [
+              4986.001250240567,
+              -0.09807547028007349,
+              1000.0
+            ],
+            "vel_mps": [
+              -49.98749759432899,
+              -0.9807547028007348,
+              0.0
+            ],
+            "quat_wxyz": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "timestamp": 1756040893.5798218,
+        "success": true,
+        "error": null
+      }
+    }
+  ]
+}
