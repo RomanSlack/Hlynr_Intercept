@@ -1,0 +1,6 @@
+digraph outputs {
+  // Repository Artifact/Output Graph
+  rankdir=LR;
+  node [shape=ellipse];
+
+}

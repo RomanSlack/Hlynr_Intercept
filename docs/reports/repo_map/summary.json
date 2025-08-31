@@ -1,0 +1,15 @@
+{
+  "total_python_files_scanned": 234,
+  "total_internal_edges": 102,
+  "unresolved_imports": 1503,
+  "files_that_produce_artifacts": 83,
+  "suspected_redundant_modules": 8,
+  "critical_files_found": {
+    "transforms_py": true,
+    "schemas_py": true,
+    "episode_logger_py": true,
+    "normalize_py": true,
+    "radar_env_py": true,
+    "fast_sim_env_py": true
+  }
+}
