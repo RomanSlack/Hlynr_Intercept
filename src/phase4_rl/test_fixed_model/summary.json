@@ -1,0 +1,78 @@
+{
+  "model": "checkpoints_final_fixed/fixed_model_final.zip",
+  "scenario": "easy",
+  "scenario_config": {
+    "missile_spawn": [
+      [
+        0,
+        0,
+        300
+      ]
+    ],
+    "target": [
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "evasion_iq": 0.0
+  },
+  "episodes": [
+    {
+      "episode": 1,
+      "scenario": "easy",
+      "steps": 41,
+      "total_reward": -4.100000061094761,
+      "outcome": "hit",
+      "miss_distance": 383.71226874783423,
+      "final_missile_pos": [
+        0.0,
+        0.0,
+        12.326824428364668
+      ],
+      "final_interceptor_pos": [
+        218.43076444306863,
+        293.4718081324886,
+        128.0739806088713
+      ]
+    },
+    {
+      "episode": 2,
+      "scenario": "easy",
+      "steps": 41,
+      "total_reward": -4.100000061094761,
+      "outcome": "hit",
+      "miss_distance": 383.71226874783423,
+      "final_missile_pos": [
+        0.0,
+        0.0,
+        12.326824428364668
+      ],
+      "final_interceptor_pos": [
+        218.43076444306863,
+        293.4718081324886,
+        128.0739806088713
+      ]
+    },
+    {
+      "episode": 3,
+      "scenario": "easy",
+      "steps": 41,
+      "total_reward": -4.100000061094761,
+      "outcome": "hit",
+      "miss_distance": 383.71226874783423,
+      "final_missile_pos": [
+        0.0,
+        0.0,
+        12.326824428364668
+      ],
+      "final_interceptor_pos": [
+        218.43076444306863,
+        293.4718081324886,
+        128.0739806088713
+      ]
+    }
+  ],
+  "timestamp": 1756765046.5293736
+}

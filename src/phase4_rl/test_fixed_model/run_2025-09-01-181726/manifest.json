@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "coord_frame": "ENU_RH",
+  "units": {
+    "pos": "m",
+    "vel": "m/s",
+    "ang": "rad",
+    "time": "s"
+  },
+  "dt_nominal": 0.1,
+  "gravity": [
+    0.0,
+    0.0,
+    -9.81
+  ],
+  "episodes": [
+    {
+      "id": "ep_000001",
+      "file": "ep_000001.jsonl",
+      "seed": 42,
+      "scenario": "easy",
+      "notes": "Real 17D inference episode 1"
+    },
+    {
+      "id": "ep_000002",
+      "file": "ep_000002.jsonl",
+      "seed": 43,
+      "scenario": "easy",
+      "notes": "Real 17D inference episode 2"
+    },
+    {
+      "id": "ep_000003",
+      "file": "ep_000003.jsonl",
+      "seed": 44,
+      "scenario": "easy",
+      "notes": "Real 17D inference episode 3"
+    }
+  ]
+}
