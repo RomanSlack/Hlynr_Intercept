@@ -4,7 +4,7 @@
 ```bash
 python simple_train_fixed.py --timesteps 10000 --checkpoint-dir my_model
 ```
-
+ .
 ## Run Inference
 ```bash
 python simple_inference.py my_model/fixed_model_final.zip --episodes 5 --output-dir results
