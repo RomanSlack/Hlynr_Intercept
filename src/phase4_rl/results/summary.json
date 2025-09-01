@@ -1,0 +1,114 @@
+{
+  "model": "my_model/fixed_model_final.zip",
+  "scenario": "easy",
+  "scenario_config": {
+    "missile_spawn": [
+      [
+        0,
+        0,
+        300
+      ]
+    ],
+    "target": [
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "evasion_iq": 0.0
+  },
+  "episodes": [
+    {
+      "episode": 1,
+      "scenario": "easy",
+      "steps": 41,
+      "total_reward": -4.100000061094761,
+      "outcome": "hit",
+      "miss_distance": 261.4305175226316,
+      "final_missile_pos": [
+        0.0,
+        0.0,
+        12.326824428364668
+      ],
+      "final_interceptor_pos": [
+        131.72512822129966,
+        178.69433162091997,
+        150.3947132866572
+      ]
+    },
+    {
+      "episode": 2,
+      "scenario": "easy",
+      "steps": 41,
+      "total_reward": -4.100000061094761,
+      "outcome": "hit",
+      "miss_distance": 261.4305175226316,
+      "final_missile_pos": [
+        0.0,
+        0.0,
+        12.326824428364668
+      ],
+      "final_interceptor_pos": [
+        131.72512822129966,
+        178.69433162091997,
+        150.3947132866572
+      ]
+    },
+    {
+      "episode": 3,
+      "scenario": "easy",
+      "steps": 41,
+      "total_reward": -4.100000061094761,
+      "outcome": "hit",
+      "miss_distance": 261.4305175226316,
+      "final_missile_pos": [
+        0.0,
+        0.0,
+        12.326824428364668
+      ],
+      "final_interceptor_pos": [
+        131.72512822129966,
+        178.69433162091997,
+        150.3947132866572
+      ]
+    },
+    {
+      "episode": 4,
+      "scenario": "easy",
+      "steps": 41,
+      "total_reward": -4.100000061094761,
+      "outcome": "hit",
+      "miss_distance": 261.4305175226316,
+      "final_missile_pos": [
+        0.0,
+        0.0,
+        12.326824428364668
+      ],
+      "final_interceptor_pos": [
+        131.72512822129966,
+        178.69433162091997,
+        150.3947132866572
+      ]
+    },
+    {
+      "episode": 5,
+      "scenario": "easy",
+      "steps": 41,
+      "total_reward": -4.100000061094761,
+      "outcome": "hit",
+      "miss_distance": 261.4305175226316,
+      "final_missile_pos": [
+        0.0,
+        0.0,
+        12.326824428364668
+      ],
+      "final_interceptor_pos": [
+        131.72512822129966,
+        178.69433162091997,
+        150.3947132866572
+      ]
+    }
+  ],
+  "timestamp": 1756765270.7613497
+}
