@@ -139,43 +139,60 @@ class RadarEnv(gym.Env):
     def _setup_spaces(self):
         """Setup observation and action spaces based on entity configuration."""
         
-        # Observation space components:
-        # - Radar returns: ground radar + onboard radar for each interceptor  
-        # - Missile states: position, velocity, estimated trajectory
-        # - Interceptor states: position, velocity, fuel, status
-        # - Environmental data: wind, atmospheric conditions
-        # - Relative positioning and distances
-        
-        # Base observation dimensions per entity (3D)
-        missile_obs_dim = 9  # pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, target_x, target_y, target_z
-        interceptor_obs_dim = 10  # pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, fuel, status, target_missile_id, distance_to_target
-        
-        # Radar return dimensions
-        ground_radar_dim = 4 * self.num_missiles  # detected_x, detected_y, confidence, range for each missile
-        onboard_radar_dim = 3 * self.num_interceptors  # local_detections, bearing, range for each interceptor
-        
-        # Environmental data
-        env_data_dim = 6  # wind_x, wind_y, atmospheric_density, temperature, visibility, em_interference
-        
-        # Relative positioning matrix (interceptor-missile pairs)
-        relative_pos_dim = self.num_interceptors * self.num_missiles * 3  # distance, bearing, relative_velocity
-        
-        total_obs_dim = (
-            self.num_missiles * missile_obs_dim +
-            self.num_interceptors * interceptor_obs_dim +
-            ground_radar_dim +
-            onboard_radar_dim +
-            env_data_dim +
-            relative_pos_dim
-        )
-        
-        # Observation space: normalized values between -1 and 1
-        self.observation_space = spaces.Box(
-            low=-1.0,
-            high=1.0,
-            shape=(total_obs_dim,),
-            dtype=np.float32
-        )
+        # Special case: 1v1 scenarios use 17D radar observations
+        if self.num_missiles == 1 and self.num_interceptors == 1:
+            # Use 17D radar observation space for 1v1 scenarios
+            self.use_radar_17d = True
+            try:
+                from .radar_observations import Radar17DObservation
+            except ImportError:
+                from radar_observations import Radar17DObservation
+            self.radar_observer = Radar17DObservation(
+                max_range=10000.0,
+                max_velocity=1000.0
+            )
+            
+            # Set observation space to exactly 17 dimensions
+            self.observation_space = spaces.Box(
+                low=-1.0,
+                high=1.0,
+                shape=(17,),
+                dtype=np.float32
+            )
+        else:
+            # Use original observation space for multi-entity scenarios
+            self.use_radar_17d = False
+            
+            # Base observation dimensions per entity (3D)
+            missile_obs_dim = 9  # pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, target_x, target_y, target_z
+            interceptor_obs_dim = 10  # pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, fuel, status, target_missile_id, distance_to_target
+            
+            # Radar return dimensions
+            ground_radar_dim = 4 * self.num_missiles  # detected_x, detected_y, confidence, range for each missile
+            onboard_radar_dim = 3 * self.num_interceptors  # local_detections, bearing, range for each interceptor
+            
+            # Environmental data
+            env_data_dim = 6  # wind_x, wind_y, atmospheric_density, temperature, visibility, em_interference
+            
+            # Relative positioning matrix (interceptor-missile pairs)
+            relative_pos_dim = self.num_interceptors * self.num_missiles * 3  # distance, bearing, relative_velocity
+            
+            total_obs_dim = (
+                self.num_missiles * missile_obs_dim +
+                self.num_interceptors * interceptor_obs_dim +
+                ground_radar_dim +
+                onboard_radar_dim +
+                env_data_dim +
+                relative_pos_dim
+            )
+            
+            # Observation space: normalized values between -1 and 1
+            self.observation_space = spaces.Box(
+                low=-1.0,
+                high=1.0,
+                shape=(total_obs_dim,),
+                dtype=np.float32
+            )
         
         # Action space: continuous control for each interceptor
         # Actions per interceptor: thrust_x, thrust_y, thrust_magnitude, steering_angle, special_action, confidence
@@ -190,7 +207,10 @@ class RadarEnv(gym.Env):
         )
         
         # Store dimensions for easy access
-        self.obs_dim = total_obs_dim
+        if hasattr(self, 'use_radar_17d') and self.use_radar_17d:
+            self.obs_dim = 17
+        else:
+            self.obs_dim = total_obs_dim
         self.action_dim = total_action_dim
     
     def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
@@ -206,8 +226,16 @@ class RadarEnv(gym.Env):
         """
         super().reset(seed=seed)
         
+        # Seed the radar observer if using 17D observations
+        if hasattr(self, 'use_radar_17d') and self.use_radar_17d and hasattr(self, 'radar_observer'):
+            if seed is not None:
+                self.radar_observer.seed(seed)
+        
         self.current_step = 0
         self.episode_length = 0
+        
+        # FIXED: Clear distance tracking for reward calculation
+        self._prev_distances = {}
         
         # Initialize entity positions based on spawn configuration
         self._initialize_positions()
@@ -381,22 +409,25 @@ class RadarEnv(gym.Env):
         if not self.interceptor_active[interceptor_id]:
             return
         
-        # Extract 6DOF action components: [thrust_x, thrust_y, thrust_z, torque_x, torque_y, torque_z]
-        thrust_body = np.array([
-            action[0] * 1000.0,  # Body-frame thrust X (N)
-            action[1] * 1000.0,  # Body-frame thrust Y (N) 
-            action[2] * 1000.0   # Body-frame thrust Z (N)
+        # FIXED: Actions are WORLD-FRAME thrust commands (not body-frame)
+        # For 1v1 scenarios, model should directly control world-frame thrust
+        thrust_world = np.array([
+            action[0] * 1000.0,  # World-frame thrust X (N) - toward/away from target
+            action[1] * 1000.0,  # World-frame thrust Y (N) - toward/away from target
+            action[2] * 1000.0   # World-frame thrust Z (N) - up/down
         ])
         
+        # Optional: Still allow torque control for orientation
         torque_body = np.array([
             action[3] * 50.0,    # Torque about X-axis (Nm)
             action[4] * 50.0,    # Torque about Y-axis (Nm)
             action[5] * 50.0     # Torque about Z-axis (Nm)
         ])
         
-        # Convert body-frame thrust to world-frame using quaternion
-        q = self.interceptor_orientations[interceptor_id]
-        thrust_world = self._rotate_vector_by_quaternion(thrust_body, q)
+        # FIXED: Use thrust directly in world frame (no rotation needed)
+        # This makes the action space much more intuitive:
+        # - Negative X thrust = move toward negative X (toward origin from +X)
+        # - Negative Y thrust = move toward negative Y (toward origin from +Y)
         
         # Apply forces (F = ma, so a = F/m)
         mass = self.interceptor_mass
@@ -425,7 +456,7 @@ class RadarEnv(gym.Env):
         
         # Consume fuel based on thrust magnitude
         fuel_consumption_rate = 0.01  # kg/s per 1000N
-        thrust_magnitude = np.linalg.norm(thrust_body)
+        thrust_magnitude = np.linalg.norm(thrust_world)
         fuel_used = fuel_consumption_rate * (thrust_magnitude / 1000.0) * self.dt
         self.interceptor_fuel[interceptor_id] = max(0.0, self.interceptor_fuel[interceptor_id] - fuel_used)
         
@@ -548,6 +579,38 @@ class RadarEnv(gym.Env):
     def _get_observation(self) -> np.ndarray:
         """Generate current observation with radar processing."""
         
+        # Use 17D observation for 1v1 scenarios
+        if hasattr(self, 'use_radar_17d') and self.use_radar_17d:
+            # Get interceptor state
+            interceptor_state = {
+                'position': self.interceptor_positions[0],
+                'velocity': self.interceptor_velocities[0],
+                'orientation': self.interceptor_orientations[0],
+                'fuel': self.interceptor_fuel[0] if hasattr(self, 'interceptor_fuel') else 100.0
+            }
+            
+            # Get missile state
+            missile_state = {
+                'position': self.missile_positions[0],
+                'velocity': self.missile_velocities[0]
+            }
+            
+            # Get radar quality (simulated based on range)
+            rel_pos = missile_state['position'] - interceptor_state['position']
+            range_to_target = np.linalg.norm(rel_pos)
+            radar_quality = np.clip(1.0 - range_to_target / self.radar_observer.max_range, 0.1, 1.0)
+            
+            # Compute 17D observation
+            obs = self.radar_observer.compute_observation(
+                interceptor_state=interceptor_state,
+                missile_state=missile_state,
+                radar_quality=radar_quality,
+                radar_noise=self.radar_noise
+            )
+            
+            return obs
+        
+        # Original observation generation for multi-entity scenarios
         obs_components = []
         
         # Process radar returns
@@ -669,25 +732,49 @@ class RadarEnv(gym.Env):
         return np.array(radar_returns)
     
     def _calculate_reward(self) -> float:
-        """Calculate reward for current step."""
+        """Calculate reward for current step with FIXED reward shaping."""
         reward = 0.0
+        
+        # Store previous distance for progress tracking
+        if not hasattr(self, '_prev_distances'):
+            self._prev_distances = {}
         
         # Reward for interceptor-missile proximity
         for i in range(self.num_interceptors):
+            if not self.interceptor_active[i]:
+                continue
+                
             for j in range(self.num_missiles):
+                if not self.missile_active[j]:
+                    continue
+                    
                 distance = np.linalg.norm(self.interceptor_positions[i] - self.missile_positions[j])
-                if distance < 50.0:  # Successful interception
-                    reward += 100.0
+                pair_key = (i, j)
+                
+                # FIXED: Large reward for successful interception
+                if distance < 50.0:
+                    reward += 1000.0  # Big reward for interception!
+                    
+                # FIXED: Strong reward for getting closer (distance-based reward shaping)
                 else:
-                    # Reward for getting closer
-                    reward += max(0, 200.0 - distance) * 0.01
+                    # Distance reward: closer = better (max reward at distance=0)
+                    distance_reward = max(0, (1000.0 - distance)) / 100.0  # Scale to reasonable range
+                    reward += distance_reward
+                    
+                    # Progress reward: reward for reducing distance
+                    if pair_key in self._prev_distances:
+                        prev_distance = self._prev_distances[pair_key]
+                        progress = prev_distance - distance  # Positive when getting closer
+                        reward += progress * 10.0  # Strong reward for progress
+                    
+                    self._prev_distances[pair_key] = distance
         
-        # Penalty for time (encourage efficiency)
-        reward -= 0.1
+        # FIXED: Much smaller time penalty (don't dominate other rewards)
+        reward -= 0.01  # Reduced from -0.1 to -0.01
         
-        # Penalty for excessive velocity (encourage fuel efficiency)
+        # FIXED: Reduced velocity penalty
         for i in range(self.num_interceptors):
-            velocity_penalty = np.linalg.norm(self.interceptor_velocities[i]) * 0.001
+            velocity_penalty = np.linalg.norm(self.interceptor_velocities[i]) * 0.0001  # Reduced penalty
             reward -= velocity_penalty
         
         return reward

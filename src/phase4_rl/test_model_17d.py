@@ -9,10 +9,16 @@ from pathlib import Path
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-from fast_sim_env import FastSimEnv
-from config import get_config
-from scenarios import get_scenario_loader
-from radar_observations import Radar17DObservation
+try:
+    from .fast_sim_env import FastSimEnv
+    from .config import get_config
+    from .scenarios import get_scenario_loader
+    from .radar_observations import Radar17DObservation
+except ImportError:
+    from fast_sim_env import FastSimEnv
+    from config import get_config
+    from scenarios import get_scenario_loader
+    from radar_observations import Radar17DObservation
 
 
 def test_17d_model(model_path="checkpoints_new/phase4_easy_final.zip",
