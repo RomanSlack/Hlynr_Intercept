@@ -14,7 +14,7 @@
       [500, 500, 100]
     ],
     "targets": [
-      [1000, 1000, 5]
+      [0, 0, 0]
     ]
   },
   
@@ -26,9 +26,9 @@
   },
   
   "adversary_config": {
-    "speed_multiplier": 0.8,
-    "evasion_iq": 0.2,
-    "maneuver_frequency": 0.1,
+    "speed_multiplier": 1.0,
+    "evasion_iq": 0.0,
+    "maneuver_frequency": 0.0,
     "predictable_patterns": true
   },
   
