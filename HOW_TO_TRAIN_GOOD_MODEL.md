@@ -18,7 +18,7 @@ cd src/phase4_rl
 # Train from scratch on easy scenario
 python train_radar_ppo.py \
   --scenario easy \
-  --timesteps 1000000 \
+  --timesteps 700000 \
   --seed 42 \
   --enable-episode-logging \
   --checkpoint-dir checkpoints_new \

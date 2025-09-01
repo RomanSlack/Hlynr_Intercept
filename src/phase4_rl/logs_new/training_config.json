@@ -1,0 +1,232 @@
+{
+  "scenario_name": "easy",
+  "scenario_config": {
+    "checkpointing": {
+      "checkpoint_dir": "checkpoints",
+      "log_dir": "logs",
+      "save_replay_buffer": false,
+      "save_vec_normalize": true,
+      "tensorboard_dir": "logs/tensorboard"
+    },
+    "environment": {
+      "action_dim": 6,
+      "max_episode_steps": 1000,
+      "num_interceptors": 1,
+      "num_missiles": 1,
+      "observation_dim": 34,
+      "render_mode": "none"
+    },
+    "environment_conditions": {
+      "atmospheric_density": 1.0,
+      "wind_direction": 0.0,
+      "wind_speed": 3.0,
+      "wind_variability": 0.05
+    },
+    "episode_logging": {
+      "coordinate_frame": "ENU_RH",
+      "enabled": true,
+      "log_during_eval": true,
+      "log_during_training": false,
+      "log_interval": 100,
+      "output_dir": "runs",
+      "sampling_rate_hz": 100
+    },
+    "inference": {
+      "export_diagnostics": true,
+      "num_episodes": 100,
+      "real_time": false,
+      "render": false,
+      "video_recording": false
+    },
+    "radar": {
+      "ground_radar_positions": [
+        [
+          0,
+          0
+        ],
+        [
+          500,
+          500
+        ]
+      ],
+      "noise_level": 0.02,
+      "onboard_radar_range": 200.0,
+      "range": 1200.0,
+      "update_rate": 15,
+      "false_positive_rate": 0.01,
+      "detection_probability": 0.98
+    },
+    "spawn": {
+      "interceptor_spawn_area": [
+        [
+          400,
+          400,
+          50
+        ],
+        [
+          600,
+          600,
+          200
+        ]
+      ],
+      "missile_spawn_area": [
+        [
+          -100,
+          -100,
+          200
+        ],
+        [
+          100,
+          100,
+          500
+        ]
+      ],
+      "target_area": [
+        [
+          800,
+          800,
+          0
+        ],
+        [
+          1000,
+          1000,
+          10
+        ]
+      ],
+      "missile_spawn_positions": [
+        [
+          0,
+          0,
+          300
+        ]
+      ],
+      "interceptor_spawn_positions": [
+        [
+          500,
+          500,
+          100
+        ]
+      ],
+      "target_positions": [
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "training": {
+      "algorithm": "PPO",
+      "batch_size": 64,
+      "checkpoint_interval": 10000,
+      "clip_range": 0.2,
+      "ent_coef": 0.01,
+      "gae_lambda": 0.95,
+      "gamma": 0.99,
+      "learning_rate": 0.0003,
+      "max_grad_norm": 0.5,
+      "n_envs": 8,
+      "n_epochs": 10,
+      "stability": {
+        "best_model": {
+          "enabled": true,
+          "monitor_key": "eval/mean_reward",
+          "name_prefix": "best",
+          "save_path": "best_model",
+          "save_vecnormalize": true
+        },
+        "clip_range_adaptive": {
+          "clip_fraction_threshold": 0.2,
+          "consecutive_threshold": 3,
+          "enabled": true,
+          "min_clip_range": 0.05,
+          "reduction_factor": 0.75
+        },
+        "entropy_schedule": {
+          "decay_steps": 500000,
+          "enabled": true,
+          "final_entropy": 0.01,
+          "initial_entropy": 0.02
+        },
+        "lr_schedule": {
+          "early_stopping": false,
+          "early_stopping_patience": 10,
+          "enabled": true,
+          "factor": 0.5,
+          "min_delta": 0.01,
+          "min_lr": "1e-6",
+          "monitor_key": "eval/mean_reward",
+          "patience": 5
+        }
+      },
+      "total_timesteps": 1000000,
+      "vf_coef": 0.5
+    },
+    "scenario": {
+      "name": "easy",
+      "description": "Basic single missile scenarios for initial training",
+      "difficulty_level": 1,
+      "adversary_config": {
+        "speed_multiplier": 1.0,
+        "evasion_iq": 0.0,
+        "maneuver_frequency": 0.0,
+        "predictable_patterns": true
+      },
+      "success_criteria": {
+        "interception_distance": 50.0,
+        "time_bonus": true,
+        "fuel_efficiency_bonus": true
+      }
+    }
+  },
+  "training_config": {
+    "algorithm": "PPO",
+    "batch_size": 64,
+    "checkpoint_interval": 10000,
+    "clip_range": 0.2,
+    "ent_coef": 0.01,
+    "gae_lambda": 0.95,
+    "gamma": 0.99,
+    "learning_rate": 0.0003,
+    "max_grad_norm": 0.5,
+    "n_envs": 8,
+    "n_epochs": 10,
+    "stability": {
+      "best_model": {
+        "enabled": true,
+        "monitor_key": "eval/mean_reward",
+        "name_prefix": "best",
+        "save_path": "best_model",
+        "save_vecnormalize": true
+      },
+      "clip_range_adaptive": {
+        "clip_fraction_threshold": 0.2,
+        "consecutive_threshold": 3,
+        "enabled": true,
+        "min_clip_range": 0.05,
+        "reduction_factor": 0.75
+      },
+      "entropy_schedule": {
+        "decay_steps": 500000,
+        "enabled": true,
+        "final_entropy": 0.01,
+        "initial_entropy": 0.02
+      },
+      "lr_schedule": {
+        "early_stopping": false,
+        "early_stopping_patience": 10,
+        "enabled": true,
+        "factor": 0.5,
+        "min_delta": 0.01,
+        "min_lr": "1e-6",
+        "monitor_key": "eval/mean_reward",
+        "patience": 5
+      }
+    },
+    "total_timesteps": 1000000,
+    "vf_coef": 0.5
+  },
+  "timestamp": 1756761854.687551,
+  "git_commit": "2a5bd4e8125f67cd57ecf80d265da8cc722fa2b9",
+  "command_line": "train_radar_ppo.py --scenario easy --timesteps 700000 --seed 42 --enable-episode-logging --checkpoint-dir checkpoints_new --log-dir logs_new"
+}
