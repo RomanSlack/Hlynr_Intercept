@@ -1,0 +1,118 @@
+# Phase 4 RL Configuration
+# Shared configuration for RL training, inference, and Roman's sandbox integration
+
+# Environment configuration
+environment:
+  num_missiles: 1
+  num_interceptors: 1
+  observation_dim: 17  # Fixed 17-dimensional radar observations for 1v1 scenarios
+  action_dim: 6        # 6D action space for interceptor control  
+  max_episode_steps: 1000
+  render_mode: "none"
+
+# Radar system configuration
+radar:
+  range: 1000.0
+  noise_level: 0.05
+  update_rate: 10
+  ground_radar_positions:
+    - [0, 0]
+    - [500, 500]
+  onboard_radar_range: 200.0
+
+# Spawn area configuration (3D)
+spawn:
+  missile_spawn_area:
+    - [-100, -100, 200]  # [x_min, y_min, z_min]
+    - [100, 100, 500]    # [x_max, y_max, z_max]
+  interceptor_spawn_area:
+    - [400, 400, 50]     # [x_min, y_min, z_min]
+    - [600, 600, 200]    # [x_max, y_max, z_max]
+  target_area:
+    - [800, 800, 0]      # [x_min, y_min, z_min]
+    - [1000, 1000, 10]   # [x_max, y_max, z_max]
+
+# Environmental conditions
+environment_conditions:
+  wind_speed: 5.0
+  wind_direction: 0.0  # degrees
+  wind_variability: 0.1
+  atmospheric_density: 1.0
+
+# Training configuration (based on existing successful setup)
+training:
+  algorithm: "PPO"
+  total_timesteps: 1000000
+  checkpoint_interval: 10000
+  n_envs: 8
+  learning_rate: 0.0003
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.01  # Will be managed by entropy schedule
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  
+  # Training stability features
+  stability:
+    # Entropy coefficient scheduling
+    entropy_schedule:
+      enabled: true
+      initial_entropy: 0.02      # Starting entropy coefficient
+      final_entropy: 0.01        # Minimum entropy floor
+      decay_steps: 500000        # Steps over which to decay
+    
+    # Learning rate scheduling with plateau detection
+    lr_schedule:
+      enabled: true
+      monitor_key: "eval/mean_reward"  # Metric to monitor
+      patience: 5                      # Evaluations without improvement before LR reduction
+      min_delta: 0.01                  # Minimum improvement threshold
+      factor: 0.5                      # LR reduction factor
+      min_lr: 1e-6                     # Minimum learning rate
+      early_stopping: false            # Enable early stopping
+      early_stopping_patience: 10      # Early stopping patience
+    
+    # Best model checkpointing
+    best_model:
+      enabled: true
+      monitor_key: "eval/mean_reward"  # Metric for best model selection
+      save_path: "best_model"          # Directory for best model
+      name_prefix: "best"              # Filename prefix
+      save_vecnormalize: true          # Save normalization parameters
+    
+    # Adaptive clip range adjustment
+    clip_range_adaptive:
+      enabled: true
+      clip_fraction_threshold: 0.2     # Threshold for clip fraction
+      consecutive_threshold: 3         # Consecutive violations before reduction
+      reduction_factor: 0.75           # Clip range reduction factor
+      min_clip_range: 0.05             # Minimum clip range
+
+# Checkpointing and logging
+checkpointing:
+  checkpoint_dir: "checkpoints"
+  log_dir: "logs"
+  tensorboard_dir: "logs/tensorboard"
+  save_replay_buffer: false
+  save_vec_normalize: true
+
+# Inference configuration
+inference:
+  num_episodes: 100
+  render: false
+  real_time: false
+  export_diagnostics: true
+  video_recording: false
+
+# Episode logging configuration (for Unity replay)
+episode_logging:
+  enabled: false  # Enable/disable episode logging
+  output_dir: "runs"  # Directory for episode logs
+  log_during_training: false  # Log episodes during training (warning: may slow training)
+  log_during_eval: true  # Log episodes during evaluation callbacks
+  log_interval: 100  # Log every N episodes during training (if enabled)
+  coordinate_frame: "ENU_RH"  # Coordinate frame for Unity (ENU_RH or UNITY_LH)
+  sampling_rate_hz: 100  # Sampling rate for episode logs

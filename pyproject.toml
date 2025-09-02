@@ -3,9 +3,9 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aegis-intercept"
+name = "hlynr-intercept"
 version = "0.1.0"
-description = "Nuclear-Defense Path-Finding Simulator using Reinforcement Learning"
+description = "Missile Defense RL Environment"
 authors = [
     {name = "Roman Slack", email = "roman@example.com"},
     {name = "Quinn Hasse", email = "quinn@example.com"}
@@ -14,37 +14,29 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
-    "gymnasium>=0.29",
+    "gymnasium",
     "numpy",
-    "pygame",
-    "cleanrl>=2.4",
     "torch",
-    "stable-baselines3"
+    "stable-baselines3",
+    "cleanrl",
+    "matplotlib",
+    "pygame",
+    "tensorboard",
+    "scipy",
+    "pyquaternion",
+    "tqdm",
+    "flask"
 ]
 
 [project.optional-dependencies]
-test = [
-    "pytest",
-    "pytest-cov"
-]
 dev = [
-    "black",
-    "flake8",
-    "mypy"
+    "pytest",
+    "pytest-cov",
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+    "mypy>=1.0.0"
 ]
-
-[project.urls]
-Homepage = "https://github.com/rslack/aegis-intercept"
-Repository = "https://github.com/rslack/aegis-intercept"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["aegis_intercept*"]
-
-[tool.black]
-line-length = 88
-target-version = ['py38']
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
+include = ["hlynr_intercept*"]

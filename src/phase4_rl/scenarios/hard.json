@@ -1,0 +1,73 @@
+{
+  "name": "hard", 
+  "description": "Advanced multi-missile scenarios with high adversary intelligence and environmental challenges",
+  "difficulty_level": 3,
+  
+  "num_missiles": 3,
+  "num_interceptors": 3,
+  
+  "spawn_positions": {
+    "missiles": [
+      [-100, -100],
+      [0, -120], 
+      [100, -100]
+    ],
+    "interceptors": [
+      [400, 400],
+      [500, 420],
+      [600, 400]
+    ],
+    "targets": [
+      [900, 900],
+      [1000, 950],
+      [1100, 900]
+    ]
+  },
+  
+  "wind_settings": {
+    "speed": 15.0,
+    "direction": 135.0,
+    "variability": 0.3,
+    "gusts": true,
+    "gust_frequency": 0.5,
+    "turbulence": 0.2
+  },
+  
+  "adversary_config": {
+    "speed_multiplier": 1.3,
+    "evasion_iq": 0.8,
+    "maneuver_frequency": 0.6,
+    "predictable_patterns": false,
+    "coordination": 0.7,
+    "adaptive_behavior": true,
+    "decoy_deployment": 0.3
+  },
+  
+  "radar_config": {
+    "range": 800.0,
+    "noise_level": 0.15,
+    "update_rate": 8,
+    "false_positive_rate": 0.12,
+    "detection_probability": 0.85,
+    "multi_target_tracking": true,
+    "jamming_resistance": 0.6
+  },
+  
+  "environment_conditions": {
+    "atmospheric_density": 0.85,
+    "temperature": 35.0,
+    "visibility": 0.6,
+    "electromagnetic_interference": 0.4,
+    "weather_effects": true,
+    "terrain_masking": 0.2,
+    "chaff_interference": 0.15
+  },
+  
+  "success_criteria": {
+    "interception_distance": 30.0,
+    "time_bonus": true,
+    "fuel_efficiency_bonus": true,
+    "multi_target_bonus": true,
+    "perfect_interception_bonus": true
+  }
+}
