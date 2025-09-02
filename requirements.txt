@@ -1,16 +1,26 @@
-# Core dependencies for AegisIntercept Phase-1
-gymnasium>=0.29
-numpy
-pygame
-cleanrl>=2.4
+# Core ML/RL dependencies
 torch
+gymnasium
 stable-baselines3
+numpy
+cleanrl
 
-# Testing dependencies
+# Visualization and rendering
+matplotlib
+pygame
+tensorboard
+pyvirtualdisplay
+
+# Scientific computing
+scipy
+pyquaternion
+tqdm
+
+# Testing
 pytest
 pytest-cov
 
-# Development dependencies
+# Development tools
 black
 flake8
 mypy

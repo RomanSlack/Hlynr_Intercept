@@ -1,0 +1,86 @@
+{
+  "name": "impossible",
+  "description": "Maximum difficulty stress testing with overwhelming adversary capabilities and extreme environmental conditions",
+  "difficulty_level": 4,
+  
+  "num_missiles": 5,
+  "num_interceptors": 4,
+  
+  "spawn_positions": {
+    "missiles": [
+      [-150, -150],
+      [-75, -175],
+      [0, -200],
+      [75, -175],
+      [150, -150]
+    ],
+    "interceptors": [
+      [350, 350],
+      [450, 380],
+      [550, 380],
+      [650, 350]
+    ],
+    "targets": [
+      [850, 850],
+      [925, 925],
+      [1000, 1000],
+      [1075, 925],
+      [1150, 850]
+    ]
+  },
+  
+  "wind_settings": {
+    "speed": 25.0,
+    "direction": 225.0,
+    "variability": 0.5,
+    "gusts": true,
+    "gust_frequency": 0.8,
+    "turbulence": 0.4,
+    "wind_shear": 0.3
+  },
+  
+  "adversary_config": {
+    "speed_multiplier": 1.8,
+    "evasion_iq": 0.95,
+    "maneuver_frequency": 0.9,
+    "predictable_patterns": false,
+    "coordination": 0.9,
+    "adaptive_behavior": true,
+    "decoy_deployment": 0.6,
+    "swarm_tactics": true,
+    "electronic_warfare": 0.4
+  },
+  
+  "radar_config": {
+    "range": 600.0,
+    "noise_level": 0.25,
+    "update_rate": 6,
+    "false_positive_rate": 0.2,
+    "detection_probability": 0.75,
+    "multi_target_tracking": true,
+    "jamming_resistance": 0.3,
+    "stealth_penetration": 0.4
+  },
+  
+  "environment_conditions": {
+    "atmospheric_density": 0.7,
+    "temperature": 45.0,
+    "visibility": 0.4,
+    "electromagnetic_interference": 0.6,
+    "weather_effects": true,
+    "terrain_masking": 0.4,
+    "chaff_interference": 0.3,
+    "solar_interference": 0.2,
+    "ionospheric_disturbance": 0.25
+  },
+  
+  "success_criteria": {
+    "interception_distance": 20.0,
+    "time_bonus": true,
+    "fuel_efficiency_bonus": true,
+    "multi_target_bonus": true,
+    "perfect_interception_bonus": true,
+    "survival_bonus": true,
+    "adaptability_bonus": true
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "easy",
+  "description": "Basic single missile scenarios for initial training",
+  "difficulty_level": 1,
+  
+  "num_missiles": 1,
+  "num_interceptors": 1,
+  
+  "spawn_positions": {
+    "missiles": [
+      [0, 0, 300]
+    ],
+    "interceptors": [
+      [500, 500, 100]
+    ],
+    "targets": [
+      [1000, 1000, 5]
+    ]
+  },
+  
+  "wind_settings": {
+    "speed": 3.0,
+    "direction": 0.0,
+    "variability": 0.05,
+    "gusts": false
+  },
+  
+  "adversary_config": {
+    "speed_multiplier": 0.8,
+    "evasion_iq": 0.2,
+    "maneuver_frequency": 0.1,
+    "predictable_patterns": true
+  },
+  
+  "radar_config": {
+    "range": 1200.0,
+    "noise_level": 0.02,
+    "update_rate": 15,
+    "false_positive_rate": 0.01,
+    "detection_probability": 0.98
+  },
+  
+  "environment_conditions": {
+    "atmospheric_density": 1.0,
+    "temperature": 15.0,
+    "visibility": 1.0,
+    "electromagnetic_interference": 0.1
+  },
+  
+  "success_criteria": {
+    "interception_distance": 50.0,
+    "time_bonus": true,
+    "fuel_efficiency_bonus": true
+  }
+}
