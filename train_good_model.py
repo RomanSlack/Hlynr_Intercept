@@ -10,11 +10,22 @@ from pathlib import Path
 
 # Add src directory to path
 sys.path.insert(0, str(Path(__file__).parent / "src" / "phase4_rl"))
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 # Force single entity mode for 17-dim observations
 os.environ['FORCE_SINGLE_ENTITY'] = '1'
 
 from train_radar_ppo import Phase4Trainer
+
+# Import centralized path resolver
+try:
+    from hlynr_bridge.paths import logs_training, logs_tensorboard
+except ImportError:
+    # Fallback for legacy behavior
+    def logs_training(variant=None):
+        return Path(f"logs_radar17_{variant}" if variant else "logs_radar17_good")
+    def logs_tensorboard(variant=None):
+        return logs_training(variant) / "tensorboard"
 
 
 def train_good_radar_model():
@@ -31,7 +42,7 @@ def train_good_radar_model():
         scenario_name="easy",
         config_path=None,  # Use default config
         checkpoint_dir="checkpoints_radar17_good",
-        log_dir="logs_radar17_good"
+        log_dir=str(logs_training("radar17_good"))
     )
     
     # Override environment config to force single entity
@@ -51,9 +62,9 @@ def train_good_radar_model():
     
     print("🚀 Starting training...")
     print(f"Checkpoint directory: checkpoints_radar17_good")
-    print(f"Log directory: logs_radar17_good")
+    print(f"Log directory: {logs_training('radar17_good')}")
     print()
-    print("Monitor with: tensorboard --logdir logs_radar17_good")
+    print(f"Monitor with: tensorboard --logdir {logs_training('radar17_good')}")
     print()
     
     # Train the model

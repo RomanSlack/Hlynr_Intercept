@@ -13,6 +13,21 @@ from dataclasses import dataclass, asdict
 import numpy as np
 from datetime import datetime
 
+# Import centralized path resolver
+try:
+    from hlynr_bridge.paths import logs_episodes, generate_run_timestamp
+except ImportError:
+    # Fallback for development/testing
+    def logs_episodes(run_stamp=None):
+        from pathlib import Path
+        base = Path("runs")  # legacy default
+        if run_stamp:
+            return base / run_stamp
+        return base
+    
+    def generate_run_timestamp():
+        return f"run_{datetime.now().strftime('%Y-%m-%d-%H%M%S')}"
+
 
 @dataclass
 class AgentState:
@@ -48,7 +63,7 @@ class EpisodeLogger:
     """
     
     def __init__(self, 
-                 output_dir: str = "runs",
+                 output_dir: Optional[str] = None,
                  coord_frame: str = "ENU_RH",
                  dt_nominal: float = 0.01,
                  enable_logging: bool = True):
@@ -56,7 +71,7 @@ class EpisodeLogger:
         Initialize episode logger.
         
         Args:
-            output_dir: Base directory for output files
+            output_dir: Base directory for output files (deprecated - uses centralized logging)
             coord_frame: Coordinate frame ("ENU_RH" or "UNITY_LH")
             dt_nominal: Nominal timestep for sampling
             enable_logging: Whether logging is enabled
@@ -64,15 +79,22 @@ class EpisodeLogger:
         self.enable_logging = enable_logging
         if not self.enable_logging:
             return
+        
+        # Use centralized logging paths (ignore legacy output_dir for new behavior)
+        if output_dir is not None and output_dir != "runs":
+            # Legacy compatibility - use provided path but emit warning
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"EpisodeLogger output_dir parameter is deprecated. "
+                         f"Using centralized logging under logs/episodes/ instead of {output_dir}")
             
-        self.output_dir = Path(output_dir)
         self.coord_frame = coord_frame
         self.dt_nominal = dt_nominal
         
-        # Create run directory with timestamp
-        timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-        self.run_dir = self.output_dir / f"run_{timestamp}"
-        self.run_dir.mkdir(parents=True, exist_ok=True)
+        # Create run directory with timestamp using centralized paths
+        run_timestamp = generate_run_timestamp()
+        self.run_dir = logs_episodes(run_timestamp)
+        # Directory is created automatically by logs_episodes()
         
         # Episode tracking
         self.episode_count = 0

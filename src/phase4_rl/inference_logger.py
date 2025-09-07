@@ -14,8 +14,26 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 import uuid
 
-from ..hlynr_bridge.schemas import InferenceRequest, InferenceResponse
+# Import schema types - handle different import contexts
+try:
+    from ..hlynr_bridge.schemas import InferenceRequest, InferenceResponse
+except ImportError:
+    try:
+        from hlynr_bridge.schemas import InferenceRequest, InferenceResponse
+    except ImportError:
+        # Fallback for testing - create mock types
+        from typing import Any
+        InferenceRequest = Any
+        InferenceResponse = Any
 from .episode_logger import EpisodeLogger, Event
+
+# Import centralized path resolver
+try:
+    from hlynr_bridge.paths import logs_inference
+except ImportError:
+    # Fallback for development/testing
+    def logs_inference():
+        return Path("inference_episodes")
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +61,7 @@ class InferenceEpisodeLogger(EpisodeLogger):
     """
     
     def __init__(self,
-                 output_dir: str = "inference_episodes",
+                 output_dir: Optional[str] = None,
                  coord_frame: str = "ENU_RH",
                  dt_nominal: float = 0.01,
                  enable_logging: bool = True,
@@ -52,13 +70,26 @@ class InferenceEpisodeLogger(EpisodeLogger):
         Initialize inference episode logger.
         
         Args:
-            output_dir: Base directory for output files
+            output_dir: Base directory for output files (deprecated - uses centralized logging)
             coord_frame: Coordinate frame
             dt_nominal: Nominal timestep
             enable_logging: Whether logging is enabled
             policy_id: Policy identifier for this session
         """
+        # Use centralized inference logging directory instead of custom output_dir
+        if output_dir is not None and output_dir != "inference_episodes":
+            logger.warning(f"InferenceEpisodeLogger output_dir parameter is deprecated. "
+                         f"Using centralized logging under logs/inference/ instead of {output_dir}")
+        
+        # Call parent constructor (it will use centralized paths automatically)
         super().__init__(output_dir, coord_frame, dt_nominal, enable_logging)
+        
+        # Override the run directory to use inference-specific location
+        if self.enable_logging:
+            from hlynr_bridge.paths import generate_run_timestamp
+            run_timestamp = generate_run_timestamp()
+            self.run_dir = logs_inference() / run_timestamp
+            self.run_dir.mkdir(parents=True, exist_ok=True)
         
         self.policy_id = policy_id or f"policy_{int(time.time())}"
         self.session_id = str(uuid.uuid4())[:8]

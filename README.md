@@ -23,6 +23,7 @@ A production-ready Unity↔RL Inference API Bridge implementing the PRP specific
 - **VecNormalize Integration**: Versioned observation normalization with auto-registration
 - **Safety Clamps**: Post-policy safety limits for angular rates and thrust commands
 - **Episode Logging**: JSONL episode logs with manifest generation for Unity replay
+- **Centralized Logging**: All logs organized under single `logs/` directory with automatic legacy compatibility
 - **Prometheus Metrics**: Real-time performance monitoring with hlynr_* metrics
 - **Environment Configuration**: Full environment variable support with .env file loading
 
@@ -42,6 +43,9 @@ export POLICY_ID=best_model_v1
 export SEED=42
 export ENABLE_LEGACY_ACT=false
 export DEBUG_MODE=true
+
+# Centralized logging configuration
+export HLYNR_LOG_DIR=logs
 ```
 
 ### 2. Run the Server
@@ -318,18 +322,84 @@ LATENCY_SLO_P95_MS=35.0
 - Thrust commands clamped to [0, 1] range
 - Safety clamp events tracked and reported in metrics
 
-## Logging
+## Centralized Logging
+
+All logging output is now organized under a single `logs/` directory at the project root for better organization and management.
+
+### Directory Structure
+
+```
+logs/
+├── episodes/           # Episode logs for Unity replay
+│   └── run_YYYY-MM-DD-HHMMSS/
+│       ├── manifest.json
+│       └── ep_XXXXXX.jsonl
+├── inference/          # Inference-specific episode logs  
+│   └── run_YYYY-MM-DD-HHMMSS/
+├── training/           # Training logs and checkpoints
+│   ├── radar17_good/
+│   └── radar17_fixed/
+├── tensorboard/        # TensorBoard event files
+├── diagnostics/        # Analysis and diagnostic exports
+└── server/            # Server runtime logs
+    └── bridge_server.log
+```
+
+### Configuration
+
+**Environment Variable:**
+```bash
+export HLYNR_LOG_DIR=logs  # Default: logs
+```
+
+**Custom Log Root:**
+```bash
+export HLYNR_LOG_DIR=/path/to/custom/logs
+```
+
+### Legacy Compatibility
+
+The system automatically creates symlinks for backward compatibility:
+- `logs_radar17_good` → `logs/training/radar17_good`
+- `logs_radar17_fixed` → `logs/training/radar17_fixed`  
+- `unity_episodes` → `logs/episodes`
+- `src/phase4_rl/unity_episodes` → `logs/episodes`
+
+### Migration
+
+To migrate existing logs to the centralized structure:
+
+```bash
+# Dry run to see what would be moved
+python scripts/migrate_logs_to_root.py --dry-run
+
+# Perform the migration
+python scripts/migrate_logs_to_root.py
+```
+
+### TensorBoard Usage
+
+```bash
+# Training logs
+tensorboard --logdir logs/training/radar17_good
+
+# All training variants
+tensorboard --logdir logs/training
+
+# All logs (if TensorBoard files present)
+tensorboard --logdir logs
+```
 
 ### Episode Logging
-- JSONL format for each timestep
-- Manifest file for episode replay in Unity
-- Comprehensive diagnostics and safety information
-- Configurable via `ENABLE_LOGGING` environment variable
+- **JSONL format** for each timestep with deterministic replay support
+- **Manifest files** for Unity episode reconstruction
+- **Comprehensive diagnostics** including safety clamps and performance metrics
+- **Versioning metadata** for reproducible episodes
 
-### Server Logging
-- Structured logging with configurable levels
-- Request/response logging for debugging
-- Performance metrics and error tracking
+### Server Logging  
+- **Structured logging** with configurable levels via `LOG_LEVEL` environment variable
+- **Centralized log files** in `logs/server/bridge_server.log`
+- **Request/response logging** for debugging inference calls
 
 ## Testing
 

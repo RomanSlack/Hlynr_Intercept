@@ -12,6 +12,14 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, asdict
 
+# Import centralized path resolver
+try:
+    from hlynr_bridge.paths import logs_server
+except ImportError:
+    # Fallback for development/testing
+    def logs_server():
+        return Path("inference_episodes")
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -32,7 +40,7 @@ class BridgeServerConfig:
     cors_origins: List[str] = None
     
     # Logging and output
-    log_dir: str = "inference_episodes"
+    log_dir: str = "inference_episodes"  # Deprecated - individual components use centralized paths
     log_level: str = "INFO"
     
     # Safety and performance
@@ -83,7 +91,8 @@ class BridgeServerConfig:
         - HOST: Server host (default: 0.0.0.0)
         - PORT: Server port (default: 5000)
         - CORS_ORIGINS: Comma-separated CORS origins (default: *)
-        - LOG_DIR: Logging directory (default: inference_episodes)
+        - HLYNR_LOG_DIR: Root log directory (default: logs)
+        - LOG_DIR: Legacy logging directory (deprecated, default: inference_episodes)
         - LOG_LEVEL: Logging level (default: INFO)
         - RATE_MAX_RADPS: Max angular rate for safety (default: 10.0)
         - SCENARIO_NAME: Scenario name (default: easy)
@@ -139,7 +148,7 @@ class BridgeServerConfig:
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             handlers=[
                 logging.StreamHandler(),
-                logging.FileHandler(Path(self.log_dir) / "bridge_server.log")
+                logging.FileHandler(logs_server() / "bridge_server.log")
             ]
         )
         

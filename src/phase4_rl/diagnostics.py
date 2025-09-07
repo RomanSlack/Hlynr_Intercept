@@ -288,6 +288,14 @@ class Logger:
             'timestamp': time.time()
         }
         
+        # Use centralized diagnostics logging
+        try:
+            from hlynr_bridge.paths import logs_diagnostics
+            diagnostics_dir = logs_diagnostics()
+            filename = diagnostics_dir / Path(filename).name
+        except ImportError:
+            pass  # Use original filename if centralized paths not available
+        
         with open(filename, 'w') as f:
             json.dump(episode_summary, f, indent=2, default=str)
 

@@ -10,7 +10,7 @@ The Phase 4 RL system includes an **optional** episode logging capability that r
 - Body-frame control inputs (3D thrust + 3D torque)
 - Fuel consumption and realistic flight dynamics
 
-**Note: Episode logging is disabled by default. The `runs/` directory will only be created when you explicitly enable logging.**
+**Note: Episode logging is disabled by default. Episode logs are now stored in the centralized `logs/episodes/` directory (or `logs/inference/` for inference-specific logs) when enabled.**
 
 ## Architecture
 
@@ -22,13 +22,26 @@ The logging system consists of:
 ## File Format
 
 ### Directory Structure
+
+**Centralized Logging (Current):**
 ```
-runs/
-└── run_YYYY-MM-DD-HHMMSS/
-    ├── manifest.json       # Episode index and metadata
-    ├── ep_000001.jsonl    # Episode 1 data (JSON Lines format)
-    ├── ep_000002.jsonl    # Episode 2 data
-    └── ...
+logs/
+├── episodes/              # General episode logs
+│   └── run_YYYY-MM-DD-HHMMSS/
+│       ├── manifest.json       # Episode index and metadata
+│       ├── ep_000001.jsonl    # Episode 1 data (JSON Lines format)
+│       ├── ep_000002.jsonl    # Episode 2 data
+│       └── ...
+└── inference/             # Inference-specific episode logs
+    └── run_YYYY-MM-DD-HHMMSS/
+        ├── manifest.json
+        └── ep_XXXXXX.jsonl
+```
+
+**Legacy Structure (Deprecated):**
+```
+runs/                      # Legacy location (now symlinked to logs/episodes/)
+unity_episodes/            # Legacy location (now symlinked to logs/episodes/)
 ```
 
 ### Manifest Schema

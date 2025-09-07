@@ -220,6 +220,9 @@ class HlynrBridgeServer:
         
         logger.info(f"Hlynr bridge server initialized (policy_id: {self.policy_id})")
         
+        # Setup centralized logging and legacy compatibility
+        self._setup_centralized_logging()
+        
         # CRITICAL: Set deterministic seeds immediately during initialization
         seed = set_deterministic_seeds()
         server_stats['seed'] = seed
@@ -236,6 +239,40 @@ class HlynrBridgeServer:
             logger.info(f"  Scenario: {self.scenario_name}")
             logger.info(f"  Safety rate limit: {self.rate_max_radps} rad/s")
             logger.info(f"  Deterministic seed: {seed}")
+    
+    def _setup_centralized_logging(self):
+        """Setup centralized logging and create legacy compatibility symlinks."""
+        try:
+            from .paths import ensure_log_directories, create_legacy_symlinks, get_log_layout_report
+            
+            # Ensure all centralized log directories exist
+            ensure_log_directories()
+            
+            # Create legacy symlinks for backward compatibility
+            symlink_results = create_legacy_symlinks()
+            
+            # Log results
+            if symlink_results["created"]:
+                logger.info(f"Created legacy symlinks: {', '.join(symlink_results['created'])}")
+            if symlink_results["skipped"]:
+                logger.debug(f"Skipped existing paths: {', '.join(symlink_results['skipped'])}")
+            if symlink_results["failed"]:
+                failed_paths = [f"{r['path']} ({r['error']})" for r in symlink_results["failed"]]
+                logger.warning(f"Failed to create symlinks: {', '.join(failed_paths)}")
+                logger.warning("Legacy log directories will not redirect to centralized logging")
+            
+            # Log the centralized logging layout in debug mode
+            if env_config.debug_mode:
+                layout = get_log_layout_report()
+                logger.debug("Centralized logging layout:")
+                logger.debug(f"  Root: {layout['log_root']}")
+                for name, path in layout['directories'].items():
+                    exists = "✓" if layout['directory_exists'][name] else "✗"
+                    logger.debug(f"  {name}: {path} {exists}")
+                    
+        except ImportError as e:
+            logger.warning(f"Centralized logging setup failed: {e}")
+            logger.warning("Using legacy logging paths")
     
     def load_model(self):
         """Load the trained model and setup all components."""
@@ -285,9 +322,8 @@ class HlynrBridgeServer:
         # Setup safety clamp system
         safety_clamp_system = get_safety_clamp_system(self.safety_limits)
         
-        # Setup inference logger
+        # Setup inference logger (now uses centralized logging)
         inference_logger = get_inference_logger(
-            output_dir="inference_episodes",
             policy_id=self.policy_id
         )
         

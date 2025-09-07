@@ -81,7 +81,7 @@ class FastSimEnv(gym.Wrapper):
         self.episode_logger = None
         if enable_episode_logging:
             self.episode_logger = EpisodeLogger(
-                output_dir=episode_log_dir or "runs",
+                output_dir=episode_log_dir,  # Let EpisodeLogger use centralized paths
                 coord_frame="ENU_RH",  # Using right-handed East-North-Up
                 dt_nominal=0.01,  # 100 Hz sampling
                 enable_logging=True
