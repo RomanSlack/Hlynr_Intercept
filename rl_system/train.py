@@ -26,7 +26,7 @@ class CustomTrainingCallback(BaseCallback):
     
     def __init__(self, logger: UnifiedLogger, config: Dict[str, Any]):
         super().__init__()
-        self.logger = logger
+        self.unified_logger = logger
         self.config = config
         self.tb_writer = logger.get_tensorboard_writer()
         
@@ -53,7 +53,7 @@ class CustomTrainingCallback(BaseCallback):
         
     def _on_training_start(self):
         """Initialize training."""
-        self.logger.logger.info("Training started")
+        self.unified_logger.logger.info("Training started")
         
     def _on_step(self) -> bool:
         """Called after each environment step."""
@@ -90,7 +90,7 @@ class CustomTrainingCallback(BaseCallback):
                                 current_clip = current_clip(1.0)
                             new_clip = max(current_clip * self.clip_reduction, self.min_clip)
                             self.model.clip_range = new_clip
-                            self.logger.logger.info(f"Reduced clip range to {new_clip:.3f}")
+                            self.unified_logger.logger.info(f"Reduced clip range to {new_clip:.3f}")
                             self.clip_violations = 0
                     else:
                         self.clip_violations = 0
@@ -110,7 +110,7 @@ class CustomTrainingCallback(BaseCallback):
             if hasattr(self.model.logger, 'name_to_value'):
                 metrics.update(self.model.logger.name_to_value)
         
-        self.logger.log_training_step(self.num_timesteps, metrics)
+        self.unified_logger.log_training_step(self.num_timesteps, metrics)
 
 
 class EpisodeLoggingCallback(BaseCallback):
@@ -118,7 +118,7 @@ class EpisodeLoggingCallback(BaseCallback):
     
     def __init__(self, logger: UnifiedLogger, log_interval: int = 100):
         super().__init__()
-        self.logger = logger
+        self.unified_logger = logger
         self.log_interval = log_interval
         self.episode_count = 0
         self.episode_rewards = []
@@ -140,7 +140,7 @@ class EpisodeLoggingCallback(BaseCallback):
             
             # Log every N episodes
             if self.episode_count % self.log_interval == 0:
-                self.logger.log_metrics({
+                self.unified_logger.log_metrics({
                     'episode': self.episode_count,
                     'mean_reward': np.mean(self.episode_rewards[-100:]),
                     'mean_length': np.mean(self.episode_lengths[-100:]),
