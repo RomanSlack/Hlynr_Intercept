@@ -448,5 +448,5 @@ curl -X POST http://localhost:5000/v1/inference \
 
 - [Unity RL API Integration Feasibility](Unity_RL_API_Integration_Feasibility.md)
 - [Unity Data Reference](UNITY_DATA_REFERENCE.md)
-- [API Schemas](../../hlynr_bridge/schemas.py)
-- [Coordinate Transforms](../../hlynr_bridge/transforms.py)
+- [API Schemas](../hlynr_bridge/schemas.py)
+- [Coordinate Transforms](../hlynr_bridge/transforms.py)
