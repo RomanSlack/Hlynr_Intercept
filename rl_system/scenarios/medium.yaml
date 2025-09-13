@@ -1,0 +1,39 @@
+# Medium scenario - moderate difficulty
+
+name: medium
+description: Intermediate scenario with environmental challenges
+difficulty: 2
+
+environment:
+  # Wider spawn ranges
+  missile_spawn:
+    position: [[-300, -300, 250], [300, 300, 450]]
+    velocity: [[100, 100, -35], [180, 180, -55]]
+  
+  interceptor_spawn:
+    position: [[350, 350, 80], [650, 650, 180]]
+    velocity: [[0, 0, 0], [40, 40, 15]]
+  
+  target_position: [900, 900, 5]
+  
+  # Moderate wind
+  wind:
+    velocity: [8.0, 3.0, 0.0]
+    variability: 0.15
+  
+  # Degraded radar for medium scenario
+  radar_range: 4500.0  # Reduced range
+  radar_noise: 0.08  # Higher noise
+  radar_quality: 0.9  # Some degradation
+  radar_beam_width: 60.0  # Standard beam
+  min_detection_range: 50.0
+  
+  # Light evasion
+  missile_evasion: true
+
+# Standard rewards
+rewards:
+  interception_bonus: 100.0
+  fuel_efficiency_weight: 0.5
+  time_bonus_weight: 0.15
+  distance_penalty: 0.001

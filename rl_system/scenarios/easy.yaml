@@ -1,0 +1,39 @@
+# Easy scenario - basic single missile interception
+
+name: easy
+description: Simple scenario for initial training and testing
+difficulty: 1
+
+environment:
+  # Spawn configuration
+  missile_spawn:
+    position: [[0, 0, 300], [100, 100, 400]]
+    velocity: [[80, 80, -30], [120, 120, -40]]
+  
+  interceptor_spawn:
+    position: [[450, 450, 100], [550, 550, 150]]
+    velocity: [[0, 0, 0], [20, 20, 10]]
+  
+  target_position: [900, 900, 5]
+  
+  # Reduced physics difficulty
+  wind:
+    velocity: [2.0, 0.0, 0.0]
+    variability: 0.05
+  
+  # Better radar for easy scenario
+  radar_range: 6000.0  # Extended range
+  radar_noise: 0.02  # Low noise
+  radar_quality: 1.0  # Perfect quality
+  radar_beam_width: 90.0  # Wide beam
+  min_detection_range: 30.0
+  
+  # No evasion
+  missile_evasion: false
+
+# Adjusted rewards
+rewards:
+  interception_bonus: 150.0
+  fuel_efficiency_weight: 0.8
+  time_bonus_weight: 0.2
+  distance_penalty: 0.0005

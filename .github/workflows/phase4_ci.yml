@@ -4,17 +4,17 @@ on:
   push:
     branches: [ main, quinn_phase4_rl ]
     paths: 
-      - 'src/phase4_rl/**'
+      - '../../phase4_rl/**'
       - '.github/workflows/phase4_ci.yml'
       - 'requirements.txt'
-      - 'pyproject.toml'
+      - '../../deprecated/pyproject.toml'
   pull_request:
     branches: [ main ]
     paths:
-      - 'src/phase4_rl/**'
+      - '../../phase4_rl/**'
       - '.github/workflows/phase4_ci.yml'
       - 'requirements.txt'
-      - 'pyproject.toml'
+      - '../../deprecated/pyproject.toml'
 
 jobs:
   test:

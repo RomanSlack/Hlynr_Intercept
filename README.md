@@ -1,80 +1,90 @@
-# Hlynr Intercept – Missile-Defense Path-Finding Simulator
+# Hlynr Intercept – Radar-Based Missile Defense Simulator
 
-A physically realizable Gymnasium-style environment for developing and testing reinforcement learning algorithms in missile interception scenarios. This project provides a sandbox for deterrence-focused RL research, enabling rapid prototyping and evaluation of AI decision-making systems under extreme time constraints.
+A production-ready RL environment for training interceptor missiles using **realistic radar-only observations**. Based on PAC-3/THAAD interceptor specifications, this system trains agents that have **no direct knowledge** of incoming threats and must rely entirely on simulated radar sensors - just like real-world missile defense systems.
 
 ## Overview
 
-Hlynr Intercept simulates defensive missile interception scenarios where an AI agent must learn optimal trajectories to intercept incoming threats before they reach defended targets. The environment progresses from simple 2D kinematics to high-fidelity 6-DOF simulations across multiple phases, supporting research into hierarchical reinforcement learning, distributed training, and real-time decision making.
+Hlynr Intercept simulates authentic defensive missile interception scenarios where AI agents learn to:
+- **Search and acquire** targets using realistic radar systems (5000m range, 60° beam width)
+- **Track through noise** with range-dependent measurement uncertainty  
+- **Intercept under constraints** with fuel limits, thrust vectoring, and 6-DOF physics
+- **Handle detection failures** when radar loses lock or targets move outside sensor range
+
+The system features a complete **17-dimensional radar observation space** that provides only sensor-realistic information, making trained policies directly transferable to real hardware without the "sim-to-real gap" of omniscient training environments.
 
 ## Collaborators
 
 * **Roman Slack** (RIT Rochester)
 * **Quinn Hasse** (UW Madison)
 
-## Phase Roadmap
+## Current System
 
-| Phase | Scope                                                                                                 | Primary Tools                          |
-|-------|-------------------------------------------------------------------------------------------------------|----------------------------------------|
-| **1** | 2D missile interception with PPO and real-time visualization.                                         | Gymnasium, PyGame, CleanRL             |
-| **2** | 3DOF physics, 3D kinematics, adversary movement, togglable headless mode, basic checkpointing.        | Gymnasium VectorEnv, TorchRL           |
-| **3** | Full 6DOF, realistic physics (wind, drag, IRL constants), modular scenario randomization, curriculum learning, enhanced logging, refined reward shaping. | Gymnasium, Custom PPO Trainer, WandB   |
-| **4** | Scalable distributed training with multiple interceptors, physical body flexibility, and transfer learning benchmarks. | RLlib, Isaac Gym, Optuna               |
+**🎯 Production-Ready Implementation**: The **`rl_system/`** directory contains a complete, radar-based missile defense simulator ready for training and deployment.
+
+**📡 Key Features**:
+- **Authentic radar physics**: Range limits, beam width constraints, detection failures
+- **PAC-3 interceptor modeling**: 500kg mass, 50 m/s² acceleration, realistic fuel consumption
+- **17D observation space**: Radar-only with perfect self-state knowledge
+- **Multi-scenario training**: Easy → Medium → Hard difficulty progression
+- **Production deployment**: FastAPI server + offline batch evaluation
 
 
 ## Repository Structure
 
 ```
 .
-├── README.md              # Project documentation
-├── pyproject.toml         # Python package configuration
-├── .gitignore            # Git ignore patterns
-├── aegis_intercept/      # Main Python package
-│   ├── __init__.py
-│   ├── envs/
-│   │   ├── __init__.py
-│   │   └── aegis_2d_env.py   # 2-D missile vs interceptor simulation
-│   └── utils/
-│       ├── __init__.py
-│       └── maths.py          # Vector math utilities
-├── scripts/
-│   └── train_ppo_phase1.py   # CleanRL PPO training script
-├── tests/
-│   └── test_env_basic.py     # Pytest environment tests
-├── docs/                     # Reserved for design documentation
-└── models/                   # Saved model checkpoints
+├── README.md                    # Project overview
+├── SYSTEM_ARCHITECTURE_REPORT.md # Technical architecture analysis  
+├── rl_system/                  # 🚀 PRODUCTION SYSTEM
+│   ├── README.md              # Complete usage guide
+│   ├── SYSTEM_DESIGN.md       # Technical specifications
+│   ├── core.py                # 17D radar observations + safety
+│   ├── environment.py         # 6DOF physics simulation
+│   ├── train.py               # PPO training with adaptive features
+│   ├── inference.py           # FastAPI server + offline evaluation
+│   ├── logger.py              # Unified timestamped logging
+│   ├── config.yaml            # Main configuration
+│   ├── scenarios/             # Easy/Medium/Hard presets
+│   ├── Images/                # Documentation assets
+│   └── requirements.txt       # Dependencies
+├── deprecated/                # Legacy implementations
+├── training/                  # Research prototypes (cluttered)
+├── hlynr_bridge/             # Unity integration components
+└── utilities/                # Episode generation tools
 ```
 
-## Quickstart
+## Quick Start
 
-1. **Setup Environment**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
+**Navigate to the production system:**
+```bash
+cd rl_system/
+```
 
-2. **Install Dependencies**
-   ```bash
-   pip install -e .
-   # or alternatively:
-   # pip install -r requirements.txt
-   ```
+**See complete documentation:**
+- [`rl_system/README.md`](rl_system/README.md) - Usage guide with examples
+- [`rl_system/SYSTEM_DESIGN.md`](rl_system/SYSTEM_DESIGN.md) - Technical specifications
 
-3. **Run Training**
-   ```bash
-   python scripts/train_ppo_phase1.py
-   ```
+**Train a radar-based interceptor:**
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-4. **Run Tests**
-   ```bash
-   pytest tests/
-   ```
+# Train with easy scenario (wide radar beam)
+python train.py
 
-## Phase 1 Features
+# Run inference server
+python inference.py --model checkpoints/best --mode server
 
-* **Environment**: 2D continuous missile interception with realistic kinematics
-* **Agent**: PPO-based interceptor with continuous action space
-* **Visualization**: Real-time PyGame rendering for debugging and analysis
-* **Testing**: Comprehensive pytest suite for environment validation
+# Batch evaluation with JSON export
+python inference.py --model checkpoints/best --mode offline --scenario hard
+```
+
+## System Highlights
+
+* **🎯 Radar-Only Training**: No omniscient observations - interceptors learn to search, acquire, and track targets through realistic sensor limitations
+* **🚀 PAC-3 Physics**: Authentic 6DOF dynamics with thrust vectoring, fuel consumption, and environmental effects
+* **📡 Progressive Scenarios**: Easy (wide beam) → Medium (standard) → Hard (narrow beam, high noise)
+* **⚡ Production Ready**: FastAPI deployment + comprehensive logging for real-world applications
 
 ---
 
