@@ -323,6 +323,147 @@ class InferenceServer:
         uvicorn.run(self.app, host=host, port=port)
 
 
+def run_offline_inference(model_path: str, config_path: str, num_episodes: int = 100, 
+                         output_dir: str = "inference_results", scenario: Optional[str] = None):
+    """Run offline inference and save results to JSON files."""
+    
+    # Load configuration
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    # Create output directory
+    output_path = Path(output_dir)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = output_path / f"offline_run_{timestamp}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Initialize logger
+    logger = UnifiedLogger(log_dir=str(run_dir), run_name="offline_inference")
+    
+    # Load model
+    model = PPO.load(str(Path(model_path) / "model.zip"))
+    
+    # Load VecNormalize if available
+    vecnorm_path = Path(model_path) / "vec_normalize.pkl"
+    vec_normalize = None
+    if vecnorm_path.exists():
+        env = DummyVecEnv([lambda: InterceptEnvironment(config.get('environment', {}))])
+        vec_normalize = VecNormalize.load(str(vecnorm_path), env)
+        vec_normalize.training = False
+    
+    # Load scenario if specified
+    env_config = config.get('environment', {})
+    if scenario:
+        scenario_path = Path("scenarios") / f"{scenario}.yaml"
+        if scenario_path.exists():
+            with open(scenario_path, 'r') as f:
+                scenario_config = yaml.safe_load(f)
+                env_config.update(scenario_config.get('environment', {}))
+    
+    # Create environment
+    env = InterceptEnvironment(env_config)
+    
+    # Run episodes
+    results = []
+    for ep in range(num_episodes):
+        episode_data = {
+            'episode_id': f"ep_{ep:04d}",
+            'states': [],
+            'actions': [],
+            'rewards': [],
+            'info': []
+        }
+        
+        obs, info = env.reset(seed=ep)
+        logger.begin_episode(episode_data['episode_id'])
+        
+        done = False
+        truncated = False
+        total_reward = 0
+        steps = 0
+        
+        while not done and not truncated:
+            # Normalize observation if needed
+            if vec_normalize:
+                norm_obs = vec_normalize.normalize_obs(obs.reshape(1, -1))[0]
+            else:
+                norm_obs = obs
+            
+            # Get action
+            action, _ = model.predict(norm_obs, deterministic=True)
+            
+            # Store data
+            episode_data['states'].append(obs.tolist())
+            episode_data['actions'].append(action.tolist())
+            
+            # Step environment
+            obs, reward, done, truncated, info = env.step(action)
+            
+            episode_data['rewards'].append(float(reward))
+            episode_data['info'].append(info)
+            
+            total_reward += reward
+            steps += 1
+            
+            # Log state
+            logger.log_state('interceptor', {
+                'position': info['interceptor_pos'].tolist(),
+                'fuel': info['fuel_remaining']
+            })
+            logger.log_state('missile', {
+                'position': info['missile_pos'].tolist()
+            })
+        
+        # Episode complete
+        outcome = "intercepted" if info.get('intercepted', False) else "failed"
+        episode_data['outcome'] = outcome
+        episode_data['total_reward'] = total_reward
+        episode_data['steps'] = steps
+        episode_data['final_distance'] = info['distance']
+        
+        results.append(episode_data)
+        
+        logger.end_episode(outcome, {
+            'total_reward': total_reward,
+            'steps': steps,
+            'final_distance': info['distance'],
+            'fuel_used': info.get('fuel_used', 0)
+        })
+        
+        print(f"Episode {ep+1}/{num_episodes}: {outcome}, reward={total_reward:.2f}, steps={steps}")
+    
+    # Save aggregated results
+    summary = {
+        'run_id': f"offline_{timestamp}",
+        'model_path': str(model_path),
+        'num_episodes': num_episodes,
+        'scenario': scenario,
+        'success_rate': sum(1 for r in results if r['outcome'] == 'intercepted') / num_episodes,
+        'avg_reward': np.mean([r['total_reward'] for r in results]),
+        'avg_steps': np.mean([r['steps'] for r in results]),
+        'avg_final_distance': np.mean([r['final_distance'] for r in results]),
+        'episodes': results
+    }
+    
+    # Write summary JSON
+    summary_file = run_dir / "summary.json"
+    with open(summary_file, 'w') as f:
+        json.dump(summary, f, indent=2)
+    
+    # Write detailed episodes JSONL
+    episodes_file = run_dir / "episodes.jsonl"
+    with open(episodes_file, 'w') as f:
+        for episode in results:
+            f.write(json.dumps(episode) + '\n')
+    
+    logger.create_manifest()
+    print(f"\nResults saved to: {run_dir}")
+    print(f"Success rate: {summary['success_rate']:.2%}")
+    print(f"Average reward: {summary['avg_reward']:.2f}")
+    
+    return summary
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Inference server for missile interception")
@@ -339,22 +480,61 @@ def main():
         help="Path to configuration file"
     )
     parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["server", "offline"],
+        default="server",
+        help="Run mode: server (API) or offline (batch inference)"
+    )
+    
+    # Server mode arguments
+    parser.add_argument(
         "--host",
         type=str,
         default="0.0.0.0",
-        help="Host to bind to"
+        help="Host to bind to (server mode)"
     )
     parser.add_argument(
         "--port",
         type=int,
         default=8000,
-        help="Port to bind to"
+        help="Port to bind to (server mode)"
+    )
+    
+    # Offline mode arguments
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=100,
+        help="Number of episodes to run (offline mode)"
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="inference_results",
+        help="Output directory for results (offline mode)"
+    )
+    parser.add_argument(
+        "--scenario",
+        type=str,
+        choices=["easy", "medium", "hard"],
+        help="Scenario to use (offline mode)"
     )
     
     args = parser.parse_args()
     
-    server = InferenceServer(args.model, args.config)
-    server.run(args.host, args.port)
+    if args.mode == "server":
+        server = InferenceServer(args.model, args.config)
+        server.run(args.host, args.port)
+    else:
+        # Offline mode
+        run_offline_inference(
+            model_path=args.model,
+            config_path=args.config,
+            num_episodes=args.episodes,
+            output_dir=args.output,
+            scenario=args.scenario
+        )
 
 
 if __name__ == "__main__":

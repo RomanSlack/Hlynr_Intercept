@@ -9,12 +9,12 @@ environment:
   
   # Spawn ranges
   missile_spawn:
-    position: [[-500, -500, 200], [500, 500, 500]]  # [min, max] in meters
-    velocity: [[50, 50, -20], [150, 150, -50]]  # [min, max] in m/s
+    position: [[-300, -300, 300], [300, 300, 500]]  # [min, max] in meters
+    velocity: [[80, 80, -30], [150, 150, -50]]  # [min, max] in m/s
   
   interceptor_spawn:
-    position: [[400, 400, 50], [600, 600, 200]]
-    velocity: [[0, 0, 0], [50, 50, 20]]
+    position: [[400, 400, 50], [600, 600, 150]]
+    velocity: [[0, 0, 0], [30, 30, 10]]
   
   target_position: [900, 900, 5]  # Target location to defend
   
