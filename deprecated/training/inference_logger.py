@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 import uuid
 
-from hlynr_bridge.schemas import InferenceRequest, InferenceResponse
+from deprecated.hlynr_bridge.schemas import InferenceRequest, InferenceResponse
 from .episode_logger import EpisodeLogger, Event
 
 logger = logging.getLogger(__name__)

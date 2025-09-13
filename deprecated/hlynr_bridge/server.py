@@ -14,15 +14,13 @@ import argparse
 import json
 import logging
 import os
-import sys
 import time
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 import numpy as np
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.vec_env import DummyVecEnv
 import collections
 
 # CRITICAL: Prometheus metrics support
@@ -39,7 +37,7 @@ try:
         InferenceRequest, InferenceResponse, HealthResponse, MetricsResponse,
         ActionCommand, RateCommand, DiagnosticsInfo, SafetyInfo, ClipFractions
     )
-    from hlynr_bridge.transforms import get_transform, validate_transform_version
+    from deprecated.hlynr_bridge.transforms import get_transform, validate_transform_version
     from .normalize import get_vecnorm_manager, load_vecnormalize_by_id
     from .seed_manager import set_deterministic_seeds, get_current_seed, validate_deterministic_setup
     from .clamps import get_safety_clamp_system, SafetyLimits
