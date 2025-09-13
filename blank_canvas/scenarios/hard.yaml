@@ -1,0 +1,36 @@
+# Hard scenario - challenging interception
+
+name: hard
+description: Difficult scenario with aggressive missiles and poor conditions
+difficulty: 3
+
+environment:
+  # Wide spawn variation
+  missile_spawn:
+    position: [[-500, -500, 200], [500, 500, 500]]
+    velocity: [[150, 150, -40], [250, 250, -70]]
+  
+  interceptor_spawn:
+    position: [[300, 300, 50], [700, 700, 200]]
+    velocity: [[0, 0, 0], [60, 60, 20]]
+  
+  target_position: [900, 900, 5]
+  
+  # Strong variable wind
+  wind:
+    velocity: [15.0, 8.0, -2.0]
+    variability: 0.25
+  
+  # Poor radar
+  radar_noise: 0.15
+  radar_quality: 0.75
+  
+  # Aggressive evasion
+  missile_evasion: true
+
+# Challenging rewards
+rewards:
+  interception_bonus: 80.0
+  fuel_efficiency_weight: 0.3
+  time_bonus_weight: 0.1
+  distance_penalty: 0.002
