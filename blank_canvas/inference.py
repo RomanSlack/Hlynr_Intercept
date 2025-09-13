@@ -104,9 +104,12 @@ class InferenceServer:
         self._load_model()
         
         # Initialize components
+        radar_config = self.config.get('radar', self.config['environment'])
         self.observation_generator = Radar17DObservation(
             max_range=self.config['environment'].get('max_range', 10000.0),
-            max_velocity=self.config['environment'].get('max_velocity', 1000.0)
+            max_velocity=self.config['environment'].get('max_velocity', 1000.0),
+            radar_range=radar_config.get('radar_range', 5000.0),
+            min_detection_range=radar_config.get('min_detection_range', 50.0)
         )
         self.coordinate_transform = CoordinateTransform()
         self.safety_clamp = SafetyClamp()
@@ -227,8 +230,8 @@ class InferenceServer:
                     missile_state['position'] = mis_pos.tolist()
                     missile_state['orientation'] = mis_quat.tolist()
                 
-                # Generate observation
-                obs = self.observation_generator.compute(
+                # Generate observation using radar detection simulation
+                obs = self.observation_generator.compute_radar_detection(
                     interceptor_state,
                     missile_state,
                     request.observation.radar_quality,

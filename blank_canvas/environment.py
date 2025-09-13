@@ -46,11 +46,17 @@ class InterceptEnvironment(gym.Env):
         self.wind_variability = wind_config.get('variability', 0.1)
         
         # Radar configuration
-        self.radar_noise = self.config.get('radar_noise', 0.05)
-        self.radar_quality = 1.0
+        radar_config = self.config.get('radar', {})
+        self.radar_noise = radar_config.get('radar_noise', 0.05)
+        self.radar_quality = radar_config.get('radar_quality', 1.0)
         
         # Components
-        self.observation_generator = Radar17DObservation(self.max_range, self.max_velocity)
+        self.observation_generator = Radar17DObservation(
+            max_range=self.max_range, 
+            max_velocity=self.max_velocity,
+            radar_range=radar_config.get('radar_range', 5000.0),
+            min_detection_range=radar_config.get('min_detection_range', 50.0)
+        )
         self.safety_clamp = SafetyClamp(SafetyLimits())
         
         # Spaces
@@ -108,8 +114,8 @@ class InterceptEnvironment(gym.Env):
         self.steps = 0
         self.total_fuel_used = 0
         
-        # Compute initial observation
-        obs = self.observation_generator.compute(
+        # Compute initial observation using radar detection
+        obs = self.observation_generator.compute_radar_detection(
             self.interceptor_state, self.missile_state,
             self.radar_quality, self.radar_noise
         )
@@ -166,8 +172,8 @@ class InterceptEnvironment(gym.Env):
         # Calculate reward
         reward = self._calculate_reward(distance, intercepted, terminated)
         
-        # Generate observation
-        obs = self.observation_generator.compute(
+        # Generate observation using radar detection
+        obs = self.observation_generator.compute_radar_detection(
             self.interceptor_state, self.missile_state,
             self.radar_quality, self.radar_noise
         )

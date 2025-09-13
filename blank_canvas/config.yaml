@@ -28,9 +28,12 @@ environment:
     velocity: [5.0, 0.0, 0.0]  # Base wind velocity (m/s)
     variability: 0.1  # Wind variation factor
   
-  # Radar
-  radar_noise: 0.05  # Radar measurement noise
+  # Radar system
+  radar_range: 5000.0  # Maximum radar detection range (m)
+  radar_noise: 0.05  # Radar measurement noise level
   radar_quality: 1.0  # Initial radar quality (0-1)
+  radar_beam_width: 60.0  # Radar beam width in degrees
+  min_detection_range: 50.0  # Minimum range for accurate tracking
   
   # Missile behavior
   missile_evasion: false  # Enable missile evasion maneuvers
