@@ -12,6 +12,26 @@ from dataclasses import dataclass, asdict
 import numpy as np
 
 
+def make_json_serializable(obj: Any) -> Any:
+    """Convert numpy types and other non-JSON types to JSON serializable equivalents."""
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.float32, np.float64)):
+        return float(obj)
+    elif isinstance(obj, (np.int32, np.int64)):
+        return int(obj)
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, dict):
+        return {key: make_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [make_json_serializable(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return [make_json_serializable(item) for item in obj]
+    else:
+        return obj
+
+
 @dataclass
 class AgentState:
     """State snapshot for logging."""
@@ -219,10 +239,13 @@ class UnifiedLogger:
             **metrics
         }
         
-        with open(self.metrics_file, 'a') as f:
-            f.write(json.dumps(entry) + '\n')
+        # Convert to JSON-serializable format
+        serializable_entry = make_json_serializable(entry)
         
-        self.metrics_buffer.append(entry)
+        with open(self.metrics_file, 'a') as f:
+            f.write(json.dumps(serializable_entry) + '\n')
+        
+        self.metrics_buffer.append(serializable_entry)
     
     def log_training_step(self, step: int, metrics: Dict[str, Any]):
         """Log training metrics."""
@@ -232,17 +255,22 @@ class UnifiedLogger:
             **metrics
         }
         
+        # Convert to JSON-serializable format
+        serializable_entry = make_json_serializable(entry)
+        
         with open(self.training_file, 'a') as f:
-            f.write(json.dumps(entry) + '\n')
+            f.write(json.dumps(serializable_entry) + '\n')
         
         # Keep recent metrics in memory
-        self.training_metrics[step] = entry
+        self.training_metrics[step] = serializable_entry
         
         # Log subset to console
         key_metrics = ['mean_reward', 'loss', 'learning_rate']
         display = {k: v for k, v in metrics.items() if k in key_metrics}
         if display:
-            self.logger.info(f"Step {step}: {display}")
+            # Convert display dict too for consistent output
+            display_serializable = make_json_serializable(display)
+            self.logger.info(f"Step {step}: {display_serializable}")
     
     def log_inference(self, request: Dict, response: Dict, latency_ms: float):
         """Log inference request/response."""
@@ -253,9 +281,12 @@ class UnifiedLogger:
             'latency_ms': latency_ms
         }
         
+        # Convert to JSON-serializable format
+        serializable_entry = make_json_serializable(entry)
+        
         inference_file = self.log_dir / "inference.jsonl"
         with open(inference_file, 'a') as f:
-            f.write(json.dumps(entry) + '\n')
+            f.write(json.dumps(serializable_entry) + '\n')
     
     def create_manifest(self):
         """Create manifest file for the run."""
