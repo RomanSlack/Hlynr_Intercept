@@ -5,7 +5,7 @@ Simple training script to test 17D system with minimal setup.
 
 import sys
 import os
-sys.path.insert(0, 'src/phase4_rl')
+sys.path.insert(0, '../phase4_rl')
 
 from fast_sim_env import FastSimEnv
 from stable_baselines3 import PPO

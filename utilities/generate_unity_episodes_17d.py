@@ -6,7 +6,7 @@ Generates Unity episodes with the trained 17D model.
 
 import os
 import sys
-sys.path.insert(0, 'src/phase4_rl')
+sys.path.insert(0, '../phase4_rl')
 
 from generate_unity_episodes_working import generate_unity_episodes
 

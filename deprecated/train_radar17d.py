@@ -6,7 +6,7 @@ Ensures consistent observation dimensions throughout training.
 
 import os
 import sys
-sys.path.insert(0, 'src/phase4_rl')
+sys.path.insert(0, '../phase4_rl')
 
 from train_radar_ppo import main
 
