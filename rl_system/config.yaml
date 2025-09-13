@@ -1,0 +1,133 @@
+# Hlynr Intercept Configuration
+
+# Environment settings
+environment:
+  dt: 0.01  # Simulation timestep (100Hz)
+  max_steps: 1000
+  max_range: 10000.0  # Maximum radar range (m)
+  max_velocity: 1000.0  # Maximum velocity for normalization (m/s)
+  
+  # Spawn ranges
+  missile_spawn:
+    position: [[-300, -300, 300], [300, 300, 500]]  # [min, max] in meters
+    velocity: [[80, 80, -30], [150, 150, -50]]  # [min, max] in m/s
+  
+  interceptor_spawn:
+    position: [[400, 400, 50], [600, 600, 150]]
+    velocity: [[0, 0, 0], [30, 30, 10]]
+  
+  target_position: [900, 900, 5]  # Target location to defend
+  
+  # Physics
+  gravity: [0, 0, -9.81]  # m/s^2
+  drag_coefficient: 0.3
+  air_density: 1.225  # kg/m^3 at sea level
+  
+  # Wind
+  wind:
+    velocity: [5.0, 0.0, 0.0]  # Base wind velocity (m/s)
+    variability: 0.1  # Wind variation factor
+  
+  # Radar system
+  radar_range: 5000.0  # Maximum radar detection range (m)
+  radar_noise: 0.05  # Radar measurement noise level
+  radar_quality: 1.0  # Initial radar quality (0-1)
+  radar_beam_width: 60.0  # Radar beam width in degrees
+  min_detection_range: 50.0  # Minimum range for accurate tracking
+  
+  # Missile behavior
+  missile_evasion: false  # Enable missile evasion maneuvers
+
+# Training configuration
+training:
+  # Algorithm parameters
+  total_timesteps: 1000000
+  n_envs: 8  # Parallel environments
+  learning_rate: 0.0003
+  n_steps: 2048  # Steps per environment per update
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  
+  # Network architecture
+  net_arch: [256, 256]  # Hidden layer sizes
+  
+  # Checkpointing
+  checkpoint_freq: 10000  # Save every N timesteps
+  eval_freq: 10000  # Evaluate every N timesteps
+  n_eval_episodes: 10  # Episodes per evaluation
+  
+  # Adaptive features
+  entropy_schedule:
+    enabled: true
+    initial: 0.02
+    final: 0.01
+    decay_steps: 500000
+  
+  lr_schedule:
+    enabled: true
+    patience: 5  # Evaluations without improvement
+    factor: 0.5  # LR reduction factor
+    min_lr: 0.000001
+  
+  clip_adapt:
+    enabled: true
+    threshold: 0.2  # Clip fraction threshold
+    reduction: 0.75  # Clip range reduction factor
+    min_clip: 0.05
+
+# Inference configuration
+inference:
+  deterministic: true  # Use deterministic actions
+  coordinate_system: "ENU"  # Default coordinate system
+  
+  # API settings
+  host: "0.0.0.0"
+  port: 8000
+  cors_enabled: true
+  
+  # Performance
+  max_batch_size: 32
+  timeout_ms: 100
+
+# Logging configuration
+logging:
+  log_dir: "logs"
+  
+  # Episode logging
+  episode_logging:
+    enabled: true
+    log_interval: 100  # Log every N episodes
+    save_trajectories: true
+  
+  # Metrics
+  metrics:
+    log_to_file: true
+    log_to_tensorboard: true
+    log_interval: 1000  # Log metrics every N steps
+  
+  # System logging
+  system:
+    level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Checkpointing
+checkpointing:
+  checkpoint_dir: "checkpoints"
+  save_vecnormalize: true
+  keep_last_n: 5  # Keep last N checkpoints
+  save_best: true  # Save best model separately
+
+# Safety constraints
+safety:
+  max_acceleration: 50.0  # m/s^2
+  max_angular_rate: 5.0  # rad/s
+  max_gimbal_angle: 0.785  # 45 degrees in radians
+  min_thrust: 0.0
+  max_thrust: 1.0
+  fuel_depletion_rate: 0.1  # kg/s at max thrust
