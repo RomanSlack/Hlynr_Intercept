@@ -21,9 +21,12 @@ environment:
     velocity: [8.0, 3.0, 0.0]
     variability: 0.15
   
-  # Degraded radar
-  radar_noise: 0.08
-  radar_quality: 0.9
+  # Degraded radar for medium scenario
+  radar_range: 4500.0  # Reduced range
+  radar_noise: 0.08  # Higher noise
+  radar_quality: 0.9  # Some degradation
+  radar_beam_width: 60.0  # Standard beam
+  min_detection_range: 50.0
   
   # Light evasion
   missile_evasion: true

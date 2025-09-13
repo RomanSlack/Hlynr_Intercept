@@ -21,9 +21,12 @@ environment:
     velocity: [2.0, 0.0, 0.0]
     variability: 0.05
   
-  # Better radar
-  radar_noise: 0.02
-  radar_quality: 1.0
+  # Better radar for easy scenario
+  radar_range: 6000.0  # Extended range
+  radar_noise: 0.02  # Low noise
+  radar_quality: 1.0  # Perfect quality
+  radar_beam_width: 90.0  # Wide beam
+  min_detection_range: 30.0
   
   # No evasion
   missile_evasion: false

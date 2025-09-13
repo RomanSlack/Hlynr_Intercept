@@ -21,9 +21,12 @@ environment:
     velocity: [15.0, 8.0, -2.0]
     variability: 0.25
   
-  # Poor radar
-  radar_noise: 0.15
-  radar_quality: 0.75
+  # Poor radar for hard scenario
+  radar_range: 3500.0  # Short range
+  radar_noise: 0.15  # High noise
+  radar_quality: 0.75  # Degraded quality
+  radar_beam_width: 45.0  # Narrow beam
+  min_detection_range: 75.0  # Poor close tracking
   
   # Aggressive evasion
   missile_evasion: true
