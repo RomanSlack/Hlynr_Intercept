@@ -69,13 +69,19 @@ class CustomTrainingCallback(BaseCallback):
         """Called at the end of a rollout."""
         # Log training metrics
         if self.tb_writer:
-            # Log from locals if available
-            if hasattr(self, 'locals') and self.locals:
-                if 'clip_fraction' in self.locals:
-                    clip_fraction = self.locals['clip_fraction']
-                    self.tb_writer.add_scalar('train/clip_fraction', clip_fraction, self.num_timesteps)
+            # Get rollout info from the model's logger
+            if hasattr(self.model, '_logger') and self.model._logger:
+                rollout_info = self.model._logger.name_to_value
+                
+                # Log key metrics
+                for key in ['policy_gradient_loss', 'value_loss', 'entropy_loss', 'approx_kl', 'clip_fraction']:
+                    if key in rollout_info:
+                        self.tb_writer.add_scalar(f'train/{key}', rollout_info[key], self.num_timesteps)
+                
+                # Adaptive clip range based on KL divergence
+                if 'clip_fraction' in rollout_info:
+                    clip_fraction = rollout_info['clip_fraction']
                     
-                    # Adaptive clip range
                     if self.clip_adapt.get('enabled', True) and clip_fraction > self.clip_threshold:
                         self.clip_violations += 1
                         if self.clip_violations >= 3:
@@ -88,12 +94,10 @@ class CustomTrainingCallback(BaseCallback):
                             self.clip_violations = 0
                     else:
                         self.clip_violations = 0
-                
-                if 'loss' in self.locals:
-                    self.tb_writer.add_scalar('train/loss', self.locals['loss'], self.num_timesteps)
-                
-                if 'learning_rate' in self.locals:
-                    self.tb_writer.add_scalar('train/learning_rate', self.locals['learning_rate'], self.num_timesteps)
+            
+            # Log current learning rate and entropy
+            self.tb_writer.add_scalar('train/learning_rate', self.model.learning_rate, self.num_timesteps)
+            self.tb_writer.add_scalar('train/entropy_coef', self.model.ent_coef, self.num_timesteps)
         
         # Log to unified logger
         metrics = {

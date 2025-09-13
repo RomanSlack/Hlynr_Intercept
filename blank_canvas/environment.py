@@ -284,19 +284,31 @@ class InterceptEnvironment(gym.Env):
         elif terminated:
             # Failed interception
             if self.missile_state['position'][2] < 0:
-                # Missile hit target
-                reward = -100.0
+                # Missile hit target - check if it's near the defended target
+                missile_to_target = np.linalg.norm(self.missile_state['position'][:2] - self.target_position[:2])
+                if missile_to_target < 100.0:  # Within 100m of target
+                    reward = -200.0  # Severe penalty for letting missile reach target
+                else:
+                    reward = -50.0  # Less penalty if missile crashed elsewhere
             elif self.interceptor_state['position'][2] < 0:
                 # Interceptor crashed
                 reward = -50.0
         else:
-            # Shaping reward
-            # Encourage closing distance
-            reward = -distance * 0.001
-            # Small penalty for time
+            # Shaping reward - more sophisticated
+            prev_distance = getattr(self, '_prev_distance', distance)
+            
+            # Reward for closing distance
+            distance_delta = prev_distance - distance
+            reward += distance_delta * 0.1  # Positive if closing, negative if opening
+            
+            # Penalty for being far from missile
+            reward -= distance * 0.0001
+            
+            # Small time penalty to encourage quick action
             reward -= 0.01
-            # Small penalty for fuel use
-            reward -= self.total_fuel_used * 0.001
+            
+            # Store for next step
+            self._prev_distance = distance
         
         return reward
     
