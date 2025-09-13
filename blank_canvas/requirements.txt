@@ -1,0 +1,24 @@
+# Core dependencies
+numpy>=1.24.0
+torch>=2.0.0
+gymnasium>=0.29.0
+stable-baselines3>=2.0.0
+
+# API and server
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+
+# Logging and visualization
+tensorboard>=2.13.0
+matplotlib>=3.7.0
+
+# Utilities
+pyyaml>=6.0
+pathlib>=1.0.1
+dataclasses-json>=0.6.0
+
+# Development (optional)
+pytest>=7.4.0
+black>=23.0.0
+pylint>=2.17.0
