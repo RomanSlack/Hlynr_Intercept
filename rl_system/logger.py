@@ -8,28 +8,52 @@ import logging
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import is_dataclass, dataclass, asdict
 import numpy as np
 
+try:
+    import torch
+except Exception:
+    torch = None
 
-def make_json_serializable(obj: Any) -> Any:
-    """Convert numpy types and other non-JSON types to JSON serializable equivalents."""
+def make_json_serializable(obj):
+    """Recursively convert obj into only JSON-safe types."""
+    # dataclasses
+    if is_dataclass(obj):
+        return make_json_serializable(asdict(obj))
+
+    # dict
+    if isinstance(obj, dict):
+        return {k: make_json_serializable(v) for k, v in obj.items()}
+
+    # list/tuple
+    if isinstance(obj, (list, tuple)):
+        return [make_json_serializable(v) for v in obj]
+
+    # pathlib.Path
+    if isinstance(obj, Path):
+        return str(obj)
+
+    # numpy scalars
+    if isinstance(obj, (np.generic,)):
+        return obj.item()
+
+    # numpy arrays
     if isinstance(obj, np.ndarray):
         return obj.tolist()
-    elif isinstance(obj, (np.float32, np.float64)):
-        return float(obj)
-    elif isinstance(obj, (np.int32, np.int64)):
-        return int(obj)
-    elif isinstance(obj, np.bool_):
-        return bool(obj)
-    elif isinstance(obj, dict):
-        return {key: make_json_serializable(value) for key, value in obj.items()}
-    elif isinstance(obj, list):
-        return [make_json_serializable(item) for item in obj]
-    elif isinstance(obj, tuple):
-        return [make_json_serializable(item) for item in obj]
-    else:
-        return obj
+
+    # torch tensors
+    if torch is not None and isinstance(obj, torch.Tensor):
+        if obj.ndim == 0:
+            return obj.detach().cpu().item()
+        return obj.detach().cpu().tolist()
+
+    # handle NaN/Inf explicitly to keep JSON valid
+    if isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+
+    return obj
 
 
 @dataclass
@@ -138,7 +162,7 @@ class UnifiedLogger:
         }
         
         with open(self.episode_file, 'w') as f:
-            f.write(json.dumps(header) + '\n')
+            f.write(json.dumps(make_json_serializable(header)) + '\n')
         
         self.current_episode = episode_id
         self.episode_buffer = []
@@ -208,7 +232,7 @@ class UnifiedLogger:
         }
         
         with open(self.episode_file, 'a') as f:
-            f.write(json.dumps(footer) + '\n')
+            f.write(json.dumps(make_json_serializable(footer)) + '\n')
         
         # Log metrics
         self.log_metrics({
@@ -228,7 +252,7 @@ class UnifiedLogger:
         
         with open(self.episode_file, 'a') as f:
             for entry in self.episode_buffer:
-                f.write(json.dumps(entry) + '\n')
+                f.write(json.dumps(make_json_serializable(entry)) + '\n')
         
         self.episode_buffer = []
     
@@ -243,7 +267,7 @@ class UnifiedLogger:
         serializable_entry = make_json_serializable(entry)
         
         with open(self.metrics_file, 'a') as f:
-            f.write(json.dumps(serializable_entry) + '\n')
+            f.write(json.dumps(make_json_serializable(serializable_entry)) + '\n')
         
         self.metrics_buffer.append(serializable_entry)
     
@@ -259,7 +283,7 @@ class UnifiedLogger:
         serializable_entry = make_json_serializable(entry)
         
         with open(self.training_file, 'a') as f:
-            f.write(json.dumps(serializable_entry) + '\n')
+            f.write(json.dumps(make_json_serializable(serializable_entry)) + '\n')
         
         # Keep recent metrics in memory
         self.training_metrics[step] = serializable_entry
@@ -286,7 +310,7 @@ class UnifiedLogger:
         
         inference_file = self.log_dir / "inference.jsonl"
         with open(inference_file, 'a') as f:
-            f.write(json.dumps(serializable_entry) + '\n')
+            f.write(json.dumps(make_json_serializable(serializable_entry)) + '\n')
     
     def create_manifest(self):
         """Create manifest file for the run."""

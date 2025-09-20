@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from datetime import datetime
+from logger import make_json_serializable
 
 import torch
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -344,7 +345,19 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
     logger = UnifiedLogger(log_dir=str(run_dir), run_name="offline_inference")
     
     # Load model
-    model = PPO.load(str(Path(model_path) / "model.zip"))
+    mp = Path(model_path)
+    candidates = [
+        mp if mp.suffix == ".zip" else None,
+        mp / "model.zip",
+        mp / "best_model.zip",
+        mp / "best" / "best_model.zip",
+        mp / "final" / "model.zip",
+    ]
+    candidates = [p for p in candidates if p and p.exists()]
+    if not candidates:
+        raise FileNotFoundError(f"Could not find a model zip under {mp}. "
+                                f"Tried: model.zip, best_model.zip, best/best_model.zip, final/model.zip, or a direct .zip path.")
+    model = PPO.load(str(candidates[0]))
     
     # Load VecNormalize if available
     vecnorm_path = Path(model_path) / "vec_normalize.pkl"
@@ -451,13 +464,13 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
     # Write summary JSON
     summary_file = run_dir / "summary.json"
     with open(summary_file, 'w') as f:
-        json.dump(summary, f, indent=2)
+        json.dump(make_json_serializable(summary), f, indent=2)
     
     # Write detailed episodes JSONL
     episodes_file = run_dir / "episodes.jsonl"
     with open(episodes_file, 'w') as f:
         for episode in results:
-            f.write(json.dumps(episode) + '\n')
+            f.write(json.dumps(make_json_serializable(episode)) + '\n')
     
     logger.create_manifest()
     print(f"\nResults saved to: {run_dir}")
