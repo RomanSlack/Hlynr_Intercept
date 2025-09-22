@@ -69,6 +69,7 @@ examples/
 # PRPs, dev tools, local agents
 PRPs/
 .claude/
+CLAUDE.md
 
 # Training, experiments, demos (not required for runtime inference API)
 phase4_rl/train_radar_ppo.py
