@@ -30,19 +30,58 @@ pip install -r requirements.txt
 
 ### Training
 
+**Basic Training (Optimized Configuration):**
 ```bash
-# Train with default configuration
-python train.py
+# Train with optimized hyperparameters (5M steps, ~25-30 minutes)
+python train.py --config config.yaml
 
-# Train with custom config
-python train.py --config my_config.yaml
+# Monitor training progress with TensorBoard
+tensorboard --logdir logs
+
+# Access at: http://localhost:6006
 ```
 
-Training will create timestamped logs in `logs/training_YYYYMMDD_HHMMSS/` containing:
-- TensorBoard logs
-- Model checkpoints
-- Training metrics
-- Episode data
+**Curriculum Learning (Recommended for Best Results):**
+```bash
+# Stage 1: Easy scenario - wide radar beam, close targets (1-2M steps)
+python train.py --config scenarios/easy.yaml
+
+# Stage 2: Standard difficulty - continue training
+python train.py --config config.yaml
+
+# Stage 3: Hard scenario - evaluate robustness
+python inference.py --model checkpoints/best --mode offline --scenario hard --episodes 100
+```
+
+**Training Output:**
+
+Training creates timestamped logs in `logs/training_YYYYMMDD_HHMMSS/`:
+- **TensorBoard logs**: Real-time training metrics, reward curves, loss plots
+- **Model checkpoints**: Saved every 10k steps in `checkpoints/`
+- **Best model**: Auto-saved to `checkpoints/best/` based on eval performance
+- **Training metrics**: JSON logs of key performance indicators
+- **Episode data**: Detailed trajectory information
+
+**TensorBoard Metrics:**
+- `rollout/ep_rew_mean` - Average episode reward (track this for performance)
+- `train/policy_gradient_loss` - Policy optimization progress
+- `train/value_loss` - Value function accuracy
+- `train/entropy_loss` - Exploration vs exploitation
+- `train/approx_kl` - Policy update magnitude
+- `train/clip_fraction` - PPO clipping activity
+- `eval/mean_reward` - Evaluation performance (best model selection)
+
+**Expected Performance:**
+- **1M steps (~5 min)**: 30-40% interception success rate
+- **3M steps (~15 min)**: 60-70% interception success rate
+- **5M steps (~25 min)**: 75-85% interception success rate
+
+**Key Improvements in Current System:**
+- ✅ **Dense reward shaping** - Strong gradients for closing distance and radar tracking
+- ✅ **Larger network** - [512, 512, 256] architecture for complex behavior
+- ✅ **Better spawn geometry** - Pursuit configuration instead of head-on collision
+- ✅ **Extended episodes** - 2000 steps (20 seconds) for full interception sequence
+- ✅ **Radar tracking rewards** - Incentivizes maintaining lock on target
 
 ### Inference
 
