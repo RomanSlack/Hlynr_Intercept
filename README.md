@@ -38,13 +38,17 @@ The system features a complete **17-dimensional radar observation space** that p
 ├── rl_system/                  # 🚀 PRODUCTION SYSTEM
 │   ├── README.md              # Complete usage guide
 │   ├── SYSTEM_DESIGN.md       # Technical specifications
+│   ├── PHYSICS_FEATURES.md    # Advanced Physics v2.0 documentation
 │   ├── core.py                # 17D radar observations + safety
 │   ├── environment.py         # 6DOF physics simulation
+│   ├── physics_models.py      # ISA atmosphere, Mach drag, enhanced wind
+│   ├── physics_randomizer.py  # Domain randomization framework
 │   ├── train.py               # PPO training with adaptive features
 │   ├── inference.py           # FastAPI server + offline evaluation
 │   ├── logger.py              # Unified timestamped logging
-│   ├── config.yaml            # Main configuration
+│   ├── config.yaml            # Main configuration (with physics v2.0)
 │   ├── scenarios/             # Easy/Medium/Hard presets
+│   ├── tests/                 # Comprehensive physics validation tests
 │   ├── Images/                # Documentation assets
 │   └── requirements.txt       # Dependencies
 ├── deprecated/                # Legacy implementations
@@ -85,6 +89,7 @@ python inference.py --model checkpoints/best --mode offline --scenario hard
 * **🚀 PAC-3 Physics**: Authentic 6DOF dynamics with thrust vectoring, fuel consumption, and environmental effects
 * **📡 Progressive Scenarios**: Easy (wide beam) → Medium (standard) → Hard (narrow beam, high noise)
 * **⚡ Production Ready**: FastAPI deployment + comprehensive logging for real-world applications
+* **🌡️ Advanced Physics v2.0**: ISA atmospheric models, Mach effects, sensor delays, thrust dynamics, and domain randomization for improved sim-to-real transfer
 
 ---
 
