@@ -1,0 +1,13 @@
+{
+  "run_id": "offline_inference_20250922_194447",
+  "created": "2025-09-22T19:45:19.669633",
+  "log_dir": "inference_results/offline_run_20250922_194447/offline_inference_20250922_194447",
+  "episode_count": 100,
+  "files": {
+    "system_log": "system.log",
+    "metrics": "metrics.jsonl",
+    "training": "training.jsonl",
+    "inference": "inference.jsonl",
+    "episodes_dir": "episodes/"
+  }
+}
