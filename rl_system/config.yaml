@@ -3,20 +3,21 @@
 # Environment settings
 environment:
   dt: 0.01  # Simulation timestep (100Hz)
-  max_steps: 1000
+  max_steps: 2000  # 20 seconds - allows time for search -> track -> intercept
   max_range: 10000.0  # Maximum radar range (m)
   max_velocity: 1000.0  # Maximum velocity for normalization (m/s)
-  
-  # Spawn ranges
+
+  # Improved spawn ranges for better initial geometry
+  # Interceptor spawns BEHIND missile, chasing it toward target
   missile_spawn:
-    position: [[-300, -300, 300], [300, 300, 500]]  # [min, max] in meters
-    velocity: [[80, 80, -30], [150, 150, -50]]  # [min, max] in m/s
-  
+    position: [[500, 500, 400], [700, 700, 500]]  # [min, max] in meters - ahead of interceptor
+    velocity: [[80, 80, -30], [120, 120, -40]]  # [min, max] in m/s - moving toward target
+
   interceptor_spawn:
-    position: [[400, 400, 50], [600, 600, 150]]
-    velocity: [[0, 0, 0], [30, 30, 10]]
-  
-  target_position: [900, 900, 5]  # Target location to defend
+    position: [[200, 200, 100], [300, 300, 150]]  # Behind missile - pursuit geometry
+    velocity: [[50, 50, 10], [80, 80, 20]]  # Initial velocity toward missile
+
+  target_position: [1200, 1200, 5]  # Target location to defend - further away for more time
   
   # Physics
   gravity: [0, 0, -9.81]  # m/s^2
@@ -40,34 +41,34 @@ environment:
 
 # Training configuration
 training:
-  # Algorithm parameters
-  total_timesteps: 1000000
-  n_envs: 8  # Parallel environments
-  learning_rate: 0.0003
-  n_steps: 2048  # Steps per environment per update
-  batch_size: 64
-  n_epochs: 10
-  gamma: 0.99
-  gae_lambda: 0.95
+  # Algorithm parameters - improved for complex multi-stage task
+  total_timesteps: 5000000  # 5M steps for thorough training
+  n_envs: 16  # More parallel environments for better sampling
+  learning_rate: 0.0001  # Lower LR for stable learning
+  n_steps: 4096  # More experience per update
+  batch_size: 256  # Larger batches for stable gradients
+  n_epochs: 20  # More optimization per rollout
+  gamma: 0.995  # Longer horizon for multi-stage interception
+  gae_lambda: 0.98  # More credit to future rewards
   clip_range: 0.2
-  ent_coef: 0.01
+  ent_coef: 0.01  # Will be dynamically scheduled
   vf_coef: 0.5
   max_grad_norm: 0.5
-  
-  # Network architecture
-  net_arch: [256, 256]  # Hidden layer sizes
+
+  # Network architecture - larger for complex 17D observation -> 6D action
+  net_arch: [512, 512, 256]  # Deeper network for sophisticated behavior
   
   # Checkpointing
   checkpoint_freq: 10000  # Save every N timesteps
   eval_freq: 10000  # Evaluate every N timesteps
   n_eval_episodes: 10  # Episodes per evaluation
   
-  # Adaptive features
+  # Adaptive features - more exploration initially for multi-stage learning
   entropy_schedule:
     enabled: true
-    initial: 0.02
+    initial: 0.1  # Much higher initial exploration
     final: 0.01
-    decay_steps: 500000
+    decay_steps: 2000000  # Longer decay for gradual refinement
   
   lr_schedule:
     enabled: true
@@ -156,9 +157,10 @@ physics_enhancements:
     gamma: 1.4  # Heat capacity ratio for air
 
   # Sensor delays and measurement lag
+  # NOTE: Disabled initially for easier learning. Enable after initial training succeeds.
   sensor_delays:
-    enabled: true
-    radar_delay_ms: 30.0  # Radar processing delay in milliseconds
+    enabled: false  # Start without delays for curriculum learning
+    radar_delay_ms: 30.0  # Radar processing delay in milliseconds (when enabled)
     # Buffer size automatically calculated from delay and simulation timestep
 
   # Mach-dependent drag effects

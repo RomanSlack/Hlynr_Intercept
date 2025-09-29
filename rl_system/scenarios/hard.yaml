@@ -5,16 +5,19 @@ description: Difficult scenario with aggressive missiles and poor conditions
 difficulty: 3
 
 environment:
-  # Wide spawn variation
+  # Wide spawn variation with pursuit geometry
   missile_spawn:
-    position: [[-500, -500, 200], [500, 500, 500]]
-    velocity: [[150, 150, -40], [250, 250, -70]]
-  
+    position: [[400, 400, 300], [700, 700, 550]]  # Wide variation
+    velocity: [[120, 120, -40], [180, 180, -60]]  # Fast missiles
+
   interceptor_spawn:
-    position: [[300, 300, 50], [700, 700, 200]]
-    velocity: [[0, 0, 0], [60, 60, 20]]
-  
-  target_position: [900, 900, 5]
+    position: [[100, 100, 80], [350, 350, 200]]  # Must catch up
+    velocity: [[40, 40, 10], [100, 100, 30]]  # Variable initial speed
+
+  target_position: [1300, 1300, 5]  # Further target for challenge
+
+  # Extended episode length
+  max_steps: 2000  # 20 seconds
   
   # Strong variable wind
   wind:

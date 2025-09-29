@@ -115,7 +115,10 @@ class Radar17DObservation:
         self.simulation_dt = simulation_dt
         delay_samples = int(sensor_delay_ms / (simulation_dt * 1000.0)) if sensor_delay_ms > 0 else 0
         self.sensor_delay_buffer = SensorDelayBuffer(delay_samples) if delay_samples > 0 else None
-        
+
+        # Store last detection info for reward calculation (not passed to policy)
+        self._last_detection_info = None
+
     def seed(self, seed: int):
         """Set random seed for reproducible noise."""
         self.rng = np.random.default_rng(seed)
@@ -124,7 +127,16 @@ class Radar17DObservation:
         """Reset sensor delay buffer for new episode."""
         if self.sensor_delay_buffer:
             self.sensor_delay_buffer.reset()
-        
+
+    def get_last_detection_info(self) -> Optional[Dict[str, Any]]:
+        """
+        Get the last detection info for reward calculation.
+
+        This is used internally by the environment for reward shaping but is NOT
+        passed to the policy network. The policy only sees the 17D observation vector.
+        """
+        return self._last_detection_info
+
     def compute_radar_detection(self, interceptor: Dict[str, Any], missile: Dict[str, Any],
                                radar_quality: float = 1.0, noise_level: float = 0.05) -> np.ndarray:
         """
@@ -209,6 +221,9 @@ class Radar17DObservation:
             delayed_mis_vel = true_mis_vel
             delayed_detected = detected
             delayed_detection_info = detection_info
+
+        # Store detection info for reward calculation (internal use only)
+        self._last_detection_info = delayed_detection_info.copy()
 
         # Generate observation using delayed measurements
         obs = self.compute(interceptor, missile, delayed_rel_pos, delayed_mis_vel,
