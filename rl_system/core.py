@@ -6,6 +6,7 @@ import numpy as np
 from typing import Dict, Any, Tuple, Optional
 from dataclasses import dataclass
 import math
+from collections import deque
 
 
 @dataclass
@@ -19,27 +20,117 @@ class SafetyLimits:
     fuel_depletion_rate: float = 0.1  # kg/s at max thrust
 
 
+class SensorDelayBuffer:
+    """
+    Circular buffer for simulating sensor delays in radar measurements.
+
+    Real tactical radar systems have processing and transmission delays of 20-40ms.
+    This class implements a configurable delay buffer that holds measurements
+    and returns them after the specified delay time.
+    """
+
+    def __init__(self, delay_samples: int = 3, buffer_size: Optional[int] = None):
+        """
+        Initialize sensor delay buffer.
+
+        Args:
+            delay_samples: Number of simulation timesteps to delay (default 3 = 30ms at 100Hz)
+            buffer_size: Maximum buffer size (default = delay_samples + 1)
+        """
+        self.delay_samples = max(1, delay_samples)
+        self.buffer_size = buffer_size or (self.delay_samples + 1)
+
+        # Use deque for efficient FIFO operations
+        self.measurement_buffer = deque(maxlen=self.buffer_size)
+        self.detection_buffer = deque(maxlen=self.buffer_size)
+
+        # Track initialization state
+        self.initialized = False
+        self.samples_received = 0
+
+    def add_measurement(self, measurement: Dict[str, Any], detected: bool = True) -> Tuple[Optional[Dict[str, Any]], bool]:
+        """
+        Add new measurement to buffer and return delayed measurement.
+
+        Args:
+            measurement: Current measurement data
+            detected: Whether target was detected this timestep
+
+        Returns:
+            Tuple of (delayed_measurement, delayed_detection_status)
+            Returns (None, False) during initial buffer fill period
+        """
+        # Add current measurement to buffer
+        self.measurement_buffer.append(measurement.copy() if measurement else None)
+        self.detection_buffer.append(detected)
+        self.samples_received += 1
+
+        # Check if we have enough samples for delayed output
+        if self.samples_received < self.delay_samples:
+            # Still in buffer fill period - return no detection
+            return None, False
+
+        # Buffer is ready - return delayed measurement
+        self.initialized = True
+
+        # Get delayed measurement (oldest in buffer when buffer is full)
+        if len(self.measurement_buffer) > self.delay_samples:
+            # Get measurement from delay_samples ago
+            delayed_measurement = self.measurement_buffer[0]  # Oldest measurement
+            delayed_detected = self.detection_buffer[0]       # Oldest detection
+
+            return delayed_measurement, delayed_detected
+        else:
+            return None, False
+
+    def reset(self):
+        """Reset buffer state for new episode."""
+        self.measurement_buffer.clear()
+        self.detection_buffer.clear()
+        self.initialized = False
+        self.samples_received = 0
+
+    def is_initialized(self) -> bool:
+        """Check if buffer has been filled and is providing valid delayed measurements."""
+        return self.initialized
+
+    def get_delay_time_ms(self, simulation_dt: float) -> float:
+        """Get delay time in milliseconds."""
+        return self.delay_samples * simulation_dt * 1000.0
+
+
 class Radar17DObservation:
     """17-dimensional radar observation space for 1v1 intercept scenarios."""
-    
-    def __init__(self, max_range: float = 10000.0, max_velocity: float = 1000.0, 
-                 radar_range: float = 5000.0, min_detection_range: float = 50.0):
+
+    def __init__(self, max_range: float = 10000.0, max_velocity: float = 1000.0,
+                 radar_range: float = 5000.0, min_detection_range: float = 50.0,
+                 sensor_delay_ms: float = 30.0, simulation_dt: float = 0.01):
         self.max_range = max_range
         self.max_velocity = max_velocity
         self.radar_range = radar_range  # Maximum radar detection range
         self.min_detection_range = min_detection_range  # Minimum range for accurate tracking
         self.rng = np.random.default_rng()
+
+        # Sensor delay buffer
+        self.simulation_dt = simulation_dt
+        delay_samples = int(sensor_delay_ms / (simulation_dt * 1000.0)) if sensor_delay_ms > 0 else 0
+        self.sensor_delay_buffer = SensorDelayBuffer(delay_samples) if delay_samples > 0 else None
         
     def seed(self, seed: int):
         """Set random seed for reproducible noise."""
         self.rng = np.random.default_rng(seed)
+
+    def reset_sensor_delays(self):
+        """Reset sensor delay buffer for new episode."""
+        if self.sensor_delay_buffer:
+            self.sensor_delay_buffer.reset()
         
-    def compute_radar_detection(self, interceptor: Dict[str, Any], missile: Dict[str, Any], 
-                               radar_quality: float = 1.0, noise_level: float = 0.05) -> Tuple[np.ndarray, Dict[str, Any]]:
+    def compute_radar_detection(self, interceptor: Dict[str, Any], missile: Dict[str, Any],
+                               radar_quality: float = 1.0, noise_level: float = 0.05) -> np.ndarray:
         """
         Simulate radar detection of missile from interceptor's sensors only.
-        Returns observation vector and detection info.
-        
+        Returns observation vector with realistic sensor delays.
+
         The interceptor has NO direct access to missile state - only radar returns.
         """
         # Extract interceptor's own state (perfect knowledge of self)
@@ -47,25 +138,25 @@ class Radar17DObservation:
         int_vel = np.array(interceptor['velocity'], dtype=np.float32)
         int_quat = np.array(interceptor['orientation'], dtype=np.float32)
         int_fuel = interceptor.get('fuel', 100.0)
-        
+
         # Extract missile's TRUE state (only for radar simulation)
         true_mis_pos = np.array(missile['position'], dtype=np.float32)
         true_mis_vel = np.array(missile['velocity'], dtype=np.float32)
-        
+
         # Calculate true range
         true_rel_pos = true_mis_pos - int_pos
         true_range = np.linalg.norm(true_rel_pos)
-        
+
         # Determine if missile is detectable by radar
         detected = True
         detection_info = {'detected': True, 'range': true_range, 'radar_quality': radar_quality}
-        
+
         # Check radar range limitation
         if true_range > self.radar_range:
             detected = False
             detection_info['detected'] = False
             detection_info['reason'] = 'out_of_range'
-        
+
         # Check radar beam width (simplified - assume 60 degree cone)
         if detected:
             int_forward = get_forward_vector(int_quat)
@@ -73,23 +164,55 @@ class Radar17DObservation:
             beam_angle = np.arccos(np.clip(np.dot(int_forward, to_missile), -1, 1))
             if beam_angle > np.pi / 3:  # 60 degrees
                 detected = False
-                detection_info['detected'] = False  
+                detection_info['detected'] = False
                 detection_info['reason'] = 'outside_beam'
-        
+
         # Apply radar quality degradation
         if detected:
             # Degraded detection at long range
             range_factor = 1.0 - (true_range / self.radar_range) * 0.5
             actual_radar_quality = radar_quality * range_factor
-            
+
             # Chance of losing lock based on quality
             if self.rng.random() > actual_radar_quality:
                 detected = False
                 detection_info['detected'] = False
                 detection_info['reason'] = 'poor_signal'
-        
-        obs = self.compute(interceptor, missile, true_rel_pos, true_mis_vel, detected, 
-                          detection_info, noise_level)
+
+        # Prepare current measurement data
+        current_measurement = {
+            'rel_pos': true_rel_pos.copy(),
+            'mis_vel': true_mis_vel.copy(),
+            'detection_info': detection_info.copy()
+        }
+
+        # Apply sensor delays if enabled
+        if self.sensor_delay_buffer:
+            delayed_measurement, delayed_detected = self.sensor_delay_buffer.add_measurement(
+                current_measurement, detected
+            )
+
+            if delayed_measurement is None:
+                # Still in buffer fill period - no detection
+                delayed_rel_pos = np.zeros(3)
+                delayed_mis_vel = np.zeros(3)
+                delayed_detected = False
+                delayed_detection_info = {'detected': False, 'reason': 'sensor_delay_initialization'}
+            else:
+                # Use delayed measurement
+                delayed_rel_pos = delayed_measurement['rel_pos']
+                delayed_mis_vel = delayed_measurement['mis_vel']
+                delayed_detection_info = delayed_measurement['detection_info']
+        else:
+            # No sensor delays - use current measurement
+            delayed_rel_pos = true_rel_pos
+            delayed_mis_vel = true_mis_vel
+            delayed_detected = detected
+            delayed_detection_info = detection_info
+
+        # Generate observation using delayed measurements
+        obs = self.compute(interceptor, missile, delayed_rel_pos, delayed_mis_vel,
+                          delayed_detected, delayed_detection_info, noise_level)
         return obs
     
     def compute(self, interceptor: Dict[str, Any], missile: Dict[str, Any], 
