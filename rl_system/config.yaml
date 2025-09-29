@@ -131,3 +131,84 @@ safety:
   min_thrust: 0.0
   max_thrust: 1.0
   fuel_depletion_rate: 0.1  # kg/s at max thrust
+
+# Advanced Physics v2.0 Configuration
+physics_enhancements:
+  # Enable/disable physics features for backward compatibility
+  enabled: true  # Master switch for all advanced physics
+
+  # Atmospheric modeling (ISA - International Standard Atmosphere)
+  atmospheric_model:
+    enabled: true
+    # Sea level conditions (ISA standard)
+    sea_level_pressure: 101325.0  # Pa
+    sea_level_temperature: 288.15  # K (15°C)
+    sea_level_density: 1.225  # kg/m³
+
+    # Atmospheric layers
+    troposphere_lapse_rate: 0.0065  # K/m
+    troposphere_top: 11000.0  # m
+    stratosphere_top: 20000.0  # m
+    stratosphere_temp: 216.65  # K
+
+    # Gas constants
+    specific_gas_constant: 287.05  # J/(kg⋅K)
+    gamma: 1.4  # Heat capacity ratio for air
+
+  # Sensor delays and measurement lag
+  sensor_delays:
+    enabled: true
+    radar_delay_ms: 30.0  # Radar processing delay in milliseconds
+    # Buffer size automatically calculated from delay and simulation timestep
+
+  # Mach-dependent drag effects
+  mach_effects:
+    enabled: true
+    # Drag curve parameters
+    subsonic_mach: 0.8  # Mach number where transonic effects begin
+    supersonic_mach: 1.2  # Mach number where supersonic regime starts
+    transonic_peak_multiplier: 3.0  # Peak drag multiplier in transonic regime
+    supersonic_multiplier: 2.5  # Steady supersonic drag multiplier
+
+  # Thrust dynamics and engine response
+  thrust_dynamics:
+    enabled: true
+    response_time_constant: 0.1  # seconds (100ms response time)
+    # Thrust curve variations (future enhancement)
+    enable_thrust_curves: false
+
+  # Domain randomization for robust training
+  domain_randomization:
+    enabled: false  # Disabled by default - can impact training stability
+
+    # Randomization ranges (as fractions of base values)
+    drag_coefficient_variation: 0.2  # ±20%
+    air_density_variation: 0.1  # ±10%
+    sensor_delay_variation: 0.5  # ±50%
+    thrust_response_variation: 0.3  # ±30%
+    wind_variation: 0.3  # ±30%
+
+    # Randomization frequency
+    randomize_per_episode: true
+    randomize_per_reset: true
+
+    # Logging
+    log_randomization: true
+
+  # Enhanced wind modeling
+  enhanced_wind:
+    enabled: true
+    boundary_layer_height: 1000.0  # m
+    surface_roughness: 0.1  # m
+    turbulence_intensity: 0.1  # 10% baseline
+    gust_probability: 0.001  # Per timestep probability of gust
+    max_gust_speed: 5.0  # m/s
+
+  # Performance and debugging
+  performance:
+    log_physics_timing: false  # Log computation time per physics step
+    max_physics_time_ms: 10.0  # Warning threshold for physics computation
+    enable_physics_validation: true  # Validate physics outputs for NaN/inf
+
+  # Backward compatibility
+  fallback_to_simple_physics: true  # Fall back if advanced physics fails
