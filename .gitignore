@@ -93,6 +93,7 @@ phase4_rl/inference_results/
 phase4_rl/my_runs/
 phase4_rl/test_runs/
 inference_episodes/
+inference_results/
 vecnorm/
 vecnorm_stats/*.pkl
 !vecnorm_stats/registry.json
