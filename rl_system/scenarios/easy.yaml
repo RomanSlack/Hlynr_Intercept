@@ -5,17 +5,16 @@ description: Simple scenario for initial training and testing
 difficulty: 1
 
 environment:
-  # Spawn configuration - improved geometry for easier initial learning
-  # Interceptor behind missile in pursuit configuration
+  # Easy scenario - close initial positions, high altitude for learning
   missile_spawn:
-    position: [[400, 400, 350], [500, 500, 450]]  # Ahead of interceptor
-    velocity: [[80, 80, -30], [120, 120, -40]]
+    position: [[300, 300, 700], [450, 450, 900]]  # High altitude, close
+    velocity: [[60, 60, -35], [90, 90, -50]]  # Slower descent
 
   interceptor_spawn:
-    position: [[100, 100, 100], [200, 200, 150]]  # Behind missile
-    velocity: [[60, 60, 15], [90, 90, 25]]  # Moving toward missile
+    position: [[150, 150, 250], [250, 250, 350]]  # Close starting position
+    velocity: [[90, 90, 45], [130, 130, 65]]  # Fast upward pursuit
 
-  target_position: [1000, 1000, 5]  # Further target for more time
+  target_position: [800, 800, 5]  # Closer target
 
   # Extended episode length for learning
   max_steps: 2000  # 20 seconds

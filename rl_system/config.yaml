@@ -7,17 +7,18 @@ environment:
   max_range: 10000.0  # Maximum radar range (m)
   max_velocity: 1000.0  # Maximum velocity for normalization (m/s)
 
-  # Improved spawn ranges for better initial geometry
-  # Interceptor spawns BEHIND missile, chasing it toward target
+  # Realistic ballistic missile interception geometry
+  # Missiles spawn at HIGH altitude (like real ballistic trajectory)
+  # Interceptors spawn at LOWER altitude in pursuit position
   missile_spawn:
-    position: [[500, 500, 400], [700, 700, 500]]  # [min, max] in meters - ahead of interceptor
-    velocity: [[80, 80, -30], [120, 120, -40]]  # [min, max] in m/s - moving toward target
+    position: [[400, 400, 800], [600, 600, 1200]]  # High altitude ballistic trajectory
+    velocity: [[60, 60, -40], [100, 100, -60]]  # Descending toward target
 
   interceptor_spawn:
-    position: [[200, 200, 100], [300, 300, 150]]  # Behind missile - pursuit geometry
-    velocity: [[50, 50, 10], [80, 80, 20]]  # Initial velocity toward missile
+    position: [[200, 200, 200], [350, 350, 400]]  # Lower altitude, behind and below
+    velocity: [[80, 80, 40], [120, 120, 60]]  # Fast upward pursuit (realistic interceptor)
 
-  target_position: [1200, 1200, 5]  # Target location to defend - further away for more time
+  target_position: [1000, 1000, 5]  # Target location to defend
   
   # Physics
   gravity: [0, 0, -9.81]  # m/s^2

@@ -5,16 +5,16 @@ description: Intermediate scenario with environmental challenges
 difficulty: 2
 
 environment:
-  # Wider spawn ranges with better geometry
+  # Medium scenario - standard difficulty with realistic ballistic geometry
   missile_spawn:
-    position: [[450, 450, 350], [650, 650, 500]]  # More varied positions
-    velocity: [[100, 100, -35], [150, 150, -45]]
+    position: [[400, 400, 800], [600, 600, 1200]]  # High altitude ballistic
+    velocity: [[70, 70, -45], [110, 110, -65]]  # Faster descent
 
   interceptor_spawn:
-    position: [[150, 150, 100], [300, 300, 180]]  # Pursuit geometry
-    velocity: [[50, 50, 10], [90, 90, 25]]
+    position: [[200, 200, 200], [350, 350, 400]]  # Below missile
+    velocity: [[80, 80, 40], [120, 120, 60]]  # Fast upward pursuit
 
-  target_position: [1200, 1200, 5]  # Further target
+  target_position: [1000, 1000, 5]  # Standard target
 
   # Extended episode length
   max_steps: 2000  # 20 seconds
