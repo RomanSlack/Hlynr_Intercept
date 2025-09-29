@@ -43,7 +43,7 @@ environment:
 # Training configuration
 training:
   # Algorithm parameters - improved for complex multi-stage task
-  total_timesteps: 5000000  # 5M steps for thorough training
+  total_timesteps: 2500000  # 5M steps for thorough training
   n_envs: 16  # More parallel environments for better sampling
   learning_rate: 0.0001  # Lower LR for stable learning
   n_steps: 4096  # More experience per update
