@@ -254,7 +254,8 @@ class InterceptEnvironment(gym.Env):
         distance = np.linalg.norm(
             self.missile_state['position'] - self.interceptor_state['position']
         )
-        intercepted = distance < 10.0  # 10m interception radius
+        # Realistic proximity fuse radius (PAC-3 has 15-20m lethal radius)
+        intercepted = distance < 20.0  # 20m interception radius
         
         # Check termination conditions
         terminated = False
