@@ -421,10 +421,11 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
             total_reward += reward
             steps += 1
             
-            # Log state
+            # Log state with actions
             logger.log_state('interceptor', {
                 'position': info['interceptor_pos'].tolist(),
-                'fuel': info['fuel_remaining']
+                'fuel': info['fuel_remaining'],
+                'action': action.tolist()
             })
             logger.log_state('missile', {
                 'position': info['missile_pos'].tolist()
