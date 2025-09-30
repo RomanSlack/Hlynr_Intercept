@@ -28,9 +28,11 @@ def load_episode(jsonl_path):
                 timestamp = data['timestamp']
 
                 if data['entity_id'] == 'interceptor':
+                    action = data['state'].get('action', None)
                     interceptor_states.append({
                         'time': timestamp,
-                        'pos': np.array(pos)
+                        'pos': np.array(pos),
+                        'action': np.array(action) if action else None
                     })
                 elif data['entity_id'] == 'missile':
                     missile_states.append({
@@ -54,6 +56,64 @@ def build_episode_path(base_path, episode_num):
     return Path(str(base_path).replace(re.search(r'ep_\d+', str(base_path)).group(), f'ep_{episode_num:04d}'))
 
 
+def simulate_interceptor_physics(interceptor_states, dt=0.01):
+    """Re-simulate interceptor trajectory with physics and thrust."""
+    if not interceptor_states or interceptor_states[0]['action'] is None:
+        # No actions, return original positions
+        return np.array([s['pos'] for s in interceptor_states])
+
+    # Physics parameters
+    mass = 500.0  # kg
+    gravity = np.array([0.0, 0.0, -9.81])  # m/s^2
+    drag_coef = 0.47
+    cross_section = 0.2  # m^2
+    air_density = 1.225  # kg/m^3
+
+    # Initial state
+    pos = interceptor_states[0]['pos'].copy()
+
+    # Estimate initial velocity
+    if len(interceptor_states) > 1:
+        vel = (interceptor_states[1]['pos'] - interceptor_states[0]['pos']) / dt
+    else:
+        vel = np.array([100.0, 100.0, 50.0])
+
+    positions = [pos.copy()]
+
+    # Simulate each step
+    for i in range(len(interceptor_states) - 1):
+        action = interceptor_states[i]['action']
+
+        # Extract thrust command (normalized -1 to 1)
+        thrust_normalized = action[0:3]
+
+        # Scale to actual thrust force (500N max per component)
+        thrust_force = thrust_normalized * 500.0
+
+        # Calculate drag
+        vel_mag = np.linalg.norm(vel)
+        if vel_mag > 1e-6:
+            drag_force = -0.5 * air_density * drag_coef * cross_section * vel_mag**2 * (vel / vel_mag)
+        else:
+            drag_force = np.zeros(3)
+
+        # Total acceleration
+        accel = (thrust_force + drag_force) / mass + gravity
+
+        # Euler integration
+        vel = vel + accel * dt
+        pos = pos + vel * dt
+
+        # Keep above ground
+        if pos[2] < 0:
+            pos[2] = 0
+            vel[2] = max(0, vel[2])
+
+        positions.append(pos.copy())
+
+    return np.array(positions)
+
+
 def visualize_episode(jsonl_path):
     """Create interactive 3D visualization of episode with time scrubbing."""
     jsonl_path = Path(jsonl_path)
@@ -67,9 +127,12 @@ def visualize_episode(jsonl_path):
         print("Error: No trajectory data found")
         return
 
-    # Extract positions
-    int_positions = np.array([s['pos'] for s in interceptor_states])
+    # Simulate interceptor physics with actions
+    print("Simulating physics with thrust actions...")
+    int_positions = simulate_interceptor_physics(interceptor_states)
     mis_positions = np.array([s['pos'] for s in missile_states])
+
+    print(f"Simulated {len(int_positions)} interceptor positions")
 
     # Normalize timestamps
     t0 = min(interceptor_states[0]['time'], missile_states[0]['time'])
@@ -137,11 +200,19 @@ def visualize_episode(jsonl_path):
     # Distance line
     dist_line = ax.plot([], [], [], 'k--', linewidth=1, alpha=0.5)[0]
 
+    # Thrust vector arrow
+    thrust_arrow = None
+
     # Title
     outcome_text = 'INTERCEPTED ✓' if intercepted else 'MISSED ✗'
     outcome_color = 'green' if intercepted else 'red'
     title = ax.text2D(0.5, 0.95, '', transform=ax.transAxes,
                       ha='center', fontsize=14, weight='bold')
+
+    # Action display
+    action_text = ax.text2D(0.02, 0.90, '', transform=ax.transAxes,
+                           ha='left', fontsize=10, family='monospace',
+                           bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
 
     ax.legend(loc='upper left', fontsize=10)
 
@@ -176,6 +247,7 @@ def visualize_episode(jsonl_path):
     timer = [None]
 
     def update(frame):
+        nonlocal thrust_arrow
         frame = int(frame)
 
         # Map frame to actual indices
@@ -209,11 +281,42 @@ def visualize_episode(jsonl_path):
         dist_line.set_data([int_pos[0], mis_pos[0]], [int_pos[1], mis_pos[1]])
         dist_line.set_3d_properties([int_pos[2], mis_pos[2]])
 
+        # Update thrust vector arrow
+        if thrust_arrow is not None:
+            thrust_arrow.remove()
+            thrust_arrow = None
+
+        if int_idx < len(interceptor_states) and interceptor_states[int_idx]['action'] is not None:
+            action = interceptor_states[int_idx]['action']
+            thrust = action[0:3] * 100.0  # Scale for visibility (action is -1 to 1, scale to ~100m vectors)
+
+            # Draw thrust vector as arrow from interceptor position
+            thrust_arrow = ax.quiver(
+                int_pos[0], int_pos[1], int_pos[2],
+                thrust[0], thrust[1], thrust[2],
+                color='orange', arrow_length_ratio=0.3, linewidth=3, alpha=0.9,
+                label='Thrust Vector'
+            )
+
         # Update title
         current_time = int_times[int_idx]
         distance = np.linalg.norm(int_pos - mis_pos)
         title.set_text(f'Time: {current_time:.2f}s | Distance: {distance:.1f}m | {outcome_text}')
         title.set_color(outcome_color if frame >= num_frames - 1 else 'black')
+
+        # Update action display
+        if int_idx < len(interceptor_states) and interceptor_states[int_idx]['action'] is not None:
+            action = interceptor_states[int_idx]['action']
+            thrust = action[0:3]
+            angular = action[3:6]
+            action_str = (
+                f"Policy Action:\n"
+                f"Thrust:  [{thrust[0]:+.2f}, {thrust[1]:+.2f}, {thrust[2]:+.2f}]\n"
+                f"Angular: [{angular[0]:+.2f}, {angular[1]:+.2f}, {angular[2]:+.2f}]"
+            )
+            action_text.set_text(action_str)
+        else:
+            action_text.set_text("No action data")
 
         fig.canvas.draw_idle()
 
@@ -273,8 +376,8 @@ def visualize_episode(jsonl_path):
             base_path[0] = new_path
             current_episode[0] = episode_num
 
-            # Recalculate everything
-            int_positions = np.array([s['pos'] for s in interceptor_states])
+            # Recalculate everything with physics simulation
+            int_positions = simulate_interceptor_physics(interceptor_states)
             mis_positions = np.array([s['pos'] for s in missile_states])
 
             t0 = min(interceptor_states[0]['time'], missile_states[0]['time'])
