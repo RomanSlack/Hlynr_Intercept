@@ -72,16 +72,16 @@ class CustomTrainingCallback(BaseCallback):
             # Get rollout info from the model's logger
             if hasattr(self.model, '_logger') and self.model._logger:
                 rollout_info = self.model._logger.name_to_value
-                
+
                 # Log key metrics
                 for key in ['policy_gradient_loss', 'value_loss', 'entropy_loss', 'approx_kl', 'clip_fraction']:
                     if key in rollout_info:
                         self.tb_writer.add_scalar(f'train/{key}', rollout_info[key], self.num_timesteps)
-                
+
                 # Adaptive clip range based on KL divergence
                 if 'clip_fraction' in rollout_info:
                     clip_fraction = rollout_info['clip_fraction']
-                    
+
                     if self.clip_adapt.get('enabled', True) and clip_fraction > self.clip_threshold:
                         self.clip_violations += 1
                         if self.clip_violations >= 3:
@@ -94,59 +94,88 @@ class CustomTrainingCallback(BaseCallback):
                             self.clip_violations = 0
                     else:
                         self.clip_violations = 0
-            
+
+                # Log interception success rate from episode buffer if available
+                if 'ep_success_buffer' in rollout_info:
+                    success_rate = rollout_info['ep_success_buffer'] * 100
+                    self.tb_writer.add_scalar('rollout/success_rate_pct', success_rate, self.num_timesteps)
+
             # Log current learning rate and entropy
             self.tb_writer.add_scalar('train/learning_rate', self.model.learning_rate, self.num_timesteps)
             self.tb_writer.add_scalar('train/entropy_coef', self.model.ent_coef, self.num_timesteps)
-        
+
         # Log to unified logger
         metrics = {
             'timesteps': self.num_timesteps,
             'entropy_coef': self.model.ent_coef,
             'learning_rate': self.model.learning_rate
         }
-        
+
         if hasattr(self.model, 'logger') and self.model.logger:
             if hasattr(self.model.logger, 'name_to_value'):
                 metrics.update(self.model.logger.name_to_value)
-        
+
         self.unified_logger.log_training_step(self.num_timesteps, metrics)
 
 
 class EpisodeLoggingCallback(BaseCallback):
-    """Callback for detailed episode logging."""
-    
+    """Callback for detailed episode logging with interception tracking."""
+
     def __init__(self, logger: UnifiedLogger, log_interval: int = 100):
         super().__init__()
         self.unified_logger = logger
+        self.tb_writer = logger.get_tensorboard_writer()
         self.log_interval = log_interval
         self.episode_count = 0
         self.episode_rewards = []
         self.episode_lengths = []
-        
+        self.interceptions = []  # Track successful interceptions
+
     def _on_step(self) -> bool:
-        """Log episode data."""
+        """Log episode data including interception success."""
         # Check for episode end
         if self.locals.get('dones', [False])[0]:
             self.episode_count += 1
-            
+
             # Get episode info
             info = self.locals.get('infos', [{}])[0]
             episode_reward = info.get('episode', {}).get('r', 0)
             episode_length = info.get('episode', {}).get('l', 0)
-            
+
+            # Track interception success
+            intercepted = info.get('intercepted', False)
+
             self.episode_rewards.append(episode_reward)
             self.episode_lengths.append(episode_length)
-            
+            self.interceptions.append(1.0 if intercepted else 0.0)
+
+            # Log to TensorBoard
+            if self.tb_writer:
+                self.tb_writer.add_scalar(
+                    'episode/intercepted',
+                    1.0 if intercepted else 0.0,
+                    self.num_timesteps
+                )
+
             # Log every N episodes
             if self.episode_count % self.log_interval == 0:
+                success_rate = np.mean(self.interceptions[-100:]) * 100
                 self.unified_logger.log_metrics({
                     'episode': self.episode_count,
                     'mean_reward': np.mean(self.episode_rewards[-100:]),
                     'mean_length': np.mean(self.episode_lengths[-100:]),
+                    'success_rate_pct': success_rate,
                     'total_timesteps': self.num_timesteps
                 })
-        
+
+                # Log success rate to TensorBoard
+                if self.tb_writer:
+                    self.tb_writer.add_scalar(
+                        'episode/success_rate_pct',
+                        success_rate,
+                        self.num_timesteps
+                    )
+
         return True
 
 
