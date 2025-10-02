@@ -333,7 +333,9 @@ class InterceptEnvironment(gym.Env):
         physics_start = time.time() if self.physics_timing_enabled else None
 
         # Extract thrust and angular commands from action
-        thrust_cmd_desired = action[0:3] * 500.0  # Scale to N
+        # PAC-3 interceptor has extremely high thrust-to-weight ratio (>20)
+        # This gives ~40 m/s^2 acceleration capability for aggressive pursuit
+        thrust_cmd_desired = action[0:3] * 10000.0  # Scale to N (realistic interceptor thrust)
         angular_cmd = action[3:6] * 2.0   # Scale to rad/s
 
         # Apply thrust dynamics (first-order lag response)

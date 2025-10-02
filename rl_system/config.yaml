@@ -16,12 +16,13 @@ environment:
   # Interceptor launches from defended target location (realistic BMD)
   interceptor_spawn:
     position: [[0, 0, 0], [50, 50, 10]]  # Launch from target area, ground level
-    velocity: [[20, 20, 40], [40, 40, 80]]  # Slower initial launch (must accelerate to intercept)
+    velocity: [[20, 20, 40], [40, 40, 80]]  # Initial launch velocity
 
-  # Incoming ballistic missile - far away, high altitude, descending toward target
+  # Incoming ballistic missile - mid-range threat
+  # Reduced from 4-7km to 2-4km to make learning feasible with current physics
   missile_spawn:
-    position: [[3000, 3000, 3000], [5000, 5000, 5000]]  # 4-7km away, 3-5km altitude
-    velocity: [[-120, -120, -60], [-180, -180, -80]]  # Moderate descent toward origin (negative velocity)
+    position: [[1500, 1500, 1500], [3000, 3000, 3000]]  # 2-4km away, 1.5-3km altitude
+    velocity: [[-100, -100, -50], [-150, -150, -70]]  # Descending toward origin
   
   # Physics
   gravity: [0, 0, -9.81]  # m/s^2
@@ -34,7 +35,7 @@ environment:
     variability: 0.1  # Wind variation factor
   
   # Radar system
-  radar_range: 5000.0  # Maximum radar detection range (m)
+  radar_range: 8000.0  # Maximum radar detection range (m) - increased to detect threats at spawn
   radar_noise: 0.05  # Radar measurement noise level
   radar_quality: 1.0  # Initial radar quality (0-1)
   radar_beam_width: 60.0  # Radar beam width in degrees
@@ -49,12 +50,12 @@ curriculum:
   enabled: true  # Enable curriculum learning for intercept radius
   initial_radius: 200.0  # Start with 200m intercept radius (easy to achieve)
   final_radius: 20.0  # End with 20m intercept radius (realistic proximity fuse)
-  curriculum_steps: 5000000  # Linearly decrease radius over 5M training steps
+  curriculum_steps: 20000000  # Linearly decrease radius over 20M training steps (SLOWED DOWN 4x)
 
 # Training configuration
 training:
   # Algorithm parameters - improved for complex multi-stage task
-  total_timesteps: 2500000  # 5M steps for thorough training
+  total_timesteps: 20000000  # 20M steps for thorough curriculum training (was 5M)
   n_envs: 16  # More parallel environments for better sampling
   learning_rate: 0.0001  # Lower LR for stable learning
   n_steps: 4096  # More experience per update
@@ -138,12 +139,12 @@ checkpointing:
 
 # Safety constraints
 safety:
-  max_acceleration: 50.0  # m/s^2
+  max_acceleration: 200.0  # m/s^2 (increased for realistic interceptor performance)
   max_angular_rate: 5.0  # rad/s
   max_gimbal_angle: 0.785  # 45 degrees in radians
   min_thrust: 0.0
   max_thrust: 1.0
-  fuel_depletion_rate: 0.1  # kg/s at max thrust
+  fuel_depletion_rate: 0.2  # kg/s at max thrust (increased with higher thrust)
 
 # Advanced Physics v2.0 Configuration
 physics_enhancements:

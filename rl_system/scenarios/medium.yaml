@@ -15,8 +15,8 @@ environment:
 
   # Incoming threat - standard distance and speed
   missile_spawn:
-    position: [[3500, 3500, 3500], [5500, 5500, 5500]]  # 5-8km away, 3.5-5.5km altitude
-    velocity: [[-130, -130, -65], [-190, -190, -85]]  # Standard descent toward origin
+    position: [[1800, 1800, 1800], [3200, 3200, 3200]]  # 2.5-4.5km away
+    velocity: [[-110, -110, -55], [-160, -160, -75]]  # Standard descent toward origin
 
   # Extended episode length
   max_steps: 2000  # 20 seconds
