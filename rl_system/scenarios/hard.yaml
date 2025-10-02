@@ -13,10 +13,10 @@ environment:
     position: [[0, 0, 0], [70, 70, 15]]  # Launch from target area (wider variation)
     velocity: [[10, 10, 30], [35, 35, 70]]  # Slow launch (challenging)
 
-  # Incoming threat - far distance, high speed, high altitude
+  # Incoming threat - far distance, high speed
   missile_spawn:
-    position: [[4500, 4500, 4500], [7000, 7000, 7000]]  # 6-10km away, very high altitude
-    velocity: [[-160, -160, -85], [-240, -240, -120]]  # Fast aggressive descent toward origin
+    position: [[2500, 2500, 2500], [4000, 4000, 4000]]  # 3.5-5.5km away
+    velocity: [[-140, -140, -75], [-200, -200, -100]]  # Fast aggressive descent toward origin
 
   # Extended episode length
   max_steps: 2000  # 20 seconds
