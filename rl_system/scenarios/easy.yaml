@@ -5,16 +5,18 @@ description: Simple scenario for initial training and testing
 difficulty: 1
 
 environment:
-  # Easy scenario - close initial positions, high altitude for learning
-  missile_spawn:
-    position: [[300, 300, 700], [450, 450, 900]]  # High altitude, close
-    velocity: [[60, 60, -35], [90, 90, -50]]  # Slower descent
+  # Easy scenario - realistic BMD geometry but closer and slower
+  target_position: [0, 0, 0]  # Defended target at origin
 
+  # Interceptor launches from defended target
   interceptor_spawn:
-    position: [[150, 150, 250], [250, 250, 350]]  # Close starting position
-    velocity: [[90, 90, 45], [130, 130, 65]]  # Fast upward pursuit
+    position: [[0, 0, 0], [30, 30, 10]]  # Launch from target area
+    velocity: [[30, 30, 50], [50, 50, 90]]  # Moderate launch (still easier than standard)
 
-  target_position: [800, 800, 5]  # Closer target
+  # Incoming threat - closer and slower for easier learning
+  missile_spawn:
+    position: [[2000, 2000, 2500], [3500, 3500, 4000]]  # 3-5km away, 2.5-4km altitude
+    velocity: [[-80, -80, -40], [-120, -120, -60]]  # Slower descent toward origin
 
   # Extended episode length for learning
   max_steps: 2000  # 20 seconds
