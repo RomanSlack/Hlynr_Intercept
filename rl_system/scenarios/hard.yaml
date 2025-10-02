@@ -5,16 +5,18 @@ description: Difficult scenario with aggressive missiles and poor conditions
 difficulty: 3
 
 environment:
-  # Hard scenario - challenging high-altitude intercepts with fast missiles
-  missile_spawn:
-    position: [[350, 350, 1000], [700, 700, 1500]]  # Very high, wide variation
-    velocity: [[90, 90, -55], [140, 140, -80]]  # Fast ballistic descent
+  # Hard scenario - realistic BMD geometry with challenging conditions
+  target_position: [0, 0, 0]  # Defended target at origin
 
+  # Interceptor launches from defended target
   interceptor_spawn:
-    position: [[150, 150, 200], [400, 400, 500]]  # Wide spawn variation
-    velocity: [[70, 70, 35], [130, 130, 70]]  # Must accelerate aggressively
+    position: [[0, 0, 0], [70, 70, 15]]  # Launch from target area (wider variation)
+    velocity: [[10, 10, 30], [35, 35, 70]]  # Slow launch (challenging)
 
-  target_position: [1200, 1200, 5]  # Distant target
+  # Incoming threat - far distance, high speed, high altitude
+  missile_spawn:
+    position: [[4500, 4500, 4500], [7000, 7000, 7000]]  # 6-10km away, very high altitude
+    velocity: [[-160, -160, -85], [-240, -240, -120]]  # Fast aggressive descent toward origin
 
   # Extended episode length
   max_steps: 2000  # 20 seconds

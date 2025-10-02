@@ -7,18 +7,21 @@ environment:
   max_range: 10000.0  # Maximum radar range (m)
   max_velocity: 1000.0  # Maximum velocity for normalization (m/s)
 
-  # Realistic ballistic missile interception geometry
-  # Missiles spawn at HIGH altitude (like real ballistic trajectory)
-  # Interceptors spawn at LOWER altitude in pursuit position
-  missile_spawn:
-    position: [[400, 400, 800], [600, 600, 1200]]  # High altitude ballistic trajectory
-    velocity: [[60, 60, -40], [100, 100, -60]]  # Descending toward target
+  # Realistic ballistic missile defense geometry
+  # DEFENDED TARGET: Origin point (city/installation to protect)
+  # INTERCEPTOR: Launches FROM the defended target location (ground-based defense)
+  # THREAT: Incoming ballistic missile from distance, high altitude, descending toward target
+  target_position: [0, 0, 0]  # Defended target at origin (e.g., city center)
 
+  # Interceptor launches from defended target location (realistic BMD)
   interceptor_spawn:
-    position: [[200, 200, 200], [350, 350, 400]]  # Lower altitude, behind and below
-    velocity: [[80, 80, 40], [120, 120, 60]]  # Fast upward pursuit (realistic interceptor)
+    position: [[0, 0, 0], [50, 50, 10]]  # Launch from target area, ground level
+    velocity: [[20, 20, 40], [40, 40, 80]]  # Slower initial launch (must accelerate to intercept)
 
-  target_position: [1000, 1000, 5]  # Target location to defend
+  # Incoming ballistic missile - far away, high altitude, descending toward target
+  missile_spawn:
+    position: [[3000, 3000, 3000], [5000, 5000, 5000]]  # 4-7km away, 3-5km altitude
+    velocity: [[-120, -120, -60], [-180, -180, -80]]  # Moderate descent toward origin (negative velocity)
   
   # Physics
   gravity: [0, 0, -9.81]  # m/s^2
@@ -39,6 +42,14 @@ environment:
   
   # Missile behavior
   missile_evasion: false  # Enable missile evasion maneuvers
+
+# Curriculum Learning Configuration
+# Progressive difficulty: Start easy (large intercept radius), gradually increase difficulty
+curriculum:
+  enabled: true  # Enable curriculum learning for intercept radius
+  initial_radius: 200.0  # Start with 200m intercept radius (easy to achieve)
+  final_radius: 20.0  # End with 20m intercept radius (realistic proximity fuse)
+  curriculum_steps: 5000000  # Linearly decrease radius over 5M training steps
 
 # Training configuration
 training:

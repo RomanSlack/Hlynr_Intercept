@@ -138,7 +138,34 @@ class InterceptEnvironment(gym.Env):
 
         # Track last detection info for reward calculation
         self.last_detection_info = None
-        
+
+        # Curriculum learning: Progressive intercept radius
+        # Start with larger radius (easier), gradually decrease to realistic 20m
+        # This allows agent to first learn "get close" before learning "precise intercept"
+        self.curriculum_config = self.config.get('curriculum', {})
+        self.use_curriculum = self.curriculum_config.get('enabled', True)
+        self.initial_intercept_radius = self.curriculum_config.get('initial_radius', 200.0)  # Start easy
+        self.final_intercept_radius = self.curriculum_config.get('final_radius', 20.0)  # End realistic
+        self.curriculum_steps = self.curriculum_config.get('curriculum_steps', 5000000)  # Over 5M steps
+        self.training_step_count = 0  # Track global training steps for curriculum
+
+    def get_current_intercept_radius(self) -> float:
+        """
+        Calculate current intercept radius based on curriculum progress.
+        Linearly interpolates from initial (easy) to final (realistic) radius.
+        """
+        if not self.use_curriculum:
+            return self.final_intercept_radius
+
+        # Linear interpolation based on training progress
+        progress = min(1.0, self.training_step_count / self.curriculum_steps)
+        radius = self.initial_intercept_radius * (1.0 - progress) + self.final_intercept_radius * progress
+        return radius
+
+    def set_training_step_count(self, step_count: int):
+        """Update global training step count for curriculum learning."""
+        self.training_step_count = step_count
+
     def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
         """Reset environment to initial state."""
         super().reset(seed=seed)
@@ -254,8 +281,11 @@ class InterceptEnvironment(gym.Env):
         distance = np.linalg.norm(
             self.missile_state['position'] - self.interceptor_state['position']
         )
-        # Realistic proximity fuse radius (PAC-3 has 15-20m lethal radius)
-        intercepted = distance < 20.0  # 20m interception radius
+
+        # Curriculum-based intercept radius (200m -> 20m over training)
+        # This allows agent to first learn "get close", then gradually refine to precise interception
+        current_radius = self.get_current_intercept_radius()
+        intercepted = distance < current_radius
         
         # Check termination conditions
         terminated = False
@@ -527,22 +557,52 @@ class InterceptEnvironment(gym.Env):
                 # Penalty for losing track - agent must re-acquire
                 reward -= 1.0
 
-        # 3. PROXIMITY BONUS (exponential reward as distance decreases)
-        # Provides strong gradient near interception
+        # 3. ENHANCED TERMINAL HOMING REWARDS (exponential shaping)
+        # Critical fix: Strong exponential rewards as distance decreases
+        # This provides much stronger gradient for terminal guidance phase
         if distance < 500.0:
-            proximity_reward = (500.0 - distance) / 500.0 * 2.0
+            # Moderate exponential reward when approaching
+            proximity_reward = 10.0 * np.exp(-distance / 200.0)
             reward += proximity_reward
 
-        if distance < 100.0:
-            # Extra bonus when very close
-            close_proximity_reward = (100.0 - distance) / 100.0 * 5.0
-            reward += close_proximity_reward
+        if distance < 200.0:
+            # Strong exponential reward in terminal phase
+            terminal_reward = 50.0 * np.exp(-distance / 50.0)
+            reward += terminal_reward
 
-        # 4. VELOCITY ALIGNMENT REWARD (pursue optimal intercept geometry)
-        # Encourages pointing velocity vector toward missile
+        if distance < 50.0:
+            # Extreme reward very close to interception
+            # This prevents agent from flying past the target
+            close_terminal_reward = 100.0 * np.exp(-distance / 20.0)
+            reward += close_terminal_reward
+
+        # 4. CLOSING VELOCITY REWARD (critical for terminal guidance)
+        # Reward high closing rate to prevent flyby misses
+        # This directly addresses the "get close then diverge" problem
         int_vel = self.interceptor_state['velocity']
+        mis_vel = self.missile_state['velocity']
+        relative_vel = int_vel - mis_vel
         to_missile = self.missile_state['position'] - self.interceptor_state['position']
 
+        if distance > 1.0:  # Avoid division by zero
+            # Calculate closing velocity (negative = closing, positive = opening)
+            closing_velocity = -np.dot(relative_vel, to_missile / distance)
+
+            if closing_velocity > 0:
+                # Reward high closing speed (approaching target)
+                reward += closing_velocity * 0.1
+
+                # Extra reward for high closing speed in terminal phase
+                if distance < 200.0:
+                    reward += closing_velocity * 0.2
+            else:
+                # Penalty for opening (moving away from target)
+                # This prevents the flyby problem
+                if distance < 200.0:
+                    reward += closing_velocity * 0.3  # Negative penalty
+
+        # 5. VELOCITY ALIGNMENT REWARD (pursue optimal intercept geometry)
+        # Encourages pointing velocity vector toward missile
         int_vel_mag = np.linalg.norm(int_vel)
         to_missile_mag = np.linalg.norm(to_missile)
 
@@ -551,7 +611,7 @@ class InterceptEnvironment(gym.Env):
             vel_alignment = np.dot(int_vel, to_missile) / (int_vel_mag * to_missile_mag)
             reward += vel_alignment * 0.5
 
-        # 5. SMALL TIME PENALTY (encourages action but doesn't dominate)
+        # 6. SMALL TIME PENALTY (encourages action but doesn't dominate)
         reward -= 0.05
 
         # Store distance for next step

@@ -62,7 +62,15 @@ class CustomTrainingCallback(BaseCallback):
             progress = min(self.num_timesteps / self.entropy_decay_steps, 1.0)
             entropy_coef = self.initial_entropy * (1 - progress) + self.final_entropy * progress
             self.model.ent_coef = entropy_coef
-        
+
+        # Update curriculum learning progress in all environments
+        # This allows intercept radius to gradually decrease during training
+        if hasattr(self.training_env, 'env_method'):
+            try:
+                self.training_env.env_method('set_training_step_count', self.num_timesteps)
+            except AttributeError:
+                pass  # Environment doesn't support curriculum learning
+
         return True
     
     def _on_rollout_end(self):
@@ -103,6 +111,15 @@ class CustomTrainingCallback(BaseCallback):
             # Log current learning rate and entropy
             self.tb_writer.add_scalar('train/learning_rate', self.model.learning_rate, self.num_timesteps)
             self.tb_writer.add_scalar('train/entropy_coef', self.model.ent_coef, self.num_timesteps)
+
+            # Log curriculum learning progress (intercept radius)
+            if hasattr(self.training_env, 'get_attr'):
+                try:
+                    # Get current intercept radius from first environment
+                    radius = self.training_env.get_attr('get_current_intercept_radius')[0]()
+                    self.tb_writer.add_scalar('curriculum/intercept_radius_m', radius, self.num_timesteps)
+                except (AttributeError, IndexError):
+                    pass  # Environment doesn't support curriculum or method not available
 
         # Log to unified logger
         metrics = {
