@@ -245,7 +245,11 @@ class InferenceServer:
                 # Normalize observation if VecNormalize is available
                 if self.vec_normalize:
                     obs = self.vec_normalize.normalize_obs(obs.reshape(1, -1))[0]
-                
+                else:
+                    # Fallback: Simple clipping to prevent extreme values
+                    # Observation space is defined as [-1, 1], ensure compliance
+                    obs = np.clip(obs, -1.0, 1.0)
+
                 # Get action from model
                 action, _ = self.model.predict(obs, deterministic=True)
                 
@@ -456,8 +460,9 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
             if vec_normalize:
                 norm_obs = vec_normalize.normalize_obs(obs.reshape(1, -1))[0]
             else:
-                norm_obs = obs
-            
+                # Fallback: Simple clipping to prevent extreme values
+                norm_obs = np.clip(obs, -1.0, 1.0)
+
             # Get action
             action, _ = model.predict(norm_obs, deterministic=True)
             

@@ -60,11 +60,15 @@ class InterceptVisualizer:
 
         # Load VecNormalize if exists
         vec_normalize_path = model_path.parent / "vec_normalize.pkl"
+        self.has_vecnormalize = False
         if vec_normalize_path.exists():
             env = VecNormalize.load(str(vec_normalize_path), env)
             env.training = False
             env.norm_reward = False
+            self.has_vecnormalize = True
             print("✓ Loaded VecNormalize statistics")
+        else:
+            print("⚠️  VecNormalize not found - using observation clipping fallback")
 
         self.env = env
 
@@ -146,6 +150,10 @@ class InterceptVisualizer:
         missile_state = self.env.get_attr('missile_state')[0]
 
         while not done and self.step_count < 2000:
+            # Apply observation clipping fallback if VecNormalize not available
+            if not self.has_vecnormalize:
+                obs = np.clip(obs, -1.0, 1.0)
+
             # Get action from model
             action, _states = self.model.predict(obs, deterministic=True)
 

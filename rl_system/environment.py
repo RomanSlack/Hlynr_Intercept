@@ -631,122 +631,53 @@ class InterceptEnvironment(gym.Env):
     def _calculate_reward(self, distance: float, intercepted: bool, terminated: bool,
                          missile_hit_target: bool = False) -> float:
         """
-        Calculate step reward with dense shaping.
+        Simplified reward function for stable learning.
 
-        This reward function uses ONLY information available through radar observations
-        plus internal interceptor state (fuel, position). The distance is calculated
-        internally but corresponds to what the agent can infer from radar detections.
+        Design: Sparse terminal rewards + minimal dense shaping.
+        Removes overlapping exponential bonuses that create local optima.
+
+        Uses ONLY information from radar observations (distance inferred from radar)
+        plus internal interceptor state. No omniscient data to policy.
         """
         reward = 0.0
 
+        # Terminal rewards (only at episode end)
         if intercepted:
-            # Successful interception - major reward
+            # Successful interception - MISSION SUCCESS
             reward = 200.0
-
-            # Bonus for fuel efficiency (encourages optimal trajectories)
-            fuel_bonus = self.interceptor_state['fuel'] * 1.0
-            reward += fuel_bonus
-
-            # Bonus for quick interception (encourages aggressive pursuit)
-            time_bonus = (self.max_steps - self.steps) * 0.2
+            # Time bonus for quick interception
+            time_bonus = (self.max_steps - self.steps) * 0.1
             reward += time_bonus
-
             return reward
 
         if terminated:
-            # Failed interception - apply penalties based on outcome
+            # Failed interception
             if missile_hit_target:
-                # Missile hit the defended target - MISSION FAILURE (worst outcome)
+                # Missile hit target - MISSION FAILURE (worst outcome)
                 reward = -500.0
             elif self.missile_state['position'][2] <= 0:
-                # Missile hit ground away from target - partial failure
+                # Missile hit ground away from target
                 reward = -100.0
             elif self.interceptor_state['position'][2] < 0:
-                # Interceptor crashed - failure
+                # Interceptor crashed
                 reward = -100.0
-
             return reward
 
-        # Dense shaping rewards for ongoing episode
+        # Dense shaping (during episode)
         prev_distance = getattr(self, '_prev_distance', distance)
 
-        # 1. CLOSING DISTANCE REWARD (primary shaping signal)
-        # This is the most important reward - strongly incentivize reducing distance
+        # 1. PRIMARY: Reward for reducing distance (simple delta)
         distance_delta = prev_distance - distance
-        reward += distance_delta * 1.0  # Much stronger than before (was 0.1)
+        reward += distance_delta * 0.5  # Scaled to prevent domination
 
-        # 2. RADAR TRACKING REWARD (critical for maintaining lock)
-        # Agent must learn to keep missile in radar beam to track and intercept
-        if self.last_detection_info:
-            detected = self.last_detection_info.get('detected', False)
-            radar_quality = self.last_detection_info.get('radar_quality', 0.0)
-
-            if detected:
-                # Bonus for maintaining radar lock
-                reward += 0.5
-
-                # Additional bonus for high-quality track
-                reward += radar_quality * 0.3
-            else:
-                # Penalty for losing track - agent must re-acquire
-                reward -= 1.0
-
-        # 3. ENHANCED TERMINAL HOMING REWARDS (exponential shaping)
-        # Critical fix: Strong exponential rewards as distance decreases
-        # This provides much stronger gradient for terminal guidance phase
-        if distance < 500.0:
-            # Moderate exponential reward when approaching
-            proximity_reward = 10.0 * np.exp(-distance / 200.0)
+        # 2. SECONDARY: Single exponential proximity bonus (only in terminal phase)
+        # Provides strong gradient when close, unlike overlapping bonuses
+        if distance < 200.0:
+            proximity_reward = 30.0 * np.exp(-distance / 50.0)
             reward += proximity_reward
 
-        if distance < 200.0:
-            # Strong exponential reward in terminal phase
-            terminal_reward = 50.0 * np.exp(-distance / 50.0)
-            reward += terminal_reward
-
-        if distance < 50.0:
-            # Extreme reward very close to interception
-            # This prevents agent from flying past the target
-            close_terminal_reward = 100.0 * np.exp(-distance / 20.0)
-            reward += close_terminal_reward
-
-        # 4. CLOSING VELOCITY REWARD (critical for terminal guidance)
-        # Reward high closing rate to prevent flyby misses
-        # This directly addresses the "get close then diverge" problem
-        int_vel = self.interceptor_state['velocity']
-        mis_vel = self.missile_state['velocity']
-        relative_vel = int_vel - mis_vel
-        to_missile = self.missile_state['position'] - self.interceptor_state['position']
-
-        if distance > 1.0:  # Avoid division by zero
-            # Calculate closing velocity (negative = closing, positive = opening)
-            closing_velocity = -np.dot(relative_vel, to_missile / distance)
-
-            if closing_velocity > 0:
-                # Reward high closing speed (approaching target)
-                reward += closing_velocity * 0.1
-
-                # Extra reward for high closing speed in terminal phase
-                if distance < 200.0:
-                    reward += closing_velocity * 0.2
-            else:
-                # Penalty for opening (moving away from target)
-                # This prevents the flyby problem
-                if distance < 200.0:
-                    reward += closing_velocity * 0.3  # Negative penalty
-
-        # 5. VELOCITY ALIGNMENT REWARD (pursue optimal intercept geometry)
-        # Encourages pointing velocity vector toward missile
-        int_vel_mag = np.linalg.norm(int_vel)
-        to_missile_mag = np.linalg.norm(to_missile)
-
-        if int_vel_mag > 10.0 and to_missile_mag > 10.0:
-            # Calculate alignment (cosine similarity)
-            vel_alignment = np.dot(int_vel, to_missile) / (int_vel_mag * to_missile_mag)
-            reward += vel_alignment * 0.5
-
-        # 6. SMALL TIME PENALTY (encourages action but doesn't dominate)
-        reward -= 0.05
+        # 3. SMALL TIME PENALTY: Encourages speed without dominating other signals
+        reward -= 0.01
 
         # Store distance for next step
         self._prev_distance = distance

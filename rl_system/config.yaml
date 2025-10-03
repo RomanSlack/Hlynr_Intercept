@@ -73,7 +73,7 @@ curriculum:
   enabled: true  # Enable curriculum learning for intercept radius
   initial_radius: 200.0  # Start with 200m intercept radius (easy to achieve)
   final_radius: 20.0  # End with 20m intercept radius (realistic proximity fuse)
-  curriculum_steps: 3000000  # Linearly decrease radius over 20M training steps (SLOWED DOWN 4x)
+  curriculum_steps: 2000000  # Match total_timesteps to reach final difficulty
 
   # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
   # Early training: More reliable radar detection to help learning
@@ -99,13 +99,13 @@ curriculum:
 
 # Training configuration
 training:
-  # Algorithm parameters - improved for complex multi-stage task
-  total_timesteps: 2000000  # 20M steps for thorough curriculum training (was 5M)
-  n_envs: 16  # More parallel environments for better sampling
-  learning_rate: 0.0001  # Lower LR for stable learning
-  n_steps: 4096  # More experience per update
-  batch_size: 256  # Larger batches for stable gradients
-  n_epochs: 20  # More optimization per rollout
+  # Algorithm parameters - optimized for faster learning signal propagation
+  total_timesteps: 2000000  # 2M steps with proper curriculum alignment
+  n_envs: 16  # Parallel environments for sampling
+  learning_rate: 0.0001  # Stable learning rate
+  n_steps: 1024  # Reduced for more frequent updates (16x faster feedback)
+  batch_size: 256  # Batch size for stable gradients
+  n_epochs: 10  # Reduced epochs to match smaller rollouts
   gamma: 0.995  # Longer horizon for multi-stage interception
   gae_lambda: 0.98  # More credit to future rewards
   clip_range: 0.2
@@ -124,9 +124,9 @@ training:
   # Adaptive features - more exploration initially for multi-stage learning
   entropy_schedule:
     enabled: true
-    initial: 0.1  # Much higher initial exploration
-    final: 0.01
-    decay_steps: 8000000  # Longer decay matching extended training (40% of 20M)
+    initial: 0.05  # Moderate initial exploration
+    final: 0.001  # Low final entropy for precise terminal guidance
+    decay_steps: 400000  # Decay over first 20% of training (400k of 2M steps)
   
   lr_schedule:
     enabled: true
@@ -221,18 +221,18 @@ physics_enhancements:
     radar_delay_ms: 30.0  # Radar processing delay in milliseconds (when enabled)
     # Buffer size automatically calculated from delay and simulation timestep
 
-  # Mach-dependent drag effects
+  # Mach-dependent drag effects (disabled for baseline training)
   mach_effects:
-    enabled: true
+    enabled: false  # Disable complex drag for initial learning
     # Drag curve parameters
     subsonic_mach: 0.8  # Mach number where transonic effects begin
     supersonic_mach: 1.2  # Mach number where supersonic regime starts
     transonic_peak_multiplier: 3.0  # Peak drag multiplier in transonic regime
     supersonic_multiplier: 2.5  # Steady supersonic drag multiplier
 
-  # Thrust dynamics and engine response
+  # Thrust dynamics and engine response (disabled for baseline training)
   thrust_dynamics:
-    enabled: true
+    enabled: false  # Disable thrust lag for initial learning
     response_time_constant: 0.1  # seconds (100ms response time)
     # Thrust curve variations (future enhancement)
     enable_thrust_curves: false
@@ -255,9 +255,9 @@ physics_enhancements:
     # Logging
     log_randomization: true
 
-  # Enhanced wind modeling
+  # Enhanced wind modeling (disabled for baseline training)
   enhanced_wind:
-    enabled: true
+    enabled: false  # Disable complex wind for initial learning
     boundary_layer_height: 1000.0  # m
     surface_roughness: 0.1  # m
     turbulence_intensity: 0.1  # 10% baseline
