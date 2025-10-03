@@ -9,6 +9,10 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+# Fix CUDA initialization issues by ensuring clean environment
+os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+# Uncomment to force specific GPU: os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
 import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
@@ -19,6 +23,47 @@ from stable_baselines3.common.monitor import Monitor
 
 from environment import InterceptEnvironment
 from logger import UnifiedLogger, EpisodeEvent
+
+
+def get_device() -> str:
+    """
+    Intelligently detect and select compute device with graceful fallback.
+
+    Returns:
+        Device string: 'cuda', 'mps', or 'cpu'
+    """
+    if torch.cuda.is_available():
+        try:
+            # Clear any stale CUDA state
+            torch.cuda.empty_cache()
+
+            # Test CUDA availability with a small operation
+            test_tensor = torch.zeros(1, device='cuda')
+            _ = test_tensor + 1  # Simple operation to verify GPU works
+            del test_tensor
+            torch.cuda.empty_cache()
+
+            # Get GPU info
+            gpu_name = torch.cuda.get_device_name(0)
+            gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1e9
+            print(f"✓ Using CUDA device: {gpu_name} ({gpu_memory:.1f}GB)")
+            return 'cuda'
+        except RuntimeError as e:
+            error_msg = str(e)
+            if "out of memory" in error_msg.lower():
+                print(f"⚠️  GPU out of memory, falling back to CPU")
+            elif "busy" in error_msg.lower():
+                print(f"⚠️  GPU busy with another process, falling back to CPU")
+            else:
+                print(f"⚠️  CUDA error: {error_msg}")
+                print(f"⚠️  Falling back to CPU (training will be slower but functional)")
+            return 'cpu'
+    elif torch.backends.mps.is_available():
+        print(f"✓ Using MPS (Apple Silicon GPU) acceleration")
+        return 'mps'
+    else:
+        print(f"ℹ️  No GPU available, using CPU")
+        return 'cpu'
 
 
 class CustomTrainingCallback(BaseCallback):
@@ -234,12 +279,16 @@ def train(config_path: str):
         clip_reward=10.0
     )
     
+    # Detect available device with graceful fallback
+    device = get_device()
+    logger.logger.info(f"Using device: {device}")
+
     # Create model
     policy_kwargs = dict(
         net_arch=config['training'].get('net_arch', [256, 256]),
         activation_fn=torch.nn.ReLU
     )
-    
+
     model = PPO(
         "MlpPolicy",
         envs,
@@ -255,6 +304,7 @@ def train(config_path: str):
         max_grad_norm=config['training'].get('max_grad_norm', 0.5),
         policy_kwargs=policy_kwargs,
         tensorboard_log=str(logger.log_dir / "tensorboard"),
+        device=device,  # Explicitly set device with fallback
         verbose=1
     )
     
