@@ -75,6 +75,28 @@ curriculum:
   final_radius: 20.0  # End with 20m intercept radius (realistic proximity fuse)
   curriculum_steps: 3000000  # Linearly decrease radius over 20M training steps (SLOWED DOWN 4x)
 
+  # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
+  # Early training: More reliable radar detection to help learning
+  # Late training: Realistic radar with noise, dropouts, and narrow beams
+  radar_curriculum:
+    enabled: true
+
+    # Onboard radar beam width progression (degrees)
+    initial_beam_width: 120.0  # Wide beam for initial acquisition (realistic early warning mode)
+    final_beam_width: 60.0     # Narrow beam (realistic tracking mode)
+
+    # Onboard radar detection reliability progression (0-1)
+    initial_detection_reliability: 1.0   # Perfect detection when in beam and range
+    final_detection_reliability: 0.75    # Realistic 75% base reliability
+
+    # Ground radar detection reliability progression (0-1)
+    initial_ground_reliability: 1.0      # Perfect ground radar initially
+    final_ground_reliability: 0.85       # Realistic 85% base reliability
+
+    # Radar noise level progression (measurement error)
+    initial_noise_level: 0.0    # No measurement noise initially
+    final_noise_level: 0.05     # Realistic 5% measurement noise
+
 # Training configuration
 training:
   # Algorithm parameters - improved for complex multi-stage task
