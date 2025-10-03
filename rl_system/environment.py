@@ -100,6 +100,20 @@ class InterceptEnvironment(gym.Env):
         self.physics_timing_enabled = self.physics_config.get('performance', {}).get('log_physics_timing', False)
         self.physics_validation_enabled = self.physics_config.get('performance', {}).get('enable_physics_validation', True)
         
+        # Curriculum learning configuration - setup FIRST before using it
+        # Progressive intercept radius: Start with larger radius (easier), gradually decrease to realistic 20m
+        # This allows agent to first learn "get close" before learning "precise intercept"
+        self.curriculum_config = self.config.get('curriculum', {})
+        self.use_curriculum = self.curriculum_config.get('enabled', True)
+        self.initial_intercept_radius = self.curriculum_config.get('initial_radius', 200.0)  # Start easy
+        self.final_intercept_radius = self.curriculum_config.get('final_radius', 20.0)  # End realistic
+        self.curriculum_steps = self.curriculum_config.get('curriculum_steps', 5000000)  # Over 5M steps
+        self.training_step_count = 0  # Track global training steps for curriculum
+
+        # Radar curriculum learning: Progressive radar difficulty
+        self.radar_curriculum_config = self.curriculum_config.get('radar_curriculum', {})
+        self.use_radar_curriculum = self.radar_curriculum_config.get('enabled', True)
+
         # Radar configuration
         radar_config = self.config.get('radar', {})
         self.radar_noise = radar_config.get('radar_noise', 0.05)
@@ -157,20 +171,6 @@ class InterceptEnvironment(gym.Env):
 
         # Track last detection info for reward calculation
         self.last_detection_info = None
-
-        # Curriculum learning: Progressive intercept radius
-        # Start with larger radius (easier), gradually decrease to realistic 20m
-        # This allows agent to first learn "get close" before learning "precise intercept"
-        self.curriculum_config = self.config.get('curriculum', {})
-        self.use_curriculum = self.curriculum_config.get('enabled', True)
-        self.initial_intercept_radius = self.curriculum_config.get('initial_radius', 200.0)  # Start easy
-        self.final_intercept_radius = self.curriculum_config.get('final_radius', 20.0)  # End realistic
-        self.curriculum_steps = self.curriculum_config.get('curriculum_steps', 5000000)  # Over 5M steps
-        self.training_step_count = 0  # Track global training steps for curriculum
-
-        # Radar curriculum learning: Progressive radar difficulty
-        self.radar_curriculum_config = self.curriculum_config.get('radar_curriculum', {})
-        self.use_radar_curriculum = self.radar_curriculum_config.get('enabled', True)
 
     def get_current_intercept_radius(self) -> float:
         """
@@ -238,10 +238,28 @@ class InterceptEnvironment(gym.Env):
         # Initialize missile state
         mis_pos_min, mis_pos_max = self.missile_spawn_range['position']
         mis_vel_min, mis_vel_max = self.missile_spawn_range['velocity']
-        
+
+        missile_pos = np.random.uniform(mis_pos_min, mis_pos_max).astype(np.float32)
+
+        # Calculate velocity magnitude range from config
+        vel_mag_min = np.linalg.norm(mis_vel_min)
+        vel_mag_max = np.linalg.norm(mis_vel_max)
+        desired_speed = np.random.uniform(vel_mag_min, vel_mag_max)
+
+        # Calculate direction from missile spawn to target
+        to_target = self.target_position - missile_pos
+        to_target_dist = np.linalg.norm(to_target)
+
+        if to_target_dist > 1e-6:
+            # Point velocity toward target with desired speed
+            missile_vel = (to_target / to_target_dist) * desired_speed
+        else:
+            # Fallback if somehow spawned on target
+            missile_vel = np.random.uniform(mis_vel_min, mis_vel_max).astype(np.float32)
+
         self.missile_state = {
-            'position': np.random.uniform(mis_pos_min, mis_pos_max).astype(np.float32),
-            'velocity': np.random.uniform(mis_vel_min, mis_vel_max).astype(np.float32),
+            'position': missile_pos,
+            'velocity': missile_vel.astype(np.float32),
             'orientation': np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32),
             'angular_velocity': np.zeros(3, dtype=np.float32),
             'active': True
@@ -396,11 +414,22 @@ class InterceptEnvironment(gym.Env):
         # Check termination conditions
         terminated = False
         truncated = False
-        
+        missile_hit_target = False
+
         if intercepted:
             terminated = True
-        elif self.missile_state['position'][2] < 0:  # Missile hit ground
-            terminated = True
+        elif self.missile_state['position'][2] <= 0:  # Missile hit ground
+            # Check if missile hit near the target (mission failure)
+            missile_ground_pos = self.missile_state['position'][:2]  # X, Y only
+            target_ground_pos = self.target_position[:2]
+            ground_distance = np.linalg.norm(missile_ground_pos - target_ground_pos)
+
+            if ground_distance < 500.0:  # Within 500m of target = mission failure
+                missile_hit_target = True
+                terminated = True
+            else:
+                # Missile hit ground far from target (harmless)
+                terminated = True
         elif self.interceptor_state['position'][2] < 0:  # Interceptor crashed
             terminated = True
         elif self.steps >= self.max_steps:
@@ -416,12 +445,13 @@ class InterceptEnvironment(gym.Env):
         self.last_detection_info = self.observation_generator.get_last_detection_info()
 
         # Calculate reward with detection info
-        reward = self._calculate_reward(distance, intercepted, terminated)
-        
+        reward = self._calculate_reward(distance, intercepted, terminated, missile_hit_target)
+
         # Info dict (detection info for logging only, not passed to policy observations)
         info = {
             'distance': distance,
             'intercepted': intercepted,
+            'missile_hit_target': missile_hit_target,
             'fuel_remaining': self.interceptor_state['fuel'],
             'fuel_used': self.total_fuel_used,
             'clamped': clamp_info['clamped'],
@@ -598,7 +628,8 @@ class InterceptEnvironment(gym.Env):
                 wind_change = np.random.randn(3) * self.wind_variability
                 self.current_wind = 0.95 * self.current_wind + 0.05 * (self.base_wind + wind_change)
     
-    def _calculate_reward(self, distance: float, intercepted: bool, terminated: bool) -> float:
+    def _calculate_reward(self, distance: float, intercepted: bool, terminated: bool,
+                         missile_hit_target: bool = False) -> float:
         """
         Calculate step reward with dense shaping.
 
@@ -623,20 +654,15 @@ class InterceptEnvironment(gym.Env):
             return reward
 
         if terminated:
-            # Failed interception - apply penalties
-            if self.missile_state['position'][2] < 0:
-                # Missile hit ground - check proximity to defended target
-                missile_to_target = np.linalg.norm(
-                    self.missile_state['position'][:2] - self.target_position[:2]
-                )
-                if missile_to_target < 100.0:
-                    # Target hit - worst case scenario
-                    reward = -300.0
-                else:
-                    # Missile crashed elsewhere - minor penalty
-                    reward = -50.0
+            # Failed interception - apply penalties based on outcome
+            if missile_hit_target:
+                # Missile hit the defended target - MISSION FAILURE (worst outcome)
+                reward = -500.0
+            elif self.missile_state['position'][2] <= 0:
+                # Missile hit ground away from target - partial failure
+                reward = -100.0
             elif self.interceptor_state['position'][2] < 0:
-                # Interceptor crashed
+                # Interceptor crashed - failure
                 reward = -100.0
 
             return reward

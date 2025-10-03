@@ -100,7 +100,7 @@ curriculum:
 # Training configuration
 training:
   # Algorithm parameters - improved for complex multi-stage task
-  total_timesteps: 3000000  # 20M steps for thorough curriculum training (was 5M)
+  total_timesteps: 2000000  # 20M steps for thorough curriculum training (was 5M)
   n_envs: 16  # More parallel environments for better sampling
   learning_rate: 0.0001  # Lower LR for stable learning
   n_steps: 4096  # More experience per update
