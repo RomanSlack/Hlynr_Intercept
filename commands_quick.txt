@@ -1,0 +1,11 @@
+Traditional Visualize:
+python visualize.py --model checkpoints/best
+
+Train: (Change steps in config.yaml)
+python train.py --config config.yaml
+
+Inference:
+python inference.py --model checkpoints/best --mode offline --episodes 100 --config config.yaml
+
+Tensorboard:
+tensorboard --logdir logs
