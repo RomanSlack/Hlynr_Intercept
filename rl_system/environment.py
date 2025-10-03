@@ -6,7 +6,7 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 from typing import Dict, Any, Tuple, Optional
-from core import Radar17DObservation, SafetyClamp, SafetyLimits, euler_to_quaternion, SensorDelayBuffer
+from core import Radar26DObservation, SafetyClamp, SafetyLimits, euler_to_quaternion, SensorDelayBuffer
 from physics_models import AtmosphericModel, MachDragModel, EnhancedWindModel
 from physics_randomizer import PhysicsRandomizer
 import time
@@ -104,26 +104,33 @@ class InterceptEnvironment(gym.Env):
         radar_config = self.config.get('radar', {})
         self.radar_noise = radar_config.get('radar_noise', 0.05)
         self.radar_quality = radar_config.get('radar_quality', 1.0)
-        
+
         # Sensor delay configuration
         sensor_delay_ms = 0.0  # Default no delay
         if self.physics_enabled and self.physics_config.get('sensor_delays', {}).get('enabled', True):
             sensor_delay_ms = self.physics_config.get('sensor_delays', {}).get('radar_delay_ms', 30.0)
 
-        # Components
-        self.observation_generator = Radar17DObservation(
+        # Ground radar configuration
+        ground_radar_config = self.config.get('ground_radar', {})
+
+        # Weather factor for ground radar (can vary per episode)
+        self.weather_factor = 1.0
+
+        # Components - now using 26D observation space with ground radar
+        self.observation_generator = Radar26DObservation(
             max_range=self.max_range,
             max_velocity=self.max_velocity,
             radar_range=radar_config.get('radar_range', 5000.0),
             min_detection_range=radar_config.get('min_detection_range', 50.0),
             sensor_delay_ms=sensor_delay_ms,
-            simulation_dt=self.dt
+            simulation_dt=self.dt,
+            ground_radar_config=ground_radar_config
         )
         self.safety_clamp = SafetyClamp(SafetyLimits())
-        
-        # Spaces
+
+        # Spaces - updated to 26D for ground radar support
         self.observation_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(17,), dtype=np.float32
+            low=-1.0, high=1.0, shape=(26,), dtype=np.float32
         )
         self.action_space = spaces.Box(
             low=-1.0, high=1.0, shape=(6,), dtype=np.float32
@@ -229,10 +236,10 @@ class InterceptEnvironment(gym.Env):
         self.steps = 0
         self.total_fuel_used = 0
         
-        # Compute initial observation using radar detection
+        # Compute initial observation using radar detection (with ground radar)
         obs = self.observation_generator.compute_radar_detection(
             self.interceptor_state, self.missile_state,
-            self.radar_quality, self.radar_noise
+            self.radar_quality, self.radar_noise, self.weather_factor
         )
 
         # Store detection info (but don't pass omniscient data to policy)
@@ -300,10 +307,10 @@ class InterceptEnvironment(gym.Env):
         elif self.steps >= self.max_steps:
             truncated = True
         
-        # Generate observation using radar detection
+        # Generate observation using radar detection (with ground radar)
         obs = self.observation_generator.compute_radar_detection(
             self.interceptor_state, self.missile_state,
-            self.radar_quality, self.radar_noise
+            self.radar_quality, self.radar_noise, self.weather_factor
         )
 
         # Store detection info for reward calculation (internal only, not passed to policy)

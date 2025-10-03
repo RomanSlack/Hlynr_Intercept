@@ -32,7 +32,22 @@ environment:
   radar_quality: 1.0  # Perfect quality
   radar_beam_width: 90.0  # Wide beam
   min_detection_range: 30.0
-  
+
+  # Ground radar (enabled with good quality for easier learning)
+  ground_radar:
+    enabled: true
+    position: [0, 0, 100]
+    max_range: 20000.0
+    min_elevation_angle: 5.0
+    max_elevation_angle: 85.0
+    range_accuracy: 8.0  # Better accuracy for easy mode
+    velocity_accuracy: 1.5
+    base_quality: 0.98  # Higher quality
+    weather_sensitivity: 0.1  # Less weather impact
+    max_datalink_range: 50000.0
+    datalink_packet_loss: 0.02  # Lower packet loss
+    ground_sensor_delay_ms: 40.0
+
   # No evasion
   missile_evasion: false
 

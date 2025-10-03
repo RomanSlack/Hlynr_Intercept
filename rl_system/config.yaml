@@ -34,12 +34,35 @@ environment:
     velocity: [5.0, 0.0, 0.0]  # Base wind velocity (m/s)
     variability: 0.1  # Wind variation factor
   
-  # Radar system
+  # Onboard Radar system
   radar_range: 8000.0  # Maximum radar detection range (m) - increased to detect threats at spawn
   radar_noise: 0.05  # Radar measurement noise level
   radar_quality: 1.0  # Initial radar quality (0-1)
   radar_beam_width: 60.0  # Radar beam width in degrees
   min_detection_range: 50.0  # Minimum range for accurate tracking
+
+  # Ground-Based Radar Array (AN/TPY-2 THAAD-style)
+  ground_radar:
+    enabled: true  # Enable ground radar support
+    position: [0, 0, 100]  # Ground radar location (100m tower near defended target)
+
+    # Detection capabilities
+    max_range: 20000.0  # 20km tracking range (much longer than onboard)
+    min_elevation_angle: 5.0  # degrees (cannot see below horizon)
+    max_elevation_angle: 85.0  # degrees (near-zenith coverage)
+
+    # Measurement accuracy (better than onboard due to larger aperture)
+    range_accuracy: 10.0  # meters RMS
+    velocity_accuracy: 2.0  # m/s RMS
+
+    # Environmental factors
+    base_quality: 0.95  # High-quality ground installation
+    weather_sensitivity: 0.2  # Degradation factor in bad weather
+
+    # Data link (ground-to-interceptor communication)
+    max_datalink_range: 50000.0  # 50km comm range
+    datalink_packet_loss: 0.05  # 5% packet loss rate
+    ground_sensor_delay_ms: 50.0  # Ground radar delay (processing + transmission)
   
   # Missile behavior
   missile_evasion: false  # Enable missile evasion maneuvers
@@ -68,8 +91,8 @@ training:
   vf_coef: 0.5
   max_grad_norm: 0.5
 
-  # Network architecture - larger for complex 17D observation -> 6D action
-  net_arch: [512, 512, 256]  # Deeper network for sophisticated behavior
+  # Network architecture - optimized for 26D observation -> 6D action (with ground radar)
+  net_arch: [512, 512, 256]  # Deep network for multi-sensor fusion and sophisticated behavior
   
   # Checkpointing
   checkpoint_freq: 10000  # Save every N timesteps
