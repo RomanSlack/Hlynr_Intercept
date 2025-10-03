@@ -22,7 +22,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 from environment import InterceptEnvironment
-from core import Radar17DObservation, CoordinateTransform, SafetyClamp
+from core import Radar26DObservation, CoordinateTransform, SafetyClamp
 from logger import UnifiedLogger, EpisodeEvent
 
 
@@ -106,11 +106,13 @@ class InferenceServer:
         
         # Initialize components
         radar_config = self.config.get('radar', self.config['environment'])
-        self.observation_generator = Radar17DObservation(
+        ground_radar_config = self.config['environment'].get('ground_radar', {})
+        self.observation_generator = Radar26DObservation(
             max_range=self.config['environment'].get('max_range', 10000.0),
             max_velocity=self.config['environment'].get('max_velocity', 1000.0),
             radar_range=radar_config.get('radar_range', 5000.0),
-            min_detection_range=radar_config.get('min_detection_range', 50.0)
+            min_detection_range=radar_config.get('min_detection_range', 50.0),
+            ground_radar_config=ground_radar_config
         )
         self.coordinate_transform = CoordinateTransform()
         self.safety_clamp = SafetyClamp()
@@ -231,12 +233,13 @@ class InferenceServer:
                     missile_state['position'] = mis_pos.tolist()
                     missile_state['orientation'] = mis_quat.tolist()
                 
-                # Generate observation using radar detection simulation
+                # Generate observation using radar detection simulation (with ground radar)
                 obs = self.observation_generator.compute_radar_detection(
                     interceptor_state,
                     missile_state,
                     request.observation.radar_quality,
-                    request.observation.radar_noise
+                    request.observation.radar_noise,
+                    weather_factor=1.0  # Could be made configurable
                 )
                 
                 # Normalize observation if VecNormalize is available
