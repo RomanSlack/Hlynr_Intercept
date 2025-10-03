@@ -117,6 +117,11 @@ class InterceptEnvironment(gym.Env):
         self.weather_factor = 1.0
 
         # Components - now using 26D observation space with ground radar
+        # Initial beam width will be updated by curriculum if enabled
+        initial_beam_width = radar_config.get('radar_beam_width', 60.0)
+        if self.use_radar_curriculum and self.radar_curriculum_config:
+            initial_beam_width = self.radar_curriculum_config.get('initial_beam_width', 120.0)
+
         self.observation_generator = Radar26DObservation(
             max_range=self.max_range,
             max_velocity=self.max_velocity,
@@ -124,8 +129,15 @@ class InterceptEnvironment(gym.Env):
             min_detection_range=radar_config.get('min_detection_range', 50.0),
             sensor_delay_ms=sensor_delay_ms,
             simulation_dt=self.dt,
-            ground_radar_config=ground_radar_config
+            ground_radar_config=ground_radar_config,
+            radar_beam_width=initial_beam_width
         )
+
+        # Set initial curriculum parameters for radar (perfect detection at start)
+        if self.use_radar_curriculum and self.radar_curriculum_config:
+            self.observation_generator.onboard_detection_reliability = self.radar_curriculum_config.get('initial_detection_reliability', 1.0)
+            self.observation_generator.ground_detection_reliability = self.radar_curriculum_config.get('initial_ground_reliability', 1.0)
+            self.observation_generator.measurement_noise_level = self.radar_curriculum_config.get('initial_noise_level', 0.0)
         self.safety_clamp = SafetyClamp(SafetyLimits())
 
         # Spaces - updated to 26D for ground radar support
@@ -156,6 +168,10 @@ class InterceptEnvironment(gym.Env):
         self.curriculum_steps = self.curriculum_config.get('curriculum_steps', 5000000)  # Over 5M steps
         self.training_step_count = 0  # Track global training steps for curriculum
 
+        # Radar curriculum learning: Progressive radar difficulty
+        self.radar_curriculum_config = self.curriculum_config.get('radar_curriculum', {})
+        self.use_radar_curriculum = self.radar_curriculum_config.get('enabled', True)
+
     def get_current_intercept_radius(self) -> float:
         """
         Calculate current intercept radius based on curriculum progress.
@@ -172,6 +188,41 @@ class InterceptEnvironment(gym.Env):
     def set_training_step_count(self, step_count: int):
         """Update global training step count for curriculum learning."""
         self.training_step_count = step_count
+        self._update_radar_curriculum()
+
+    def _update_radar_curriculum(self):
+        """Update radar parameters based on curriculum progress (radar-only, no omniscient data)."""
+        if not self.use_radar_curriculum or not self.radar_curriculum_config:
+            return
+
+        # Calculate curriculum progress (0.0 = start, 1.0 = end)
+        progress = min(1.0, self.training_step_count / self.curriculum_steps)
+
+        # Linear interpolation for beam width
+        initial_beam = self.radar_curriculum_config.get('initial_beam_width', 120.0)
+        final_beam = self.radar_curriculum_config.get('final_beam_width', 60.0)
+        current_beam_width = initial_beam * (1.0 - progress) + final_beam * progress
+
+        # Linear interpolation for onboard detection reliability
+        initial_reliability = self.radar_curriculum_config.get('initial_detection_reliability', 1.0)
+        final_reliability = self.radar_curriculum_config.get('final_detection_reliability', 0.75)
+        current_reliability = initial_reliability * (1.0 - progress) + final_reliability * progress
+
+        # Linear interpolation for ground radar reliability
+        initial_ground = self.radar_curriculum_config.get('initial_ground_reliability', 1.0)
+        final_ground = self.radar_curriculum_config.get('final_ground_reliability', 0.85)
+        current_ground_reliability = initial_ground * (1.0 - progress) + final_ground * progress
+
+        # Linear interpolation for noise level
+        initial_noise = self.radar_curriculum_config.get('initial_noise_level', 0.0)
+        final_noise = self.radar_curriculum_config.get('final_noise_level', 0.05)
+        current_noise = initial_noise * (1.0 - progress) + final_noise * progress
+
+        # Update observation generator with curriculum parameters
+        self.observation_generator.radar_beam_width = current_beam_width
+        self.observation_generator.onboard_detection_reliability = current_reliability
+        self.observation_generator.ground_detection_reliability = current_ground_reliability
+        self.observation_generator.measurement_noise_level = current_noise
 
     def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
         """Reset environment to initial state."""
@@ -199,11 +250,59 @@ class InterceptEnvironment(gym.Env):
         # Initialize interceptor state
         int_pos_min, int_pos_max = self.interceptor_spawn_range['position']
         int_vel_min, int_vel_max = self.interceptor_spawn_range['velocity']
-        
+
+        interceptor_pos = np.random.uniform(int_pos_min, int_pos_max).astype(np.float32)
+        interceptor_vel = np.random.uniform(int_vel_min, int_vel_max).astype(np.float32)
+
+        # Calculate initial orientation: point interceptor toward missile for radar acquisition
+        # This uses only the positions (which radar would know), no omniscient data
+        rel_vector = self.missile_state['position'] - interceptor_pos
+        rel_distance = np.linalg.norm(rel_vector)
+
+        if rel_distance > 1e-6:
+            # Create quaternion that points forward vector toward missile
+            forward_direction = rel_vector / rel_distance
+
+            # Use simple approach: create quaternion from direction vector
+            # Default forward is +Z axis [0, 0, 1], rotate to point at missile
+            default_forward = np.array([0.0, 0.0, 1.0])
+
+            # Calculate rotation axis (cross product)
+            rotation_axis = np.cross(default_forward, forward_direction)
+            rotation_axis_length = np.linalg.norm(rotation_axis)
+
+            if rotation_axis_length > 1e-6:
+                # Normalize rotation axis
+                rotation_axis = rotation_axis / rotation_axis_length
+
+                # Calculate rotation angle
+                cos_angle = np.dot(default_forward, forward_direction)
+                angle = np.arccos(np.clip(cos_angle, -1.0, 1.0))
+
+                # Create quaternion from axis-angle
+                half_angle = angle / 2.0
+                sin_half = np.sin(half_angle)
+                initial_orientation = np.array([
+                    np.cos(half_angle),  # w
+                    rotation_axis[0] * sin_half,  # x
+                    rotation_axis[1] * sin_half,  # y
+                    rotation_axis[2] * sin_half   # z
+                ], dtype=np.float32)
+            else:
+                # Already aligned or opposite direction
+                if cos_angle > 0:
+                    initial_orientation = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+                else:
+                    # 180 degree rotation around X axis
+                    initial_orientation = np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32)
+        else:
+            # Fallback if somehow at same position
+            initial_orientation = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+
         self.interceptor_state = {
-            'position': np.random.uniform(int_pos_min, int_pos_max).astype(np.float32),
-            'velocity': np.random.uniform(int_vel_min, int_vel_max).astype(np.float32),
-            'orientation': np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32),
+            'position': interceptor_pos,
+            'velocity': interceptor_vel,
+            'orientation': initial_orientation,
             'angular_velocity': np.zeros(3, dtype=np.float32),
             'fuel': 100.0,
             'active': True

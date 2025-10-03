@@ -124,12 +124,19 @@ class Radar26DObservation:
     def __init__(self, max_range: float = 10000.0, max_velocity: float = 1000.0,
                  radar_range: float = 5000.0, min_detection_range: float = 50.0,
                  sensor_delay_ms: float = 30.0, simulation_dt: float = 0.01,
-                 ground_radar_config: Optional[Dict[str, Any]] = None):
+                 ground_radar_config: Optional[Dict[str, Any]] = None,
+                 radar_beam_width: float = 60.0):
         self.max_range = max_range
         self.max_velocity = max_velocity
         self.radar_range = radar_range  # Onboard radar range
         self.min_detection_range = min_detection_range
+        self.radar_beam_width = radar_beam_width  # Beam width in degrees (curriculum-adjusted)
         self.rng = np.random.default_rng()
+
+        # Curriculum parameters (set externally by environment)
+        self.onboard_detection_reliability = 1.0  # 0-1, probability multiplier for detection
+        self.ground_detection_reliability = 1.0   # 0-1, probability multiplier for ground radar
+        self.measurement_noise_level = 0.05       # Base noise level for measurements
 
         # Sensor delay buffer for onboard radar
         self.simulation_dt = simulation_dt
@@ -230,9 +237,10 @@ class Radar26DObservation:
         if mis_pos[2] < 50.0:
             return {'detected': False, 'reason': 'terrain_masking'}
 
-        # Calculate detection probability based on range
+        # Calculate detection probability based on range (with curriculum-based reliability)
         detection_prob = self.ground_radar.base_quality * (1.0 - (range_to_missile / self.ground_radar.max_range) * 0.4)
         detection_prob *= weather_factor  # Weather degradation
+        detection_prob *= self.ground_detection_reliability  # Curriculum adjustment
 
         if self.rng.random() > detection_prob:
             return {'detected': False, 'reason': 'weak_return'}
@@ -360,20 +368,21 @@ class Radar26DObservation:
             onboard_detection_info['detected'] = False
             onboard_detection_info['reason'] = 'out_of_range'
 
-        # Check radar beam width (60 degree cone)
+        # Check radar beam width (curriculum-adjustable cone)
         if onboard_detected:
             int_forward = get_forward_vector(int_quat)
             to_missile = true_rel_pos / (true_range + 1e-6)
             beam_angle = np.arccos(np.clip(np.dot(int_forward, to_missile), -1, 1))
-            if beam_angle > np.pi / 3:  # 60 degrees
+            beam_width_rad = np.radians(self.radar_beam_width)
+            if beam_angle > beam_width_rad:
                 onboard_detected = False
                 onboard_detection_info['detected'] = False
                 onboard_detection_info['reason'] = 'outside_beam'
 
-        # Apply radar quality degradation
+        # Apply radar quality degradation (with curriculum-based reliability)
         if onboard_detected:
             range_factor = 1.0 - (true_range / self.radar_range) * 0.5
-            actual_radar_quality = radar_quality * range_factor
+            actual_radar_quality = radar_quality * range_factor * self.onboard_detection_reliability
 
             if self.rng.random() > actual_radar_quality:
                 onboard_detected = False
@@ -512,16 +521,17 @@ class Radar26DObservation:
             range_to_target = np.linalg.norm(onboard_rel_pos)
             range_noise_factor = 1.0 + (range_to_target / self.radar_range) * 2.0
 
-            # Position measurement with range-dependent noise
+            # Position measurement with range-dependent noise (curriculum-adjusted)
             radar_rel_pos = onboard_rel_pos.copy()
-            if noise_level > 0:
-                pos_noise = self.rng.normal(0, noise_level * range_noise_factor * range_to_target, 3)
+            effective_noise = self.measurement_noise_level  # Use curriculum-adjusted noise level
+            if effective_noise > 0:
+                pos_noise = self.rng.normal(0, effective_noise * range_noise_factor * range_to_target, 3)
                 radar_rel_pos += pos_noise
 
-            # Velocity measurement with doppler noise
+            # Velocity measurement with doppler noise (curriculum-adjusted)
             radar_rel_vel = onboard_mis_vel - int_vel
-            if noise_level > 0:
-                vel_noise_std = noise_level * range_noise_factor * np.linalg.norm(radar_rel_vel)
+            if effective_noise > 0:
+                vel_noise_std = effective_noise * range_noise_factor * np.linalg.norm(radar_rel_vel)
                 vel_noise = self.rng.normal(0, vel_noise_std, 3)
                 radar_rel_vel += vel_noise
 
