@@ -360,17 +360,7 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
     if not candidates:
         raise FileNotFoundError(f"Could not find a model zip under {mp}. "
                                 f"Tried: model.zip, best_model.zip, best/best_model.zip, final/model.zip, or a direct .zip path.")
-    model = PPO.load(str(candidates[0]))
-    
-    # Load VecNormalize if available
-    vecnorm_path = Path(model_path) / "vec_normalize.pkl"
-    vec_normalize = None
-    if vecnorm_path.exists():
-        env = DummyVecEnv([lambda: InterceptEnvironment(config.get('environment', {}))])
-        vec_normalize = VecNormalize.load(str(vecnorm_path), env)
-        vec_normalize.training = False
-    
-    # Load scenario if specified
+    # Load scenario if specified first to get correct config
     env_config = config.get('environment', {})
     if scenario:
         scenario_path = Path("scenarios") / f"{scenario}.yaml"
@@ -378,9 +368,69 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
             with open(scenario_path, 'r') as f:
                 scenario_config = yaml.safe_load(f)
                 env_config.update(scenario_config.get('environment', {}))
-    
-    # Create environment
+
+    # Create environment first to check observation space
     env = InterceptEnvironment(env_config)
+    current_obs_dim = env.observation_space.shape[0]
+
+    # Load model and check compatibility
+    logger.logger.info(f"Loading model from {candidates[0]}")
+    model = PPO.load(str(candidates[0]))
+    model_obs_dim = model.observation_space.shape[0]
+
+    if model_obs_dim != current_obs_dim:
+        logger.logger.error(
+            f"❌ Model/Environment dimension mismatch: "
+            f"Model expects {model_obs_dim}D observations, environment provides {current_obs_dim}D"
+        )
+        if model_obs_dim == 17 and current_obs_dim == 26:
+            logger.logger.error(
+                f"❌ This model was trained BEFORE ground radar was added (17D observations)."
+            )
+            logger.logger.error(
+                f"❌ You need to retrain with the new 26D observation space."
+            )
+            logger.logger.error(
+                f"❌ Or temporarily disable ground radar in config.yaml to use old models:"
+            )
+            logger.logger.error(
+                f"   ground_radar:"
+            )
+            logger.logger.error(
+                f"     enabled: false"
+            )
+        raise ValueError(
+            f"Model expects {model_obs_dim}D observations but environment provides {current_obs_dim}D. "
+            f"Retrain model with current observation space or adjust config."
+        )
+
+    # Load VecNormalize if available and compatible
+    vecnorm_path = Path(model_path) / "vec_normalize.pkl"
+    vec_normalize = None
+    if vecnorm_path.exists():
+        try:
+            # Create dummy env for VecNormalize
+            dummy_env = DummyVecEnv([lambda: InterceptEnvironment(env_config)])
+            vec_normalize = VecNormalize.load(str(vecnorm_path), dummy_env)
+            vec_normalize.training = False
+
+            # Check dimension compatibility
+            vecnorm_obs_dim = vec_normalize.observation_space.shape[0]
+            if vecnorm_obs_dim != current_obs_dim:
+                logger.logger.warning(
+                    f"⚠️  VecNormalize observation dimension mismatch: "
+                    f"Model trained with {vecnorm_obs_dim}D, current env is {current_obs_dim}D"
+                )
+                logger.logger.warning(
+                    f"⚠️  Skipping VecNormalize (model likely trained before ground radar was added)"
+                )
+                vec_normalize = None
+            else:
+                logger.logger.info(f"✓ Loaded VecNormalize with {vecnorm_obs_dim}D observation space")
+        except Exception as e:
+            logger.logger.warning(f"⚠️  Failed to load VecNormalize: {e}")
+            logger.logger.warning(f"⚠️  Continuing without normalization")
+            vec_normalize = None
     
     # Run episodes
     results = []

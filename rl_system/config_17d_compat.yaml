@@ -1,0 +1,50 @@
+# Compatibility config for OLD 17D models (pre-ground-radar)
+# Use this config to run inference with models trained before ground radar was added
+
+# This file inherits from config.yaml but DISABLES ground radar
+# to maintain 17D observation space compatibility
+
+# Import base config (Python will need to merge this)
+# For now, copy relevant sections and set ground_radar.enabled = false
+
+environment:
+  dt: 0.01
+  max_steps: 2000
+  max_range: 10000.0
+  max_velocity: 1000.0
+
+  target_position: [0, 0, 0]
+
+  interceptor_spawn:
+    position: [[0, 0, 0], [50, 50, 10]]
+    velocity: [[20, 20, 40], [40, 40, 80]]
+
+  missile_spawn:
+    position: [[1500, 1500, 1500], [3000, 3000, 3000]]
+    velocity: [[-100, -100, -50], [-150, -150, -70]]
+
+  gravity: [0, 0, -9.81]
+  drag_coefficient: 0.3
+  air_density: 1.225
+
+  wind:
+    velocity: [5.0, 0.0, 0.0]
+    variability: 0.1
+
+  # Onboard Radar only (17D compatibility mode)
+  radar_range: 8000.0
+  radar_noise: 0.05
+  radar_quality: 1.0
+  radar_beam_width: 60.0
+  min_detection_range: 50.0
+
+  # Ground radar DISABLED for 17D model compatibility
+  ground_radar:
+    enabled: false  # ← This makes observation space 17D instead of 26D
+
+  missile_evasion: false
+
+# Inference settings
+inference:
+  deterministic: true
+  coordinate_system: "ENU"
