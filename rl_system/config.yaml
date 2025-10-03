@@ -73,7 +73,7 @@ curriculum:
   enabled: true  # Enable curriculum learning for intercept radius
   initial_radius: 200.0  # Start with 200m intercept radius (easy to achieve)
   final_radius: 20.0  # End with 20m intercept radius (realistic proximity fuse)
-  curriculum_steps: 2000000  # Match total_timesteps to reach final difficulty
+  curriculum_steps: 3500000  # Reach final difficulty at 50% of training (3.5M of 7M)
 
   # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
   # Early training: More reliable radar detection to help learning
@@ -99,13 +99,13 @@ curriculum:
 
 # Training configuration
 training:
-  # Algorithm parameters - optimized for faster learning signal propagation
-  total_timesteps: 2000000  # 2M steps with proper curriculum alignment
+  # Algorithm parameters - optimized for 7M step training run
+  total_timesteps: 7000000  # 7M steps for full curriculum + convergence at final difficulty
   n_envs: 16  # Parallel environments for sampling
   learning_rate: 0.0001  # Stable learning rate
-  n_steps: 1024  # Reduced for more frequent updates (16x faster feedback)
+  n_steps: 1024  # Frequent updates for fast learning signal propagation
   batch_size: 256  # Batch size for stable gradients
-  n_epochs: 10  # Reduced epochs to match smaller rollouts
+  n_epochs: 10  # Epochs per rollout
   gamma: 0.995  # Longer horizon for multi-stage interception
   gae_lambda: 0.98  # More credit to future rewards
   clip_range: 0.2
@@ -115,18 +115,18 @@ training:
 
   # Network architecture - optimized for 26D observation -> 6D action (with ground radar)
   net_arch: [512, 512, 256]  # Deep network for multi-sensor fusion and sophisticated behavior
-  
+
   # Checkpointing
-  checkpoint_freq: 10000  # Save every N timesteps
-  eval_freq: 10000  # Evaluate every N timesteps
+  checkpoint_freq: 25000  # Save every 25k timesteps
+  eval_freq: 25000  # Evaluate every 25k timesteps
   n_eval_episodes: 10  # Episodes per evaluation
-  
+
   # Adaptive features - more exploration initially for multi-stage learning
   entropy_schedule:
     enabled: true
     initial: 0.05  # Moderate initial exploration
     final: 0.001  # Low final entropy for precise terminal guidance
-    decay_steps: 400000  # Decay over first 20% of training (400k of 2M steps)
+    decay_steps: 1400000  # Decay over first 20% of training (1.4M of 7M steps)
   
   lr_schedule:
     enabled: true
