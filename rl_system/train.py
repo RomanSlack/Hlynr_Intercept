@@ -157,12 +157,19 @@ class CustomTrainingCallback(BaseCallback):
             self.tb_writer.add_scalar('train/learning_rate', self.model.learning_rate, self.num_timesteps)
             self.tb_writer.add_scalar('train/entropy_coef', self.model.ent_coef, self.num_timesteps)
 
-            # Log curriculum learning progress (intercept radius)
+            # Log curriculum learning progress (intercept radius + radar parameters)
             if hasattr(self.training_env, 'get_attr'):
                 try:
                     # Get current intercept radius from first environment
                     radius = self.training_env.get_attr('get_current_intercept_radius')[0]()
                     self.tb_writer.add_scalar('curriculum/intercept_radius_m', radius, self.num_timesteps)
+
+                    # Get radar curriculum parameters from first environment
+                    obs_gen = self.training_env.get_attr('observation_generator')[0]
+                    self.tb_writer.add_scalar('curriculum/radar_beam_width_deg', obs_gen.radar_beam_width, self.num_timesteps)
+                    self.tb_writer.add_scalar('curriculum/onboard_detection_reliability', obs_gen.onboard_detection_reliability, self.num_timesteps)
+                    self.tb_writer.add_scalar('curriculum/ground_detection_reliability', obs_gen.ground_detection_reliability, self.num_timesteps)
+                    self.tb_writer.add_scalar('curriculum/measurement_noise_level', obs_gen.measurement_noise_level, self.num_timesteps)
                 except (AttributeError, IndexError):
                     pass  # Environment doesn't support curriculum or method not available
 
