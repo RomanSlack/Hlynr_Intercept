@@ -81,7 +81,7 @@ training:
     enabled: true
     initial: 0.1  # Much higher initial exploration
     final: 0.01
-    decay_steps: 2000000  # Longer decay for gradual refinement
+    decay_steps: 8000000  # Longer decay matching extended training (40% of 20M)
   
   lr_schedule:
     enabled: true
