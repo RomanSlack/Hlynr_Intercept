@@ -175,6 +175,10 @@ class InterceptEnvironment(gym.Env):
         # Track last detection info for reward calculation
         self.last_detection_info = None
 
+        # Smart early termination tracking
+        self._distance_worsening_count = 0
+        self._last_distance = None
+
     def get_current_intercept_radius(self) -> float:
         """
         Calculate current intercept radius based on curriculum progress.
@@ -415,6 +419,10 @@ class InterceptEnvironment(gym.Env):
             self.missile_state['position'] - self.interceptor_state['position']
         )
 
+        # Reset smart early termination tracking
+        self._distance_worsening_count = 0
+        self._last_distance = self._prev_distance
+
         info = {
             'missile_pos': self.missile_state['position'].copy(),
             'interceptor_pos': self.interceptor_state['position'].copy(),
@@ -482,11 +490,27 @@ class InterceptEnvironment(gym.Env):
             terminated = True
         elif self.interceptor_state['fuel'] <= 0:  # Out of fuel
             terminated = True
-        # EARLY TERMINATION: Stop wasting compute on obvious failures
-        # If after 1000 steps (10 seconds) we're still >2000m away, give up
-        elif self.steps > 1000 and distance > 2000.0:
-            terminated = True
-        elif self.steps >= self.max_steps:
+        # SMART EARLY TERMINATION: Only terminate if consistently getting WORSE
+        # Track if distance has been increasing (not improving) for sustained period
+        elif self.steps > 1000:
+            # Update worsening counter based on distance trend
+            if self._last_distance is not None:
+                if distance > self._last_distance:
+                    # Distance increasing (getting worse) - increment counter
+                    self._distance_worsening_count += 1
+                else:
+                    # Distance decreasing (improving) - decay counter quickly
+                    self._distance_worsening_count = max(0, self._distance_worsening_count - 5)
+
+            # Update last distance for next comparison
+            self._last_distance = distance
+
+            # Only terminate if distance has been worsening for 500 consecutive steps (5 seconds)
+            # AND we're far away (>2500m), indicating policy has completely failed
+            if self._distance_worsening_count > 500 and distance > 2500.0:
+                terminated = True
+
+        if self.steps >= self.max_steps:
             truncated = True
         
         # Generate observation using radar detection (with ground radar)
