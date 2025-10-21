@@ -327,30 +327,69 @@ def train(config_path: str):
     device = get_device()
     logger.logger.info(f"Using device: {device}")
 
-    # Create model
-    policy_kwargs = dict(
-        net_arch=config['training'].get('net_arch', [256, 256]),
-        activation_fn=torch.nn.ReLU
-    )
+    # Create model with LSTM support for handling partial observability
+    # LSTM policy maintains hidden state across timesteps to integrate radar observations
+    use_lstm = config['training'].get('use_lstm', True)
 
-    model = PPO(
-        "MlpPolicy",
-        envs,
-        learning_rate=config['training'].get('learning_rate', 3e-4),
-        n_steps=config['training'].get('n_steps', 2048),
-        batch_size=config['training'].get('batch_size', 64),
-        n_epochs=config['training'].get('n_epochs', 10),
-        gamma=config['training'].get('gamma', 0.99),
-        gae_lambda=config['training'].get('gae_lambda', 0.95),
-        clip_range=config['training'].get('clip_range', 0.2),
-        ent_coef=config['training'].get('ent_coef', 0.01),
-        vf_coef=config['training'].get('vf_coef', 0.5),
-        max_grad_norm=config['training'].get('max_grad_norm', 0.5),
-        policy_kwargs=policy_kwargs,
-        tensorboard_log=str(logger.log_dir / "tensorboard"),
-        device=device,  # Explicitly set device with fallback
-        verbose=1
-    )
+    if use_lstm:
+        # RecurrentPPO with LSTM for temporal integration of radar detections
+        policy_kwargs = dict(
+            net_arch=config['training'].get('net_arch', [256, 256]),
+            activation_fn=torch.nn.ReLU,
+            lstm_hidden_size=config['training'].get('lstm_hidden_size', 256),
+            n_lstm_layers=config['training'].get('n_lstm_layers', 1),
+            enable_critic_lstm=config['training'].get('enable_critic_lstm', True),
+            lstm_kwargs=dict(dropout=0.0)  # No dropout for stable training
+        )
+
+        # Use RecurrentPPO for LSTM support
+        from stable_baselines3.contrib import RecurrentPPO
+
+        model = RecurrentPPO(
+            "MlpLstmPolicy",
+            envs,
+            learning_rate=config['training'].get('learning_rate', 3e-4),
+            n_steps=config['training'].get('n_steps', 2048),
+            batch_size=config['training'].get('batch_size', 64),
+            n_epochs=config['training'].get('n_epochs', 10),
+            gamma=config['training'].get('gamma', 0.99),
+            gae_lambda=config['training'].get('gae_lambda', 0.95),
+            clip_range=config['training'].get('clip_range', 0.2),
+            ent_coef=config['training'].get('ent_coef', 0.01),
+            vf_coef=config['training'].get('vf_coef', 0.5),
+            max_grad_norm=config['training'].get('max_grad_norm', 0.5),
+            policy_kwargs=policy_kwargs,
+            tensorboard_log=str(logger.log_dir / "tensorboard"),
+            device=device,
+            verbose=1
+        )
+        logger.logger.info("Using RecurrentPPO with LSTM policy for temporal integration")
+    else:
+        # Standard MLP policy (memoryless, for comparison)
+        policy_kwargs = dict(
+            net_arch=config['training'].get('net_arch', [256, 256]),
+            activation_fn=torch.nn.ReLU
+        )
+
+        model = PPO(
+            "MlpPolicy",
+            envs,
+            learning_rate=config['training'].get('learning_rate', 3e-4),
+            n_steps=config['training'].get('n_steps', 2048),
+            batch_size=config['training'].get('batch_size', 64),
+            n_epochs=config['training'].get('n_epochs', 10),
+            gamma=config['training'].get('gamma', 0.99),
+            gae_lambda=config['training'].get('gae_lambda', 0.95),
+            clip_range=config['training'].get('clip_range', 0.2),
+            ent_coef=config['training'].get('ent_coef', 0.01),
+            vf_coef=config['training'].get('vf_coef', 0.5),
+            max_grad_norm=config['training'].get('max_grad_norm', 0.5),
+            policy_kwargs=policy_kwargs,
+            tensorboard_log=str(logger.log_dir / "tensorboard"),
+            device=device,
+            verbose=1
+        )
+        logger.logger.info("Using standard MLP policy (memoryless)")
     
     logger.logger.info(f"Created PPO model with {n_envs} parallel environments")
     

@@ -71,12 +71,13 @@ environment:
 # OPTIMIZED: Very slow progression to ensure policy masters each difficulty level
 # Strategy: Train on easy until 80%+ success, then gradually increase difficulty
 curriculum:
-  enabled: true  # ENABLED with slow, staged progression
-  initial_radius: 200.0  # Start with 200m intercept radius (easy to achieve)
-  final_radius: 20.0  # End with 20m intercept radius (realistic proximity fuse)
+  enabled: true  # ENABLED but FROZEN at easy difficulty
+  initial_radius: 200.0  # FROZEN: Train at 200m radius throughout
+  final_radius: 200.0  # FROZEN: Stay at 200m (was 20m - too aggressive)
 
-  # SLOW PROGRESSION: Reach final difficulty at 15M steps (100% of training)
-  # This ensures policy fully converges on easy before facing harder challenges
+  # FROZEN CURRICULUM: Train at easy difficulty until policy masters basics
+  # Previous runs failed because curriculum shrank too fast (200m -> 20m)
+  # Policy never learned fundamentals before difficulty increased
   curriculum_steps: 15000000  # Extended to match full training duration
 
   # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
@@ -110,16 +111,22 @@ curriculum:
 
 # Training configuration
 training:
-  # Algorithm parameters - OPTIMIZED for stable convergence on simplified reward
-  total_timesteps: 15000000  # FULL RUN: 15M steps with vf_coef=1.0 and success tracking
+  # Algorithm parameters - OPTIMIZED for LSTM-based policy with dense rewards
+  total_timesteps: 10000000  # FULL RUN: 10M steps for LSTM convergence with dense rewards
   n_envs: 16  # Parallel environments for sampling
 
-  # OPTIMIZATION: Learning rate 3x standard for faster convergence
-  learning_rate: 0.0003  # 3e-4 (PPO standard)
+  # LSTM Policy Configuration (handles partial observability from radar)
+  use_lstm: true  # Enable LSTM for temporal integration of radar observations
+  lstm_hidden_size: 256  # LSTM hidden state size (matches network size for efficiency)
+  n_lstm_layers: 1  # Single LSTM layer (sufficient for this task)
+  enable_critic_lstm: true  # LSTM for both policy and value function
 
-  # OPTIMIZATION: Rollout and batch size for stable gradients
-  n_steps: 2048  # Longer rollouts for better planning horizon
-  batch_size: 512  # Large batches for stable gradient estimates
+  # OPTIMIZATION: Learning rate for LSTM (slightly lower for stability)
+  learning_rate: 0.0002  # 2e-4 (reduced for LSTM stability)
+
+  # OPTIMIZATION: Rollout and batch size optimized for LSTM
+  n_steps: 1024  # Shorter rollouts for LSTM (reduces memory, speeds backprop through time)
+  batch_size: 128  # Smaller batches for LSTM (memory constraints)
   n_epochs: 10  # Epochs per rollout
 
   # OPTIMIZATION: Conservative value estimates for early training stability
@@ -128,26 +135,27 @@ training:
 
   clip_range: 0.2
   ent_coef: 0.01  # Will be dynamically scheduled
-  vf_coef: 1.0  # INCREASED from 0.5 to force stronger value function learning
+  vf_coef: 0.5  # REVERTED from 1.0 - doubling made things worse (18% vs 33%)
   max_grad_norm: 0.5
 
-  # Network architecture - FURTHER OPTIMIZED: Smaller network for faster convergence
-  # Simpler reward function allows smaller network to learn effectively
-  # 26D input -> 6D output: [128, 128] has ~33k params (vs 134k for [256, 256])
-  net_arch: [128, 128]  # Reduced from [256, 256] for faster learning with simplified reward
+  # Network architecture - OPTIMIZED for LSTM policy
+  # LSTM adds temporal integration capacity, so MLP layers can be moderate size
+  # 26D input -> LSTM(256) -> [256, 256] -> 6D output
+  # Total params: ~400k (LSTM adds ~260k, MLPs add ~140k)
+  net_arch: [256, 256]  # Increased for LSTM - handles complex temporal patterns
 
   # Checkpointing - adjusted for longer training
   checkpoint_freq: 50000  # Save every 50k timesteps (increased from 25k to reduce I/O)
   eval_freq: 50000  # Evaluate every 50k timesteps
   n_eval_episodes: 10  # Episodes per evaluation
 
-  # OPTIMIZATION: Entropy decay over full 15M training
-  # Maintains exploration throughout curriculum transitions
+  # OPTIMIZATION: Entropy decay over 10M training (LSTM learns faster with dense rewards)
+  # Maintains exploration throughout learning
   entropy_schedule:
     enabled: true
     initial: 0.05  # Moderate initial exploration
     final: 0.001  # Low final entropy for precise terminal guidance
-    decay_steps: 15000000  # Decay over full training duration (100%)
+    decay_steps: 10000000  # Decay over full training duration (100%)
   
   lr_schedule:
     enabled: true
@@ -193,7 +201,7 @@ logging:
   
   # System logging
   system:
-    level: "DEBUG"  # DEBUG, INFO, WARNING, ERROR (temporarily DEBUG for callback testing)
+    level: "INFO"  # DEBUG, INFO, WARNING, ERROR
     format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Checkpointing
