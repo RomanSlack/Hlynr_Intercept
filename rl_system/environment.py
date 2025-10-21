@@ -480,6 +480,12 @@ class InterceptEnvironment(gym.Env):
                 terminated = True
         elif self.interceptor_state['position'][2] < 0:  # Interceptor crashed
             terminated = True
+        elif self.interceptor_state['fuel'] <= 0:  # Out of fuel
+            terminated = True
+        # EARLY TERMINATION: Stop wasting compute on obvious failures
+        # If after 1000 steps (10 seconds) we're still >2000m away, give up
+        elif self.steps > 1000 and distance > 2000.0:
+            terminated = True
         elif self.steps >= self.max_steps:
             truncated = True
         
@@ -681,28 +687,25 @@ class InterceptEnvironment(gym.Env):
     def _calculate_reward(self, distance: float, intercepted: bool, terminated: bool,
                          missile_hit_target: bool = False) -> float:
         """
-        Multi-stage reward function optimized for radar-guided interception.
+        Simplified 2-phase reward function for faster, more stable learning.
 
         Design Philosophy:
-        - Progressive reward shaping across engagement phases
-        - Dense rewards scaled 10x higher for better gradient signal
-        - Stage-specific bonuses to guide policy through search -> approach -> intercept
+        - Simple, clear gradient signal throughout engagement
+        - Two distinct phases: Far (>500m) and Close (<500m)
+        - Strong exponential only in close phase for final guidance
         - Uses ONLY radar observations and internal interceptor state (no omniscient data)
 
-        Engagement Phases:
-        1. Search Phase (>1000m): Reward detection and tracking
-        2. Approach Phase (500-1000m): Reward aggressive closing
-        3. Terminal Guidance (200-500m): Reward precise maneuvering
-        4. Final Intercept (<200m): Strong exponential gradient to target
+        Phase 1 (>500m): Reward aggressive closing
+        Phase 2 (<500m): Strong gradient to target with exponential bonus
         """
         reward = 0.0
 
         # Terminal rewards (only at episode end)
         if intercepted:
             # Successful interception - MISSION SUCCESS
-            reward = 500.0  # Increased from 200 for stronger signal
+            reward = 500.0
             # Time bonus for quick interception (encourage efficiency)
-            time_bonus = (self.max_steps - self.steps) * 0.2  # 2x previous scaling
+            time_bonus = (self.max_steps - self.steps) * 0.2
             reward += time_bonus
             return reward
 
@@ -720,63 +723,33 @@ class InterceptEnvironment(gym.Env):
             elif self.interceptor_state['fuel'] <= 0:
                 # Ran out of fuel
                 reward = -150.0
+            # Early termination for obvious failures (distance increasing)
+            elif distance > 2000.0 and self.steps > 1000:
+                # Policy has been trying for >10 seconds but getting further away
+                reward = -200.0
             return reward
 
-        # Dense shaping (during episode) - 10x scaling improvement
+        # Dense shaping (during episode)
         prev_distance = getattr(self, '_prev_distance', distance)
         distance_delta = prev_distance - distance
 
-        # Check if we have radar detection for phase-specific rewards
-        has_detection = self.last_detection_info and self.last_detection_info.get('detected', False)
-
-        # === PHASE 1: SEARCH PHASE (>1000m) ===
-        if distance > 1000.0:
-            # Primary: Reward closing distance
-            reward += distance_delta * 5.0  # 10x previous (was 0.5)
-
-            # Bonus: Reward maintaining radar lock during search
-            if has_detection:
-                radar_quality = self.last_detection_info.get('radar_quality', 0.0)
-                reward += 1.0 * radar_quality  # Up to +1.0 for perfect lock
-
-        # === PHASE 2: APPROACH PHASE (500-1000m) ===
-        elif distance > 500.0:
-            # Primary: Reward aggressive closing (higher weight)
-            reward += distance_delta * 8.0
-
-            # Bonus: Reward high closing velocity
-            if has_detection:
-                # Estimate closing speed from distance rate (implicit in delta)
-                closing_rate = distance_delta / self.dt  # m/s
-                if closing_rate > 50.0:  # Aggressive approach
-                    reward += 2.0
-
-        # === PHASE 3: TERMINAL GUIDANCE (200-500m) ===
-        elif distance > 200.0:
-            # Primary: Continue rewarding closure
+        # === PHASE 1: FAR AWAY (>500m) - Just reward closing ===
+        if distance > 500.0:
+            # Strong reward for reducing distance
             reward += distance_delta * 10.0
 
-            # Bonus: Smooth exponential to guide into final phase
-            approach_bonus = 5.0 * np.exp(-(distance - 200.0) / 100.0)
-            reward += approach_bonus
-
-        # === PHASE 4: FINAL INTERCEPT (<200m) ===
+        # === PHASE 2: CLOSE (<500m) - Strong gradient to target ===
         else:
-            # Primary: Maximum weight on closing distance
-            reward += distance_delta * 15.0
+            # Even stronger reward for closing when close
+            reward += distance_delta * 20.0
 
-            # Strong exponential gradient for final intercept
-            # Redesigned to avoid local optimum at 200m boundary
-            intercept_gradient = 20.0 * np.exp(-distance / 30.0)  # Sharper than before
+            # Single exponential for final guidance (no local optima)
+            # Provides strong gradient from 500m down to 0m
+            intercept_gradient = 50.0 * np.exp(-distance / 100.0)
             reward += intercept_gradient
 
-        # Time penalty (10x previous to encourage efficiency)
-        reward -= 0.1  # Was 0.01
-
-        # Small fuel efficiency bonus (encourage conservation)
-        fuel_fraction = self.interceptor_state['fuel'] / 100.0
-        if fuel_fraction < 0.2:  # Low fuel warning
-            reward -= 0.5  # Penalty for running low
+        # Time penalty (encourage efficiency)
+        reward -= 0.1
 
         # Store distance for next step
         self._prev_distance = distance
