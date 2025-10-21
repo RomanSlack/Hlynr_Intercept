@@ -68,65 +68,80 @@ environment:
   missile_evasion: false  # Enable missile evasion maneuvers
 
 # Curriculum Learning Configuration
-# Progressive difficulty: Start easy (large intercept radius), gradually increase difficulty
+# QUICK TRAINING MODE: Stay on easy difficulty for fast testing
 curriculum:
-  enabled: true  # Enable curriculum learning for intercept radius
+  enabled: false  # DISABLED for quick training - stays at initial (easy) settings
   initial_radius: 200.0  # Start with 200m intercept radius (easy to achieve)
-  final_radius: 20.0  # End with 20m intercept radius (realistic proximity fuse)
-  curriculum_steps: 2500000  # Reach final difficulty at 50% of training (3.5M of 7M)
+  final_radius: 200.0  # Keep at 200m for quick training (was 20m for hard)
+
+  # Curriculum disabled - will stay at easy settings throughout 500k training
+  curriculum_steps: 500000  # Match total training steps
 
   # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
-  # Early training: More reliable radar detection to help learning
-  # Late training: Realistic radar with noise, dropouts, and narrow beams
+  # QUICK TRAINING MODE: Keep radar settings easy throughout
   radar_curriculum:
-    enabled: true
+    enabled: false  # DISABLED - stays at easy radar settings
 
-    # Onboard radar beam width progression (degrees)
-    initial_beam_width: 120.0  # Wide beam for initial acquisition (realistic early warning mode)
-    final_beam_width: 60.0     # Narrow beam (realistic tracking mode)
+    # Easy settings kept throughout quick training
+    initial_beam_width: 120.0  # Wide beam (easy)
+    final_beam_width: 120.0    # Keep wide (was 60° for hard)
+    beam_width_transition_start: 999999999
+    beam_width_transition_end: 999999999
 
-    # Onboard radar detection reliability progression (0-1)
-    initial_detection_reliability: 1.0   # Perfect detection when in beam and range
-    final_detection_reliability: 0.75    # Realistic 75% base reliability
+    initial_detection_reliability: 1.0   # Perfect detection
+    final_detection_reliability: 1.0     # Keep perfect (was 0.75 for hard)
+    reliability_transition_start: 999999999
+    reliability_transition_end: 999999999
 
-    # Ground radar detection reliability progression (0-1)
-    initial_ground_reliability: 1.0      # Perfect ground radar initially
-    final_ground_reliability: 0.85       # Realistic 85% base reliability
+    initial_ground_reliability: 1.0      # Perfect ground radar
+    final_ground_reliability: 1.0        # Keep perfect (was 0.85 for hard)
+    ground_reliability_transition_start: 999999999
+    ground_reliability_transition_end: 999999999
 
-    # Radar noise level progression (measurement error)
-    initial_noise_level: 0.0    # No measurement noise initially
-    final_noise_level: 0.05     # Realistic 5% measurement noise
+    initial_noise_level: 0.0    # No measurement noise
+    final_noise_level: 0.0      # Keep no noise (was 0.05 for hard)
+    noise_transition_start: 999999999
+    noise_transition_end: 999999999
 
 # Training configuration
 training:
-  # Algorithm parameters - optimized for 7M step training run
-  total_timesteps: 7000000  # 7M steps for full curriculum + convergence at final difficulty
+  # Algorithm parameters - OPTIMIZED for faster convergence and stable learning
+  total_timesteps: 500000  # QUICK TRAINING: 500k steps for testing (was 7M for full training)
   n_envs: 16  # Parallel environments for sampling
-  learning_rate: 0.0001  # Stable learning rate
-  n_steps: 1024  # Frequent updates for fast learning signal propagation
-  batch_size: 256  # Batch size for stable gradients
+
+  # OPTIMIZATION: Learning rate increased 3x for faster convergence with sparse rewards
+  learning_rate: 0.0003  # Was 0.0001, now 3e-4 (PPO standard)
+
+  # OPTIMIZATION: Rollout and batch size adjusted for better gradient estimates
+  n_steps: 2048  # Increased from 1024 for longer planning horizon
+  batch_size: 512  # Increased from 256 to reduce gradient variance
   n_epochs: 10  # Epochs per rollout
-  gamma: 0.995  # Longer horizon for multi-stage interception
-  gae_lambda: 0.98  # More credit to future rewards
+
+  # OPTIMIZATION: Gamma and GAE lambda reduced for more conservative value estimates
+  gamma: 0.99  # Reduced from 0.995 for sharper discounting and better convergence
+  gae_lambda: 0.95  # Reduced from 0.98 to trust value function less during early training
+
   clip_range: 0.2
   ent_coef: 0.01  # Will be dynamically scheduled
   vf_coef: 0.5
   max_grad_norm: 0.5
 
-  # Network architecture - optimized for 26D observation -> 6D action (with ground radar)
-  net_arch: [512, 512, 256]  # Deep network for multi-sensor fusion and sophisticated behavior
+  # Network architecture - OPTIMIZED: Reduced size to prevent overfitting with sparse rewards
+  # 26D input -> 6D output doesn't need 400k+ parameters
+  net_arch: [256, 256]  # Reduced from [512, 512, 256] for faster training, less overfitting
 
   # Checkpointing
   checkpoint_freq: 25000  # Save every 25k timesteps
   eval_freq: 25000  # Evaluate every 25k timesteps
   n_eval_episodes: 10  # Episodes per evaluation
 
-  # Adaptive features - more exploration initially for multi-stage learning
+  # OPTIMIZATION: Entropy decay extended to full training duration
+  # Keeps exploration active during hard curriculum phases
   entropy_schedule:
     enabled: true
     initial: 0.05  # Moderate initial exploration
     final: 0.001  # Low final entropy for precise terminal guidance
-    decay_steps: 1400000  # Decay over first 20% of training (1.4M of 7M steps)
+    decay_steps: 7000000  # Extended from 1.4M to full 7M training (100% vs 20%)
   
   lr_schedule:
     enabled: true
