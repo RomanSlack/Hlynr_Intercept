@@ -73,7 +73,7 @@ curriculum:
   enabled: true  # Enable curriculum learning for intercept radius
   initial_radius: 200.0  # Start with 200m intercept radius (easy to achieve)
   final_radius: 20.0  # End with 20m intercept radius (realistic proximity fuse)
-  curriculum_steps: 3500000  # Reach final difficulty at 50% of training (3.5M of 7M)
+  curriculum_steps: 2500000  # Reach final difficulty at 50% of training (3.5M of 7M)
 
   # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
   # Early training: More reliable radar detection to help learning
