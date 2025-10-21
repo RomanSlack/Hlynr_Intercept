@@ -106,7 +106,7 @@ curriculum:
 # Training configuration
 training:
   # Algorithm parameters - OPTIMIZED for faster convergence and stable learning
-  total_timesteps: 2000000  # QUICK TRAINING: 500k steps for testing (was 7M for full training)
+  total_timesteps: 7000000  # Full training: 7M steps for convergence
   n_envs: 16  # Parallel environments for sampling
 
   # OPTIMIZATION: Learning rate increased 3x for faster convergence with sparse rewards
