@@ -343,7 +343,7 @@ def train(config_path: str):
         )
 
         # Use RecurrentPPO for LSTM support
-        from stable_baselines3.contrib import RecurrentPPO
+        from sb3_contrib import RecurrentPPO
 
         model = RecurrentPPO(
             "MlpLstmPolicy",
