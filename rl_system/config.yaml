@@ -111,7 +111,7 @@ curriculum:
 # Training configuration
 training:
   # Algorithm parameters - OPTIMIZED for stable convergence on simplified reward
-  total_timesteps: 15000000  # INCREASED: 15M steps for full curriculum + convergence
+  total_timesteps: 15000000  # FULL RUN: 15M steps with vf_coef=1.0 and success tracking
   n_envs: 16  # Parallel environments for sampling
 
   # OPTIMIZATION: Learning rate 3x standard for faster convergence
@@ -128,7 +128,7 @@ training:
 
   clip_range: 0.2
   ent_coef: 0.01  # Will be dynamically scheduled
-  vf_coef: 0.5
+  vf_coef: 1.0  # INCREASED from 0.5 to force stronger value function learning
   max_grad_norm: 0.5
 
   # Network architecture - FURTHER OPTIMIZED: Smaller network for faster convergence
@@ -193,7 +193,7 @@ logging:
   
   # System logging
   system:
-    level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+    level: "DEBUG"  # DEBUG, INFO, WARNING, ERROR (temporarily DEBUG for callback testing)
     format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Checkpointing

@@ -193,57 +193,90 @@ class EpisodeLoggingCallback(BaseCallback):
     def __init__(self, logger: UnifiedLogger, log_interval: int = 100):
         super().__init__()
         self.unified_logger = logger
-        self.tb_writer = logger.get_tensorboard_writer()
+        self.tb_writer = None  # Will be set in _on_training_start from model's logger
         self.log_interval = log_interval
         self.episode_count = 0
         self.episode_rewards = []
         self.episode_lengths = []
         self.interceptions = []  # Track successful interceptions
 
+    def _on_training_start(self) -> None:
+        """Initialize TensorBoard writer from model's logger."""
+        # Use the model's TensorBoard writer (created by PPO)
+        if self.model.logger and hasattr(self.model.logger, 'output_formats'):
+            for output_format in self.model.logger.output_formats:
+                if hasattr(output_format, 'writer'):  # TensorBoardOutputFormat
+                    self.tb_writer = output_format.writer
+                    self.unified_logger.logger.info("EpisodeCallback connected to model's TensorBoard writer")
+                    break
+
+        if self.tb_writer is None:
+            self.unified_logger.logger.warning("Could not connect to TensorBoard writer!")
+
     def _on_step(self) -> bool:
         """Log episode data including interception success."""
-        # Check for episode end
-        if self.locals.get('dones', [False])[0]:
-            self.episode_count += 1
+        # VecEnv returns lists - check ALL environments for episode ends
+        dones = self.locals.get('dones', [])
+        infos = self.locals.get('infos', [])
 
-            # Get episode info
-            info = self.locals.get('infos', [{}])[0]
-            episode_reward = info.get('episode', {}).get('r', 0)
-            episode_length = info.get('episode', {}).get('l', 0)
+        # DEBUG: Log first time we see dones
+        if not hasattr(self, '_debug_logged'):
+            self._debug_logged = True
+            self.unified_logger.logger.debug(f"EpisodeCallback first step - dones type: {type(dones)}, len: {len(dones) if hasattr(dones, '__len__') else 'N/A'}")
 
-            # Track interception success
-            intercepted = info.get('intercepted', False)
+        # Iterate through all environments
+        for i, (done, info) in enumerate(zip(dones, infos)):
+            # Only process when episode actually ends
+            if done:
+                # Monitor wrapper adds 'episode' dict with cumulative stats on episode end
+                if 'episode' in info:
+                    self.episode_count += 1
 
-            self.episode_rewards.append(episode_reward)
-            self.episode_lengths.append(episode_length)
-            self.interceptions.append(1.0 if intercepted else 0.0)
+                    episode_reward = info['episode']['r']
+                    episode_length = info['episode']['l']
 
-            # Log to TensorBoard
-            if self.tb_writer:
-                self.tb_writer.add_scalar(
-                    'episode/intercepted',
-                    1.0 if intercepted else 0.0,
-                    self.num_timesteps
-                )
+                    # Track interception success (our custom info from environment)
+                    intercepted = info.get('intercepted', False)
 
-            # Log every N episodes
-            if self.episode_count % self.log_interval == 0:
-                success_rate = np.mean(self.interceptions[-100:]) * 100
-                self.unified_logger.log_metrics({
-                    'episode': self.episode_count,
-                    'mean_reward': np.mean(self.episode_rewards[-100:]),
-                    'mean_length': np.mean(self.episode_lengths[-100:]),
-                    'success_rate_pct': success_rate,
-                    'total_timesteps': self.num_timesteps
-                })
+                    self.episode_rewards.append(episode_reward)
+                    self.episode_lengths.append(episode_length)
+                    self.interceptions.append(1.0 if intercepted else 0.0)
 
-                # Log success rate to TensorBoard
-                if self.tb_writer:
-                    self.tb_writer.add_scalar(
-                        'episode/success_rate_pct',
-                        success_rate,
-                        self.num_timesteps
-                    )
+                    # DEBUG: Log first few episodes
+                    if self.episode_count <= 3:
+                        self.unified_logger.logger.info(f"Episode {self.episode_count}: intercepted={intercepted}, reward={episode_reward:.0f}, steps={episode_length}")
+
+                    # Log to TensorBoard immediately for each episode
+                    if self.tb_writer:
+                        self.tb_writer.add_scalar(
+                            'episode/intercepted',
+                            1.0 if intercepted else 0.0,
+                            self.num_timesteps
+                        )
+                        self.tb_writer.add_scalar(
+                            'episode/reward',
+                            episode_reward,
+                            self.num_timesteps
+                        )
+
+                    # Log aggregated metrics every N episodes
+                    if self.episode_count % self.log_interval == 0:
+                        success_rate = np.mean(self.interceptions[-100:]) * 100
+                        self.unified_logger.log_metrics({
+                            'episode': self.episode_count,
+                            'mean_reward': np.mean(self.episode_rewards[-100:]),
+                            'mean_length': np.mean(self.episode_lengths[-100:]),
+                            'success_rate_pct': success_rate,
+                            'total_timesteps': self.num_timesteps
+                        })
+
+                        # Log rolling success rate to TensorBoard
+                        if self.tb_writer:
+                            self.tb_writer.add_scalar(
+                                'episode/success_rate_pct',
+                                success_rate,
+                                self.num_timesteps
+                            )
 
         return True
 
