@@ -68,80 +68,86 @@ environment:
   missile_evasion: false  # Enable missile evasion maneuvers
 
 # Curriculum Learning Configuration
-# QUICK TRAINING MODE: Stay on easy difficulty for fast testing
+# OPTIMIZED: Very slow progression to ensure policy masters each difficulty level
+# Strategy: Train on easy until 80%+ success, then gradually increase difficulty
 curriculum:
-  enabled: false  # DISABLED for quick training - stays at initial (easy) settings
+  enabled: true  # ENABLED with slow, staged progression
   initial_radius: 200.0  # Start with 200m intercept radius (easy to achieve)
-  final_radius: 200.0  # Keep at 200m for quick training (was 20m for hard)
+  final_radius: 20.0  # End with 20m intercept radius (realistic proximity fuse)
 
-  # Curriculum disabled - will stay at easy settings throughout 500k training
-  curriculum_steps: 500000  # Match total training steps
+  # SLOW PROGRESSION: Reach final difficulty at 15M steps (100% of training)
+  # This ensures policy fully converges on easy before facing harder challenges
+  curriculum_steps: 15000000  # Extended to match full training duration
 
   # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
-  # QUICK TRAINING MODE: Keep radar settings easy throughout
+  # STAGED TRANSITIONS: Each difficulty factor increases independently and slowly
   radar_curriculum:
-    enabled: false  # DISABLED - stays at easy radar settings
+    enabled: true
 
-    # Easy settings kept throughout quick training
-    initial_beam_width: 120.0  # Wide beam (easy)
-    final_beam_width: 120.0    # Keep wide (was 60° for hard)
-    beam_width_transition_start: 999999999
-    beam_width_transition_end: 999999999
+    # STAGE 1: Beam width narrowing (8M-12M steps, after policy is stable)
+    initial_beam_width: 120.0  # Wide beam for initial acquisition
+    final_beam_width: 60.0     # Narrow beam for realistic tracking
+    beam_width_transition_start: 8000000   # Start at 8M (53% of training)
+    beam_width_transition_end: 12000000    # Finish at 12M (80% of training)
 
-    initial_detection_reliability: 1.0   # Perfect detection
-    final_detection_reliability: 1.0     # Keep perfect (was 0.75 for hard)
-    reliability_transition_start: 999999999
-    reliability_transition_end: 999999999
+    # STAGE 2: Detection reliability degradation (12M-14M steps, after beam stable)
+    initial_detection_reliability: 1.0   # Perfect detection initially
+    final_detection_reliability: 0.75    # Realistic 75% base reliability
+    reliability_transition_start: 12000000  # Start at 12M (80% of training)
+    reliability_transition_end: 14000000    # Finish at 14M (93% of training)
 
-    initial_ground_reliability: 1.0      # Perfect ground radar
-    final_ground_reliability: 1.0        # Keep perfect (was 0.85 for hard)
-    ground_reliability_transition_start: 999999999
-    ground_reliability_transition_end: 999999999
+    # STAGE 2: Ground radar reliability (synchronized with onboard)
+    initial_ground_reliability: 1.0      # Perfect ground radar initially
+    final_ground_reliability: 0.85       # Realistic 85% base reliability
+    ground_reliability_transition_start: 12000000
+    ground_reliability_transition_end: 14000000
 
-    initial_noise_level: 0.0    # No measurement noise
-    final_noise_level: 0.0      # Keep no noise (was 0.05 for hard)
-    noise_transition_start: 999999999
-    noise_transition_end: 999999999
+    # STAGE 3: Measurement noise (14M-15M steps, final challenge)
+    initial_noise_level: 0.0    # No measurement noise initially
+    final_noise_level: 0.05     # Realistic 5% measurement noise
+    noise_transition_start: 14000000  # Start at 14M (93% of training)
+    noise_transition_end: 15000000    # Finish at 15M (100% of training)
 
 # Training configuration
 training:
-  # Algorithm parameters - OPTIMIZED for faster convergence and stable learning
-  total_timesteps: 7000000  # Full training: 7M steps for convergence
+  # Algorithm parameters - OPTIMIZED for stable convergence on simplified reward
+  total_timesteps: 15000000  # INCREASED: 15M steps for full curriculum + convergence
   n_envs: 16  # Parallel environments for sampling
 
-  # OPTIMIZATION: Learning rate increased 3x for faster convergence with sparse rewards
-  learning_rate: 0.0003  # Was 0.0001, now 3e-4 (PPO standard)
+  # OPTIMIZATION: Learning rate 3x standard for faster convergence
+  learning_rate: 0.0003  # 3e-4 (PPO standard)
 
-  # OPTIMIZATION: Rollout and batch size adjusted for better gradient estimates
-  n_steps: 2048  # Increased from 1024 for longer planning horizon
-  batch_size: 512  # Increased from 256 to reduce gradient variance
+  # OPTIMIZATION: Rollout and batch size for stable gradients
+  n_steps: 2048  # Longer rollouts for better planning horizon
+  batch_size: 512  # Large batches for stable gradient estimates
   n_epochs: 10  # Epochs per rollout
 
-  # OPTIMIZATION: Gamma and GAE lambda reduced for more conservative value estimates
-  gamma: 0.99  # Reduced from 0.995 for sharper discounting and better convergence
-  gae_lambda: 0.95  # Reduced from 0.98 to trust value function less during early training
+  # OPTIMIZATION: Conservative value estimates for early training stability
+  gamma: 0.99  # Sharper discounting for better convergence
+  gae_lambda: 0.95  # Less trust in value function during early training
 
   clip_range: 0.2
   ent_coef: 0.01  # Will be dynamically scheduled
   vf_coef: 0.5
   max_grad_norm: 0.5
 
-  # Network architecture - OPTIMIZED: Reduced size to prevent overfitting with sparse rewards
-  # 26D input -> 6D output doesn't need 400k+ parameters
-  net_arch: [256, 256]  # Reduced from [512, 512, 256] for faster training, less overfitting
+  # Network architecture - FURTHER OPTIMIZED: Smaller network for faster convergence
+  # Simpler reward function allows smaller network to learn effectively
+  # 26D input -> 6D output: [128, 128] has ~33k params (vs 134k for [256, 256])
+  net_arch: [128, 128]  # Reduced from [256, 256] for faster learning with simplified reward
 
-  # Checkpointing
-  checkpoint_freq: 25000  # Save every 25k timesteps
-  eval_freq: 25000  # Evaluate every 25k timesteps
+  # Checkpointing - adjusted for longer training
+  checkpoint_freq: 50000  # Save every 50k timesteps (increased from 25k to reduce I/O)
+  eval_freq: 50000  # Evaluate every 50k timesteps
   n_eval_episodes: 10  # Episodes per evaluation
 
-  # OPTIMIZATION: Entropy decay extended to full training duration
-  # Keeps exploration active during hard curriculum phases
+  # OPTIMIZATION: Entropy decay over full 15M training
+  # Maintains exploration throughout curriculum transitions
   entropy_schedule:
     enabled: true
     initial: 0.05  # Moderate initial exploration
     final: 0.001  # Low final entropy for precise terminal guidance
-    decay_steps: 7000000  # Extended from 1.4M to full 7M training (100% vs 20%)
+    decay_steps: 15000000  # Decay over full training duration (100%)
   
   lr_schedule:
     enabled: true
