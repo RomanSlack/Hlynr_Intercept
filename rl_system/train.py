@@ -330,25 +330,32 @@ def train(config_path: str):
     # Episode logging callback
     callbacks.append(EpisodeLoggingCallback(logger))
     
-    # Checkpoint callback
-    checkpoint_dir = Path(config.get('checkpointing', {}).get('checkpoint_dir', 'checkpoints'))
-    checkpoint_dir.mkdir(exist_ok=True)
-    
+    # Checkpoint callback - create timestamped directory
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    total_steps = config['training']['total_timesteps']
+    checkpoint_base = Path(config.get('checkpointing', {}).get('checkpoint_dir', 'checkpoints'))
+    checkpoint_dir = checkpoint_base / f"training_{timestamp}_{total_steps}steps"
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.logger.info(f"Checkpoints will be saved to: {checkpoint_dir}")
+
     callbacks.append(CheckpointCallback(
         save_freq=config['training'].get('checkpoint_freq', 10000),
-        save_path=str(checkpoint_dir),
+        save_path=str(checkpoint_dir / "checkpoints"),
         name_prefix="model",
         save_vecnormalize=True
     ))
-    
+
     # Evaluation callback
     eval_env = DummyVecEnv([create_env(env_config)])
-    eval_env = VecNormalize(eval_env, training=False, norm_reward=False)
-    
+    # VecNormalize removed from training, keep it commented for eval too
+    # eval_env = VecNormalize(eval_env, training=False, norm_reward=False)
+
     callbacks.append(EvalCallback(
         eval_env,
         best_model_save_path=str(checkpoint_dir / "best"),
-        log_path=str(logger.log_dir / "eval"),
+        log_path=str(checkpoint_dir / "eval_logs"),
         eval_freq=config['training'].get('eval_freq', 10000),
         n_eval_episodes=config['training'].get('n_eval_episodes', 10),
         deterministic=True
