@@ -375,8 +375,12 @@ def train(config_path: str):
     final_path = checkpoint_dir / "final"
     final_path.mkdir(exist_ok=True)
     model.save(str(final_path / "model"))
-    envs.save(str(final_path / "vec_normalize.pkl"))
-    
+
+    # VecNormalize removed - skip saving it
+    # Only save if VecNormalize wrapper is actually used
+    if hasattr(envs, 'save'):
+        envs.save(str(final_path / "vec_normalize.pkl"))
+
     logger.logger.info(f"Training completed. Final model saved to {final_path}")
     
     # Create manifest
