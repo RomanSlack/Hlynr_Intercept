@@ -566,13 +566,16 @@ class Radar26DObservation:
             else:
                 obs[16] = 1.0
         else:
-            # No onboard detection - all target-related observations are zero/invalid
-            obs[0:3] = 0.0
-            obs[3:6] = 0.0
-            obs[13] = -1.0
-            obs[14] = 0.0
-            obs[15] = 0.0
-            obs[16] = 0.0
+            # No onboard detection - use sentinel value to distinguish from zero measurements
+            # SENTINEL: -2.0 is outside normal [-1, 1] observation range
+            # This allows policy to distinguish "no detection" from "target at origin"
+            NO_DETECTION_SENTINEL = -2.0
+            obs[0:3] = NO_DETECTION_SENTINEL  # Position unknown
+            obs[3:6] = NO_DETECTION_SENTINEL  # Velocity unknown
+            obs[13] = -1.0  # Time to intercept invalid
+            obs[14] = 0.0  # No lock quality
+            obs[15] = 0.0  # No closing rate
+            obs[16] = 0.0  # No off-axis angle
 
         # [6-8] Interceptor's own velocity (perfect internal knowledge)
         obs[6:9] = np.clip(int_vel / self.max_velocity, -1.0, 1.0)
@@ -599,10 +602,11 @@ class Radar26DObservation:
             # [23] Ground radar quality
             obs[23] = ground_quality
         else:
-            # No ground radar detection or data link failure
-            obs[17:20] = 0.0
-            obs[20:23] = 0.0
-            obs[23] = 0.0
+            # No ground radar detection or data link failure - use sentinel
+            NO_DETECTION_SENTINEL = -2.0
+            obs[17:20] = NO_DETECTION_SENTINEL  # Ground position unknown
+            obs[20:23] = NO_DETECTION_SENTINEL  # Ground velocity unknown
+            obs[23] = 0.0  # No quality metric
 
         # [24] Data link quality (always available, shows communication status)
         obs[24] = datalink_quality

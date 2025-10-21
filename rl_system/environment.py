@@ -155,8 +155,11 @@ class InterceptEnvironment(gym.Env):
         self.safety_clamp = SafetyClamp(SafetyLimits())
 
         # Spaces - updated to 26D for ground radar support
+        # NOTE: Observation space bounds extended to [-2.0, 1.0] to accommodate sentinel value
+        # -2.0 = NO_DETECTION_SENTINEL (used when radar loses lock)
+        # [-1.0, 1.0] = Normal observation range (radar measurements, internal state)
         self.observation_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(26,), dtype=np.float32
+            low=-2.0, high=1.0, shape=(26,), dtype=np.float32
         )
         self.action_space = spaces.Box(
             low=-1.0, high=1.0, shape=(6,), dtype=np.float32
@@ -191,34 +194,79 @@ class InterceptEnvironment(gym.Env):
         self._update_radar_curriculum()
 
     def _update_radar_curriculum(self):
-        """Update radar parameters based on curriculum progress (radar-only, no omniscient data)."""
+        """
+        Update radar parameters based on STAGGERED curriculum progress.
+
+        OPTIMIZATION: Each difficulty factor transitions independently to prevent cliff.
+        - Beam width: Transitions 3M-5M steps (Phase 2-3)
+        - Detection reliability: Transitions 4.5M-6M steps (Phase 3)
+        - Measurement noise: Transitions 6M-7M steps (Phase 4)
+
+        This allows policy to learn each skill incrementally without catastrophic forgetting.
+        """
         if not self.use_radar_curriculum or not self.radar_curriculum_config:
             return
 
-        # Calculate curriculum progress (0.0 = start, 1.0 = end)
-        progress = min(1.0, self.training_step_count / self.curriculum_steps)
+        current_step = self.training_step_count
 
-        # Linear interpolation for beam width
+        # === BEAM WIDTH CURRICULUM (Phase 2-3) ===
         initial_beam = self.radar_curriculum_config.get('initial_beam_width', 120.0)
         final_beam = self.radar_curriculum_config.get('final_beam_width', 60.0)
-        current_beam_width = initial_beam * (1.0 - progress) + final_beam * progress
+        beam_start = self.radar_curriculum_config.get('beam_width_transition_start', 3000000)
+        beam_end = self.radar_curriculum_config.get('beam_width_transition_end', 5000000)
 
-        # Linear interpolation for onboard detection reliability
+        if current_step < beam_start:
+            current_beam_width = initial_beam
+        elif current_step >= beam_end:
+            current_beam_width = final_beam
+        else:
+            # Linear interpolation during transition
+            beam_progress = (current_step - beam_start) / (beam_end - beam_start)
+            current_beam_width = initial_beam * (1.0 - beam_progress) + final_beam * beam_progress
+
+        # === ONBOARD DETECTION RELIABILITY CURRICULUM (Phase 3) ===
         initial_reliability = self.radar_curriculum_config.get('initial_detection_reliability', 1.0)
         final_reliability = self.radar_curriculum_config.get('final_detection_reliability', 0.75)
-        current_reliability = initial_reliability * (1.0 - progress) + final_reliability * progress
+        reliability_start = self.radar_curriculum_config.get('reliability_transition_start', 4500000)
+        reliability_end = self.radar_curriculum_config.get('reliability_transition_end', 6000000)
 
-        # Linear interpolation for ground radar reliability
+        if current_step < reliability_start:
+            current_reliability = initial_reliability
+        elif current_step >= reliability_end:
+            current_reliability = final_reliability
+        else:
+            reliability_progress = (current_step - reliability_start) / (reliability_end - reliability_start)
+            current_reliability = initial_reliability * (1.0 - reliability_progress) + final_reliability * reliability_progress
+
+        # === GROUND RADAR RELIABILITY CURRICULUM (Phase 3) ===
         initial_ground = self.radar_curriculum_config.get('initial_ground_reliability', 1.0)
         final_ground = self.radar_curriculum_config.get('final_ground_reliability', 0.85)
-        current_ground_reliability = initial_ground * (1.0 - progress) + final_ground * progress
+        ground_start = self.radar_curriculum_config.get('ground_reliability_transition_start', 4500000)
+        ground_end = self.radar_curriculum_config.get('ground_reliability_transition_end', 6000000)
 
-        # Linear interpolation for noise level
+        if current_step < ground_start:
+            current_ground_reliability = initial_ground
+        elif current_step >= ground_end:
+            current_ground_reliability = final_ground
+        else:
+            ground_progress = (current_step - ground_start) / (ground_end - ground_start)
+            current_ground_reliability = initial_ground * (1.0 - ground_progress) + final_ground * ground_progress
+
+        # === MEASUREMENT NOISE CURRICULUM (Phase 4) ===
         initial_noise = self.radar_curriculum_config.get('initial_noise_level', 0.0)
         final_noise = self.radar_curriculum_config.get('final_noise_level', 0.05)
-        current_noise = initial_noise * (1.0 - progress) + final_noise * progress
+        noise_start = self.radar_curriculum_config.get('noise_transition_start', 6000000)
+        noise_end = self.radar_curriculum_config.get('noise_transition_end', 7000000)
 
-        # Update observation generator with curriculum parameters
+        if current_step < noise_start:
+            current_noise = initial_noise
+        elif current_step >= noise_end:
+            current_noise = final_noise
+        else:
+            noise_progress = (current_step - noise_start) / (noise_end - noise_start)
+            current_noise = initial_noise * (1.0 - noise_progress) + final_noise * noise_progress
+
+        # Update observation generator with staggered curriculum parameters
         self.observation_generator.radar_beam_width = current_beam_width
         self.observation_generator.onboard_detection_reliability = current_reliability
         self.observation_generator.ground_detection_reliability = current_ground_reliability
@@ -471,8 +519,10 @@ class InterceptEnvironment(gym.Env):
         # Extract thrust and angular commands from action
         # PAC-3 interceptor has extremely high thrust-to-weight ratio (>20)
         # This gives ~40 m/s^2 acceleration capability for aggressive pursuit
+        # ACTION SCALING OPTIMIZATION: Balanced scaling for stable gradient flow
+        # Both thrust and angular scaled proportionally to prevent gradient imbalance
         thrust_cmd_desired = action[0:3] * 10000.0  # Scale to N (realistic interceptor thrust)
-        angular_cmd = action[3:6] * 2.0   # Scale to rad/s
+        angular_cmd = action[3:6] * 20.0   # Scale to rad/s (10x increase for balanced gradients)
 
         # Apply thrust dynamics (first-order lag response)
         if self.thrust_dynamics_enabled:
@@ -631,22 +681,28 @@ class InterceptEnvironment(gym.Env):
     def _calculate_reward(self, distance: float, intercepted: bool, terminated: bool,
                          missile_hit_target: bool = False) -> float:
         """
-        Simplified reward function for stable learning.
+        Multi-stage reward function optimized for radar-guided interception.
 
-        Design: Sparse terminal rewards + minimal dense shaping.
-        Removes overlapping exponential bonuses that create local optima.
+        Design Philosophy:
+        - Progressive reward shaping across engagement phases
+        - Dense rewards scaled 10x higher for better gradient signal
+        - Stage-specific bonuses to guide policy through search -> approach -> intercept
+        - Uses ONLY radar observations and internal interceptor state (no omniscient data)
 
-        Uses ONLY information from radar observations (distance inferred from radar)
-        plus internal interceptor state. No omniscient data to policy.
+        Engagement Phases:
+        1. Search Phase (>1000m): Reward detection and tracking
+        2. Approach Phase (500-1000m): Reward aggressive closing
+        3. Terminal Guidance (200-500m): Reward precise maneuvering
+        4. Final Intercept (<200m): Strong exponential gradient to target
         """
         reward = 0.0
 
         # Terminal rewards (only at episode end)
         if intercepted:
             # Successful interception - MISSION SUCCESS
-            reward = 200.0
-            # Time bonus for quick interception
-            time_bonus = (self.max_steps - self.steps) * 0.1
+            reward = 500.0  # Increased from 200 for stronger signal
+            # Time bonus for quick interception (encourage efficiency)
+            time_bonus = (self.max_steps - self.steps) * 0.2  # 2x previous scaling
             reward += time_bonus
             return reward
 
@@ -661,23 +717,66 @@ class InterceptEnvironment(gym.Env):
             elif self.interceptor_state['position'][2] < 0:
                 # Interceptor crashed
                 reward = -100.0
+            elif self.interceptor_state['fuel'] <= 0:
+                # Ran out of fuel
+                reward = -150.0
             return reward
 
-        # Dense shaping (during episode)
+        # Dense shaping (during episode) - 10x scaling improvement
         prev_distance = getattr(self, '_prev_distance', distance)
-
-        # 1. PRIMARY: Reward for reducing distance (simple delta)
         distance_delta = prev_distance - distance
-        reward += distance_delta * 0.5  # Scaled to prevent domination
 
-        # 2. SECONDARY: Single exponential proximity bonus (only in terminal phase)
-        # Provides strong gradient when close, unlike overlapping bonuses
-        if distance < 200.0:
-            proximity_reward = 30.0 * np.exp(-distance / 50.0)
-            reward += proximity_reward
+        # Check if we have radar detection for phase-specific rewards
+        has_detection = self.last_detection_info and self.last_detection_info.get('detected', False)
 
-        # 3. SMALL TIME PENALTY: Encourages speed without dominating other signals
-        reward -= 0.01
+        # === PHASE 1: SEARCH PHASE (>1000m) ===
+        if distance > 1000.0:
+            # Primary: Reward closing distance
+            reward += distance_delta * 5.0  # 10x previous (was 0.5)
+
+            # Bonus: Reward maintaining radar lock during search
+            if has_detection:
+                radar_quality = self.last_detection_info.get('radar_quality', 0.0)
+                reward += 1.0 * radar_quality  # Up to +1.0 for perfect lock
+
+        # === PHASE 2: APPROACH PHASE (500-1000m) ===
+        elif distance > 500.0:
+            # Primary: Reward aggressive closing (higher weight)
+            reward += distance_delta * 8.0
+
+            # Bonus: Reward high closing velocity
+            if has_detection:
+                # Estimate closing speed from distance rate (implicit in delta)
+                closing_rate = distance_delta / self.dt  # m/s
+                if closing_rate > 50.0:  # Aggressive approach
+                    reward += 2.0
+
+        # === PHASE 3: TERMINAL GUIDANCE (200-500m) ===
+        elif distance > 200.0:
+            # Primary: Continue rewarding closure
+            reward += distance_delta * 10.0
+
+            # Bonus: Smooth exponential to guide into final phase
+            approach_bonus = 5.0 * np.exp(-(distance - 200.0) / 100.0)
+            reward += approach_bonus
+
+        # === PHASE 4: FINAL INTERCEPT (<200m) ===
+        else:
+            # Primary: Maximum weight on closing distance
+            reward += distance_delta * 15.0
+
+            # Strong exponential gradient for final intercept
+            # Redesigned to avoid local optimum at 200m boundary
+            intercept_gradient = 20.0 * np.exp(-distance / 30.0)  # Sharper than before
+            reward += intercept_gradient
+
+        # Time penalty (10x previous to encourage efficiency)
+        reward -= 0.1  # Was 0.01
+
+        # Small fuel efficiency bonus (encourage conservation)
+        fuel_fraction = self.interceptor_state['fuel'] / 100.0
+        if fuel_fraction < 0.2:  # Low fuel warning
+            reward -= 0.5  # Penalty for running low
 
         # Store distance for next step
         self._prev_distance = distance

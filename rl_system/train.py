@@ -276,15 +276,19 @@ def train(config_path: str):
     env_config = config.get('environment', {})
     
     envs = DummyVecEnv([create_env(env_config, i) for i in range(n_envs)])
-    
-    # Add VecNormalize wrapper
-    envs = VecNormalize(
-        envs,
-        norm_obs=True,
-        norm_reward=True,
-        clip_obs=10.0,
-        clip_reward=10.0
-    )
+
+    # OPTIMIZATION: VecNormalize removed to prevent double normalization
+    # Observations are already manually normalized in core.py observation generator
+    # Double normalization creates non-stationary input distributions during curriculum
+    #
+    # If normalization is needed in future, use ONLY VecNormalize OR manual normalization, not both
+    # envs = VecNormalize(
+    #     envs,
+    #     norm_obs=True,
+    #     norm_reward=True,
+    #     clip_obs=10.0,
+    #     clip_reward=10.0
+    # )
     
     # Detect available device with graceful fallback
     device = get_device()
