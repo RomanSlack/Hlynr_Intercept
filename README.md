@@ -101,7 +101,14 @@ python inference.py --model checkpoints/best --mode server
 
 # Batch evaluation with JSON export
 python inference.py --model checkpoints/best --mode offline --scenario medium
+
+
+
+python inference.py --model checkpoints/model_400000_steps.zip --config config.yaml --mode offline
 ```
+
+
+
 
 **Expected training results:**
 - **1M steps (~5 min)**: 30-40% interception success rate
