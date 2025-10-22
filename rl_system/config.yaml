@@ -18,11 +18,12 @@ environment:
     position: [[0, 0, 0], [50, 50, 10]]  # Launch from target area, ground level
     velocity: [[20, 20, 40], [40, 40, 80]]  # Initial launch velocity
 
-  # Incoming ballistic missile - mid-range threat
-  # Reduced from 4-7km to 2-4km to make learning feasible with current physics
+  # Incoming ballistic missile - OPTIMIZED for radar acquisition and feasible intercept
+  # Closer range (1-2km) ensures reliable radar detection at episode start
+  # Slower velocity gives interceptor time to maneuver for intercept
   missile_spawn:
-    position: [[1500, 1500, 1500], [3000, 3000, 3000]]  # 2-4km away, 1.5-3km altitude
-    velocity: [[-100, -100, -50], [-150, -150, -70]]  # Descending toward origin
+    position: [[800, 800, 800], [1500, 1500, 1500]]  # 1.4-2.6km away, moderate altitude
+    velocity: [[-60, -60, -30], [-100, -100, -50]]  # Slower descent toward origin
   
   # Physics
   gravity: [0, 0, -9.81]  # m/s^2
@@ -34,11 +35,11 @@ environment:
     velocity: [5.0, 0.0, 0.0]  # Base wind velocity (m/s)
     variability: 0.1  # Wind variation factor
   
-  # Onboard Radar system
-  radar_range: 8000.0  # Maximum radar detection range (m) - increased to detect threats at spawn
-  radar_noise: 0.05  # Radar measurement noise level
+  # Onboard Radar system - OPTIMIZED for reliable target acquisition
+  radar_range: 5000.0  # Maximum radar detection range (m) - sufficient for 1-2.6km spawns
+  radar_noise: 0.02  # Low initial noise (Kalman filter will smooth further)
   radar_quality: 1.0  # Initial radar quality (0-1)
-  radar_beam_width: 60.0  # Radar beam width in degrees
+  radar_beam_width: 120.0  # Wide initial beam for easy acquisition (curriculum narrows later)
   min_detection_range: 50.0  # Minimum range for accurate tracking
 
   # Ground-Based Radar Array (AN/TPY-2 THAAD-style)
@@ -68,94 +69,90 @@ environment:
   missile_evasion: false  # Enable missile evasion maneuvers
 
 # Curriculum Learning Configuration
-# OPTIMIZED: Very slow progression to ensure policy masters each difficulty level
-# Strategy: Train on easy until 80%+ success, then gradually increase difficulty
+# OPTIMIZED: Start easy, gradually increase difficulty as policy improves
+# Strategy: Master fundamentals first, then refine under harder conditions
 curriculum:
-  enabled: true  # ENABLED but FROZEN at easy difficulty
-  initial_radius: 200.0  # FROZEN: Train at 200m radius throughout
-  final_radius: 200.0  # FROZEN: Stay at 200m (was 20m - too aggressive)
+  enabled: true
+  initial_radius: 150.0  # Easier start (was 200m, reduced since spawn range closer)
+  final_radius: 20.0  # Realistic proximity fuse accuracy (PAC-3 spec)
 
-  # FROZEN CURRICULUM: Train at easy difficulty until policy masters basics
-  # Previous runs failed because curriculum shrank too fast (200m -> 20m)
-  # Policy never learned fundamentals before difficulty increased
-  curriculum_steps: 15000000  # Extended to match full training duration
+  # GRADUAL curriculum progression over full training
+  # Policy learns basics at 150m, refines to 20m precision over 10M steps
+  curriculum_steps: 10000000  # Full training duration
 
   # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
-  # STAGED TRANSITIONS: Each difficulty factor increases independently and slowly
+  # OPTIMIZED: Gentle progression after policy demonstrates basic competence
   radar_curriculum:
     enabled: true
 
-    # STAGE 1: Beam width narrowing (8M-12M steps, after policy is stable)
+    # STAGE 1: Beam width narrowing (5M-8M steps, after basic learning)
     initial_beam_width: 120.0  # Wide beam for initial acquisition
     final_beam_width: 60.0     # Narrow beam for realistic tracking
-    beam_width_transition_start: 8000000   # Start at 8M (53% of training)
-    beam_width_transition_end: 12000000    # Finish at 12M (80% of training)
+    beam_width_transition_start: 5000000   # Start at 5M (50% of training)
+    beam_width_transition_end: 8000000    # Finish at 8M (80% of training)
 
-    # STAGE 2: Detection reliability degradation (12M-14M steps, after beam stable)
-    initial_detection_reliability: 1.0   # Perfect detection initially
-    final_detection_reliability: 0.75    # Realistic 75% base reliability
-    reliability_transition_start: 12000000  # Start at 12M (80% of training)
-    reliability_transition_end: 14000000    # Finish at 14M (93% of training)
+    # STAGE 2: Detection reliability degradation (DISABLED for now - too hard)
+    initial_detection_reliability: 1.0   # Perfect detection
+    final_detection_reliability: 1.0     # Keep perfect (enable later if training succeeds)
+    reliability_transition_start: 15000000  # Disabled
+    reliability_transition_end: 20000000    # Disabled
 
-    # STAGE 2: Ground radar reliability (synchronized with onboard)
-    initial_ground_reliability: 1.0      # Perfect ground radar initially
-    final_ground_reliability: 0.85       # Realistic 85% base reliability
-    ground_reliability_transition_start: 12000000
-    ground_reliability_transition_end: 14000000
+    # Ground radar reliability (keep high for backup)
+    initial_ground_reliability: 1.0      # Perfect ground radar
+    final_ground_reliability: 1.0        # Keep perfect
+    ground_reliability_transition_start: 15000000
+    ground_reliability_transition_end: 20000000
 
-    # STAGE 3: Measurement noise (14M-15M steps, final challenge)
-    initial_noise_level: 0.0    # No measurement noise initially
-    final_noise_level: 0.05     # Realistic 5% measurement noise
-    noise_transition_start: 14000000  # Start at 14M (93% of training)
-    noise_transition_end: 15000000    # Finish at 15M (100% of training)
+    # STAGE 3: Measurement noise (DISABLED - Kalman filter handles noise)
+    initial_noise_level: 0.0    # Kalman filter smooths measurements
+    final_noise_level: 0.0      # Keep low (filter provides robustness)
+    noise_transition_start: 15000000  # Disabled
+    noise_transition_end: 20000000    # Disabled
 
 # Training configuration
 training:
-  # Algorithm parameters - OPTIMIZED for LSTM-based policy with dense rewards
-  total_timesteps: 10000000  # FULL RUN: 10M steps for LSTM convergence with dense rewards
+  # Algorithm parameters - OPTIMIZED for LSTM + Kalman filter observations
+  total_timesteps: 10000000  # 10M steps for full convergence
   n_envs: 16  # Parallel environments for sampling
 
-  # LSTM Policy Configuration (handles partial observability from radar)
-  use_lstm: true  # Enable LSTM for temporal integration of radar observations
-  lstm_hidden_size: 256  # LSTM hidden state size (matches network size for efficiency)
-  n_lstm_layers: 1  # Single LSTM layer (sufficient for this task)
+  # LSTM Policy Configuration (handles temporal patterns in Kalman-filtered observations)
+  use_lstm: true  # Enable LSTM for temporal integration
+  lstm_hidden_size: 256  # LSTM hidden state size
+  n_lstm_layers: 1  # Single LSTM layer (sufficient with Kalman preprocessing)
   enable_critic_lstm: true  # LSTM for both policy and value function
 
-  # OPTIMIZATION: Learning rate for LSTM (slightly lower for stability)
-  learning_rate: 0.0002  # 2e-4 (reduced for LSTM stability)
+  # Learning rate - standard for LSTM
+  learning_rate: 0.0003  # 3e-4 (standard PPO rate, LSTM-compatible)
 
-  # OPTIMIZATION: Rollout and batch size optimized for LSTM
-  n_steps: 1024  # Shorter rollouts for LSTM (reduces memory, speeds backprop through time)
-  batch_size: 128  # Smaller batches for LSTM (memory constraints)
+  # Rollout and batch size optimized for LSTM
+  n_steps: 1024  # Shorter rollouts for LSTM memory efficiency
+  batch_size: 128  # Smaller batches for LSTM
   n_epochs: 10  # Epochs per rollout
 
-  # OPTIMIZATION: Conservative value estimates for early training stability
-  gamma: 0.99  # Sharper discounting for better convergence
-  gae_lambda: 0.95  # Less trust in value function during early training
+  # PPO hyperparameters
+  gamma: 0.99  # Standard discount factor
+  gae_lambda: 0.95  # Standard GAE lambda
 
   clip_range: 0.2
-  ent_coef: 0.01  # Will be dynamically scheduled
-  vf_coef: 0.5  # REVERTED from 1.0 - doubling made things worse (18% vs 33%)
-  max_grad_norm: 0.5
+  ent_coef: 0.02  # Higher initial exploration (will decay via schedule)
+  vf_coef: 0.5  # Standard value function coefficient
+  max_grad_norm: 0.5  # Gradient clipping for stability
 
-  # Network architecture - OPTIMIZED for LSTM policy
-  # LSTM adds temporal integration capacity, so MLP layers can be moderate size
+  # Network architecture - moderate size (Kalman filter reduces observation complexity)
   # 26D input -> LSTM(256) -> [256, 256] -> 6D output
-  # Total params: ~400k (LSTM adds ~260k, MLPs add ~140k)
-  net_arch: [256, 256]  # Increased for LSTM - handles complex temporal patterns
+  net_arch: [256, 256]  # Moderate MLP size
 
-  # Checkpointing - adjusted for longer training
-  checkpoint_freq: 50000  # Save every 50k timesteps (increased from 25k to reduce I/O)
+  # Checkpointing
+  checkpoint_freq: 50000  # Save every 50k timesteps
   eval_freq: 50000  # Evaluate every 50k timesteps
   n_eval_episodes: 10  # Episodes per evaluation
 
-  # OPTIMIZATION: Entropy decay over 10M training (LSTM learns faster with dense rewards)
-  # Maintains exploration throughout learning
+  # Entropy decay schedule (encourage exploration early, exploitation late)
   entropy_schedule:
     enabled: true
-    initial: 0.05  # Moderate initial exploration
+    initial: 0.02  # Moderate initial exploration
     final: 0.001  # Low final entropy for precise terminal guidance
-    decay_steps: 10000000  # Decay over full training duration (100%)
+    decay_steps: 10000000  # Decay over full training duration
   
   lr_schedule:
     enabled: true
