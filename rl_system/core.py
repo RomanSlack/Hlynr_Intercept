@@ -3,10 +3,134 @@ Core components: 26D observations with ground radar, coordinate transforms, and 
 """
 
 import numpy as np
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 from dataclasses import dataclass
 import math
 from collections import deque
+
+
+class SimpleKalmanFilter:
+    """
+    Simple Kalman filter for estimating missile trajectory from noisy radar measurements.
+
+    This mimics what real missile defense systems do - they don't train RL on raw radar,
+    they filter it first to get smooth position/velocity estimates.
+
+    State: [x, y, z, vx, vy, vz] (position and velocity)
+    Measurement: [x, y, z] (radar position measurement)
+    """
+
+    def __init__(self, dt: float = 0.01, process_noise: float = 1.0, measurement_noise: float = 10.0):
+        self.dt = dt
+        self.initialized = False
+
+        # State vector [x, y, z, vx, vy, vz]
+        self.state = np.zeros(6, dtype=np.float32)
+
+        # State covariance matrix
+        self.P = np.eye(6, dtype=np.float32) * 1000.0  # High initial uncertainty
+
+        # Process noise covariance (constant acceleration model)
+        q = process_noise ** 2
+        self.Q = np.array([
+            [q*dt**4/4, 0, 0, q*dt**3/2, 0, 0],
+            [0, q*dt**4/4, 0, 0, q*dt**3/2, 0],
+            [0, 0, q*dt**4/4, 0, 0, q*dt**3/2],
+            [q*dt**3/2, 0, 0, q*dt**2, 0, 0],
+            [0, q*dt**3/2, 0, 0, q*dt**2, 0],
+            [0, 0, q*dt**3/2, 0, 0, q*dt**2]
+        ], dtype=np.float32)
+
+        # Measurement noise covariance
+        r = measurement_noise ** 2
+        self.R = np.eye(3, dtype=np.float32) * r
+
+        # State transition matrix (constant velocity model)
+        self.F = np.array([
+            [1, 0, 0, dt, 0, 0],
+            [0, 1, 0, 0, dt, 0],
+            [0, 0, 1, 0, 0, dt],
+            [0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 1]
+        ], dtype=np.float32)
+
+        # Measurement matrix (observe position only)
+        self.H = np.array([
+            [1, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0]
+        ], dtype=np.float32)
+
+    def reset(self):
+        """Reset filter state."""
+        self.initialized = False
+        self.state = np.zeros(6, dtype=np.float32)
+        self.P = np.eye(6, dtype=np.float32) * 1000.0
+
+    def initialize(self, initial_position: np.ndarray, initial_velocity: Optional[np.ndarray] = None):
+        """Initialize filter with first measurement."""
+        self.state[0:3] = initial_position
+        if initial_velocity is not None:
+            self.state[3:6] = initial_velocity
+        else:
+            self.state[3:6] = 0.0
+        self.initialized = True
+
+    def predict(self):
+        """Predict step - propagate state forward."""
+        if not self.initialized:
+            return
+
+        # Predict state: x = F * x
+        self.state = self.F @ self.state
+
+        # Predict covariance: P = F * P * F^T + Q
+        self.P = self.F @ self.P @ self.F.T + self.Q
+
+    def update(self, measurement: np.ndarray):
+        """Update step - incorporate new measurement."""
+        if not self.initialized:
+            # First measurement - initialize
+            self.initialize(measurement)
+            return
+
+        # Innovation: y = z - H * x
+        y = measurement - (self.H @ self.state)
+
+        # Innovation covariance: S = H * P * H^T + R
+        S = self.H @ self.P @ self.H.T + self.R
+
+        # Kalman gain: K = P * H^T * S^-1
+        try:
+            K = self.P @ self.H.T @ np.linalg.inv(S)
+        except np.linalg.LinAlgError:
+            # Singular matrix - skip update
+            return
+
+        # Update state: x = x + K * y
+        self.state = self.state + K @ y
+
+        # Update covariance: P = (I - K * H) * P
+        I_KH = np.eye(6, dtype=np.float32) - K @ self.H
+        self.P = I_KH @ self.P
+
+    def get_state(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Get current position and velocity estimates."""
+        return self.state[0:3].copy(), self.state[3:6].copy()
+
+    def get_position_uncertainty(self) -> float:
+        """Get position uncertainty (trace of position covariance)."""
+        return float(np.trace(self.P[0:3, 0:3]))
+
+    def predict_position(self, time_ahead: float) -> np.ndarray:
+        """Predict future position given current state."""
+        if not self.initialized:
+            return np.zeros(3, dtype=np.float32)
+        steps = int(time_ahead / self.dt)
+        F_ahead = np.linalg.matrix_power(self.F, steps)
+        future_state = F_ahead @ self.state
+        return future_state[0:3]
 
 
 @dataclass
@@ -174,16 +298,25 @@ class Radar26DObservation:
         self._last_detection_info = None
         self._last_ground_detection_info = None
 
+        # Kalman filter for trajectory estimation (processes radar measurements)
+        # This gives the policy smooth position/velocity estimates instead of raw noisy radar
+        self.kalman_filter = SimpleKalmanFilter(
+            dt=simulation_dt,
+            process_noise=5.0,  # Missile maneuvering uncertainty
+            measurement_noise=20.0  # Radar measurement uncertainty
+        )
+
     def seed(self, seed: int):
         """Set random seed for reproducible noise."""
         self.rng = np.random.default_rng(seed)
 
     def reset_sensor_delays(self):
-        """Reset sensor delay buffers for new episode."""
+        """Reset sensor delay buffers and Kalman filter for new episode."""
         if self.sensor_delay_buffer:
             self.sensor_delay_buffer.reset()
         if self.ground_sensor_delay_buffer:
             self.ground_sensor_delay_buffer.reset()
+        self.kalman_filter.reset()
 
     def get_last_detection_info(self) -> Optional[Dict[str, Any]]:
         """
@@ -373,8 +506,9 @@ class Radar26DObservation:
             int_forward = get_forward_vector(int_quat)
             to_missile = true_rel_pos / (true_range + 1e-6)
             beam_angle = np.arccos(np.clip(np.dot(int_forward, to_missile), -1, 1))
-            beam_width_rad = np.radians(self.radar_beam_width)
-            if beam_angle > beam_width_rad:
+            # FIXED: Use HALF beam width (cone half-angle), not full width
+            half_beam_width_rad = np.radians(self.radar_beam_width / 2.0)
+            if beam_angle > half_beam_width_rad:
                 onboard_detected = False
                 onboard_detection_info['detected'] = False
                 onboard_detection_info['reason'] = 'outside_beam'
@@ -515,50 +649,89 @@ class Radar26DObservation:
         int_quat = np.array(interceptor['orientation'], dtype=np.float32)
         int_fuel = interceptor.get('fuel', 100.0)
 
+        # === KALMAN FILTER PROCESSING (radar to trajectory estimate) ===
+        # This is what real missile defense systems do - filter noisy radar into smooth estimates
+        # The policy sees Kalman-filtered position/velocity, NOT raw radar measurements
+        if onboard_detected or ground_detected:
+            # Use best available radar measurement
+            if onboard_detected and ground_detected:
+                # Fuse both measurements (weighted average based on quality)
+                onboard_weight = onboard_detection_info.get('radar_quality', 0.5)
+                ground_weight = ground_quality
+                total_weight = onboard_weight + ground_weight
+                fused_rel_pos = (onboard_rel_pos * onboard_weight + ground_rel_pos * ground_weight) / total_weight
+                measurement_available = True
+            elif onboard_detected:
+                fused_rel_pos = onboard_rel_pos
+                measurement_available = True
+            else:
+                fused_rel_pos = ground_rel_pos
+                measurement_available = True
+
+            # Convert relative position to absolute missile position for Kalman filter
+            missile_abs_pos = int_pos + fused_rel_pos
+
+            # Update Kalman filter with measurement
+            self.kalman_filter.update(missile_abs_pos)
+
+            # Get filtered estimates
+            filtered_missile_pos, filtered_missile_vel = self.kalman_filter.get_state()
+
+            # Convert back to relative position/velocity
+            filtered_rel_pos = filtered_missile_pos - int_pos
+            filtered_rel_vel = filtered_missile_vel - int_vel
+        else:
+            # No detection - Kalman filter predicts based on last known state
+            self.kalman_filter.predict()
+
+            if self.kalman_filter.initialized:
+                # Use predicted estimate
+                filtered_missile_pos, filtered_missile_vel = self.kalman_filter.get_state()
+                filtered_rel_pos = filtered_missile_pos - int_pos
+                filtered_rel_vel = filtered_missile_vel - int_vel
+                measurement_available = False
+            else:
+                # No detection and filter not initialized - no valid target info
+                filtered_rel_pos = np.zeros(3, dtype=np.float32)
+                filtered_rel_vel = np.zeros(3, dtype=np.float32)
+                measurement_available = False
+
         # === ONBOARD RADAR OBSERVATIONS [0-16] ===
-        if onboard_detected:
-            # Apply radar measurement noise (increases with range)
-            range_to_target = np.linalg.norm(onboard_rel_pos)
-            range_noise_factor = 1.0 + (range_to_target / self.radar_range) * 2.0
+        # NOW using Kalman-filtered estimates instead of raw radar
+        if measurement_available or self.kalman_filter.initialized:
+            # Position and velocity from Kalman filter (smooth, filtered estimates)
+            # These are already relative position/velocity
+            radar_rel_pos = filtered_rel_pos
+            radar_rel_vel = filtered_rel_vel
 
-            # Position measurement with range-dependent noise (curriculum-adjusted)
-            radar_rel_pos = onboard_rel_pos.copy()
-            effective_noise = self.measurement_noise_level  # Use curriculum-adjusted noise level
-            if effective_noise > 0:
-                pos_noise = self.rng.normal(0, effective_noise * range_noise_factor * range_to_target, 3)
-                radar_rel_pos += pos_noise
-
-            # Velocity measurement with doppler noise (curriculum-adjusted)
-            radar_rel_vel = onboard_mis_vel - int_vel
-            if effective_noise > 0:
-                vel_noise_std = effective_noise * range_noise_factor * np.linalg.norm(radar_rel_vel)
-                vel_noise = self.rng.normal(0, vel_noise_std, 3)
-                radar_rel_vel += vel_noise
-
-            # [0-2] Onboard radar-detected relative position
+            # [0-2] Kalman-filtered relative position (smooth trajectory estimate)
             obs[0:3] = np.clip(radar_rel_pos / self.max_range, -1.0, 1.0)
 
-            # [3-5] Onboard radar-detected relative velocity
+            # [3-5] Kalman-filtered relative velocity (smooth velocity estimate)
             obs[3:6] = np.clip(radar_rel_vel / self.max_velocity, -1.0, 1.0)
 
-            # Computed values from onboard radar data
+            # Computed values from Kalman-filtered data
             radar_range = np.linalg.norm(radar_rel_pos)
             closing_speed = -np.dot(radar_rel_pos, radar_rel_vel) / (radar_range + 1e-6)
 
-            # [13] Time to intercept estimate
+            # [13] Time to intercept estimate (from filtered data)
             if closing_speed > 0:
                 tti = radar_range / closing_speed
                 obs[13] = np.clip(1.0 - tti / 100.0, -1.0, 1.0)
             else:
                 obs[13] = -1.0
 
-            # [14] Onboard radar lock quality
-            obs[14] = onboard_detection_info.get('radar_quality', 0.0)
+            # [14] Track quality (based on filter uncertainty + detection quality)
+            position_uncertainty = self.kalman_filter.get_position_uncertainty()
+            track_quality = np.clip(1.0 - position_uncertainty / 10000.0, 0.0, 1.0)
+            if onboard_detected:
+                track_quality *= onboard_detection_info.get('radar_quality', 0.5)
+            obs[14] = track_quality
 
-            # [15] Closing rate
+            # [15] Closing rate (from filtered velocity)
             obs[15] = np.clip(closing_speed / self.max_velocity, -1.0, 1.0)
 
-            # [16] Off-axis angle
+            # [16] Off-axis angle (target angle from interceptor forward axis)
             if radar_range > 1e-6:
                 int_forward = get_forward_vector(int_quat)
                 to_target = radar_rel_pos / radar_range

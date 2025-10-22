@@ -711,118 +711,62 @@ class InterceptEnvironment(gym.Env):
     def _calculate_reward(self, distance: float, intercepted: bool, terminated: bool,
                          missile_hit_target: bool = False) -> float:
         """
-        Enhanced multi-component reward function with radar-based intermediate rewards.
+        FIXED reward function that prevents reward hacking.
 
-        Design Philosophy:
-        - Dense intermediate rewards for incremental progress (radar lock, closing, approach)
-        - Distance-based shaping with phase transitions
-        - All rewards derived from radar observations and internal state (NO omniscient data)
-        - Shaped to provide learning signal at every stage of engagement
+        Key changes from previous version:
+        1. MASSIVE terminal reward (+5000) to dwarf any per-step accumulation
+        2. MINIMAL intermediate rewards (just for gradient, not exploitation)
+        3. Only distance reduction rewarded (no radar lock farming)
+        4. Failure penalty proportional to final distance (close misses penalized less)
 
-        Components:
-        1. Radar lock rewards (encourages maintaining track)
-        2. Closing velocity rewards (encourages approach)
-        3. Distance reduction rewards (primary gradient)
-        4. Terminal rewards (success/failure)
+        This ensures: intercept_reward >> any_per_step_accumulation * max_episode_length
         """
         reward = 0.0
 
-        # Terminal rewards (only at episode end)
+        # === TERMINAL REWARDS (episode end only) ===
         if intercepted:
-            # Successful interception - MISSION SUCCESS
-            reward = 500.0
-            # Time bonus for quick interception (encourage efficiency)
-            time_bonus = (self.max_steps - self.steps) * 0.2
+            # MASSIVE success reward to make interception the dominant objective
+            # This must be much larger than any accumulated per-step rewards
+            reward = 5000.0
+
+            # Large time bonus for quick intercept (hundreds of points, not thousands)
+            time_bonus = (self.max_steps - self.steps) * 0.5
             reward += time_bonus
+
             return reward
 
         if terminated:
-            # Failed interception
+            # Failure penalty proportional to how close we got (encourage "close misses")
+            # This provides gradient even in failure: 200m miss better than 2000m miss
+            distance_penalty = -distance * 0.5  # Lose 0.5 points per meter missed
+            reward = max(distance_penalty, -2000.0)  # Cap at -2000 for very far misses
+
+            # Additional penalties for specific failure modes
             if missile_hit_target:
-                # Missile hit target - MISSION FAILURE (worst outcome)
-                reward = -500.0
-            elif self.missile_state['position'][2] <= 0:
-                # Missile hit ground away from target
-                reward = -100.0
+                reward -= 1000.0  # Extra penalty if target was hit
             elif self.interceptor_state['position'][2] < 0:
-                # Interceptor crashed
-                reward = -100.0
+                reward -= 500.0  # Penalty for crashing
             elif self.interceptor_state['fuel'] <= 0:
-                # Ran out of fuel
-                reward = -150.0
-            # Early termination for obvious failures (distance increasing)
-            elif distance > 2000.0 and self.steps > 1000:
-                # Policy has been trying for >10 seconds but getting further away
-                reward = -200.0
+                reward -= 300.0  # Penalty for fuel exhaustion
+
             return reward
 
-        # === INTERMEDIATE REWARDS (radar-based, no omniscient data) ===
+        # === PER-STEP REWARDS (minimal, just for gradient) ===
 
-        # 1. RADAR LOCK REWARD (encourages maintaining target track)
-        # Uses radar detection info stored from observation generation
-        detection_info = getattr(self, 'last_detection_info', {})
-        onboard_detected = detection_info.get('detected', False)
-        ground_detected = self._last_ground_detection_info.get('detected', False) if hasattr(self, '_last_ground_detection_info') else False
-
-        if onboard_detected:
-            # Reward for maintaining onboard radar lock (essential for guidance)
-            reward += 5.0
-
-            # Bonus for high quality lock
-            radar_quality = detection_info.get('radar_quality', 0.0)
-            reward += radar_quality * 3.0  # Up to +3 for perfect quality
-        else:
-            # Penalty for losing track (mild, to avoid discouraging exploration)
-            reward -= 2.0
-
-        # Ground radar provides additional tracking info (realistic BMD has ground support)
-        if ground_detected:
-            reward += 2.0  # Bonus for ground radar backup
-
-        # 2. CLOSING VELOCITY REWARD (encourages approach, not just circling)
-        # Compute closing rate from interceptor velocity and relative position
-        int_vel = np.array(self.interceptor_state['velocity'], dtype=np.float32)
-        rel_pos = np.array(self.missile_state['position'], dtype=np.float32) - np.array(self.interceptor_state['position'], dtype=np.float32)
-        rel_pos_norm = np.linalg.norm(rel_pos)
-
-        if rel_pos_norm > 1e-6:  # Avoid division by zero
-            # Unit vector toward target
-            dir_to_target = rel_pos / rel_pos_norm
-            # Closing velocity (negative means closing)
-            closing_vel = -np.dot(int_vel, dir_to_target)
-
-            # Reward positive closing velocity (approaching target)
-            if closing_vel > 0:
-                # Scale reward by closing velocity magnitude
-                # Cap at reasonable max (200 m/s) to avoid overflow
-                closing_reward = min(closing_vel / 10.0, 20.0)  # Up to +20 for fast approach
-                reward += closing_reward
-            else:
-                # Small penalty for moving away from target
-                reward -= min(abs(closing_vel) / 20.0, 5.0)  # Up to -5 for moving away
-
-        # 3. DISTANCE REDUCTION REWARD (primary gradient signal)
+        # Distance reduction is the PRIMARY gradient signal
         prev_distance = getattr(self, '_prev_distance', distance)
         distance_delta = prev_distance - distance
 
-        # === PHASE 1: FAR AWAY (>500m) - Reward closing with radar lock ===
-        if distance > 500.0:
-            # Strong reward for reducing distance
-            reward += distance_delta * 10.0
-
-        # === PHASE 2: CLOSE (<500m) - Strong gradient to target ===
-        else:
-            # Even stronger reward for closing when close
+        # Scale distance reward by proximity (stronger gradient when close)
+        if distance < 500.0:
+            # Close range: strong gradient for terminal guidance
             reward += distance_delta * 20.0
+        else:
+            # Far range: moderate gradient for approach
+            reward += distance_delta * 5.0
 
-            # Exponential bonus for final approach (terminal guidance phase)
-            # Provides strong gradient from 500m down to intercept radius
-            intercept_gradient = 50.0 * np.exp(-distance / 100.0)
-            reward += intercept_gradient
-
-        # 4. FUEL EFFICIENCY (mild penalty to encourage smart maneuvering)
-        # Time penalty (encourage efficiency) - reduced to avoid overwhelming other rewards
-        reward -= 0.05
+        # Small time penalty to encourage efficiency (but not dominate other rewards)
+        reward -= 0.1
 
         # Store distance for next step
         self._prev_distance = distance
