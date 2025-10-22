@@ -751,22 +751,24 @@ class InterceptEnvironment(gym.Env):
 
             return reward
 
-        # === PER-STEP REWARDS (minimal, just for gradient) ===
+        # === PER-STEP REWARDS (VERY MINIMAL - just for gradient) ===
 
-        # Distance reduction is the PRIMARY gradient signal
+        # Distance reduction provides gradient, but must be MUCH smaller than terminal
         prev_distance = getattr(self, '_prev_distance', distance)
         distance_delta = prev_distance - distance
 
-        # Scale distance reward by proximity (stronger gradient when close)
+        # CRITICAL: Per-step rewards must be tiny to prevent "approach farming"
+        # Max possible per-step accumulation (~2000m reduction × 0.5) = 1000 points
+        # This is much less than intercept reward (5000 points)
         if distance < 500.0:
-            # Close range: strong gradient for terminal guidance
-            reward += distance_delta * 20.0
+            # Close range: stronger gradient for terminal guidance
+            reward += distance_delta * 1.0  # REDUCED from 20.0
         else:
-            # Far range: moderate gradient for approach
-            reward += distance_delta * 5.0
+            # Far range: weak gradient for approach
+            reward += distance_delta * 0.5  # REDUCED from 5.0
 
-        # Small time penalty to encourage efficiency (but not dominate other rewards)
-        reward -= 0.1
+        # Time penalty
+        reward -= 0.5  # INCREASED from 0.1 to discourage long episodes
 
         # Store distance for next step
         self._prev_distance = distance
