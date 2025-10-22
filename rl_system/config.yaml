@@ -69,16 +69,16 @@ environment:
   missile_evasion: false  # Enable missile evasion maneuvers
 
 # Curriculum Learning Configuration
-# OPTIMIZED: Start easy, gradually increase difficulty as policy improves
-# Strategy: Master fundamentals first, then refine under harder conditions
+# FIXED: Much slower progression - policy needs time to adapt to each difficulty
+# Strategy: Master each difficulty level before moving on
 curriculum:
   enabled: true
-  initial_radius: 150.0  # Easier start (was 200m, reduced since spawn range closer)
-  final_radius: 20.0  # Realistic proximity fuse accuracy (PAC-3 spec)
+  initial_radius: 150.0  # Easier start
+  final_radius: 100.0  # Intermediate difficulty (was 20m - TOO AGGRESSIVE)
 
-  # GRADUAL curriculum progression over full training
-  # Policy learns basics at 150m, refines to 20m precision over 10M steps
-  curriculum_steps: 10000000  # Full training duration
+  # SLOWER curriculum progression - only start narrowing after policy is stable
+  # Policy masters 150m first, then gradually refines to 100m over LATE training
+  curriculum_steps: 20000000  # Slow progression (extends beyond 10M training)
 
   # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
   # OPTIMIZED: Gentle progression after policy demonstrates basic competence
