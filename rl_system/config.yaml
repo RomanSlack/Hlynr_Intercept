@@ -69,16 +69,16 @@ environment:
   missile_evasion: false  # Enable missile evasion maneuvers
 
 # Curriculum Learning Configuration
-# FIXED: Much slower progression - policy needs time to adapt to each difficulty
-# Strategy: Master each difficulty level before moving on
+# FROZEN: Curriculum progression disabled - focus on mastering 150m intercepts first
+# Strategy: Master 150m completely before considering harder difficulties
 curriculum:
   enabled: true
-  initial_radius: 150.0  # Easier start
-  final_radius: 100.0  # Intermediate difficulty (was 20m - TOO AGGRESSIVE)
+  initial_radius: 150.0  # Train at this difficulty
+  final_radius: 150.0  # FROZEN - no progression (was 100m)
 
-  # SLOWER curriculum progression - only start narrowing after policy is stable
-  # Policy masters 150m first, then gradually refines to 100m over LATE training
-  curriculum_steps: 20000000  # Slow progression (extends beyond 10M training)
+  # Curriculum DISABLED - stay at 150m for entire training
+  # Once policy achieves 40-50% success at 150m, we can enable progression
+  curriculum_steps: 100000000  # Effectively frozen (progression disabled)
 
   # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
   # OPTIMIZED: Gentle progression after policy demonstrates basic competence
