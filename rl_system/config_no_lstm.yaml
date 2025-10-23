@@ -1,0 +1,50 @@
+# Copy of config.yaml but with LSTM disabled
+# Use this if LSTM training continues to be unstable
+
+# Import base config (you'll manually copy sections or use this as reference)
+# Key change: use_lstm: false
+
+training:
+  total_timesteps: 10000000
+  n_envs: 16
+
+  # DISABLE LSTM - use standard MLP
+  use_lstm: false  # Changed from true
+
+  # Remove LSTM-specific params (not used for MLP)
+  # lstm_hidden_size: 256
+  # n_lstm_layers: 1
+  # enable_critic_lstm: true
+
+  # Learning rate - standard for MLP
+  learning_rate: 0.0003  # Can use higher LR for MLP
+
+  # Rollout and batch size for MLP (can be larger)
+  n_steps: 2048  # Longer rollouts for MLP
+  batch_size: 256  # Larger batches for MLP
+  n_epochs: 10
+
+  # PPO hyperparameters
+  gamma: 0.99
+  gae_lambda: 0.95
+
+  clip_range: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+
+  # Network architecture for MLP (can be larger without LSTM memory cost)
+  net_arch: [512, 512, 256]  # Larger network to compensate for no LSTM
+
+  checkpoint_freq: 50000
+  eval_freq: 50000
+  n_eval_episodes: 10
+
+  entropy_schedule:
+    enabled: true
+    initial: 0.01
+    final: 0.001
+    decay_steps: 10000000
+
+# Note: This file is just for reference
+# To actually use it, copy the training section to config.yaml

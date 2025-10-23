@@ -121,8 +121,8 @@ training:
   n_lstm_layers: 1  # Single LSTM layer (sufficient with Kalman preprocessing)
   enable_critic_lstm: true  # LSTM for both policy and value function
 
-  # Learning rate - standard for LSTM
-  learning_rate: 0.0003  # 3e-4 (standard PPO rate, LSTM-compatible)
+  # Learning rate - REDUCED for LSTM stability (was 3e-4, too high)
+  learning_rate: 0.0001  # 1e-4 (lower for stable LSTM training)
 
   # Rollout and batch size optimized for LSTM
   n_steps: 1024  # Shorter rollouts for LSTM memory efficiency
@@ -133,10 +133,10 @@ training:
   gamma: 0.99  # Standard discount factor
   gae_lambda: 0.95  # Standard GAE lambda
 
-  clip_range: 0.2
-  ent_coef: 0.02  # Higher initial exploration (will decay via schedule)
+  clip_range: 0.15  # REDUCED from 0.2 (tighter clipping for stability)
+  ent_coef: 0.01  # REDUCED from 0.02 (less exploration noise)
   vf_coef: 0.5  # Standard value function coefficient
-  max_grad_norm: 0.5  # Gradient clipping for stability
+  max_grad_norm: 0.3  # REDUCED from 0.5 (stronger gradient clipping)
 
   # Network architecture - moderate size (Kalman filter reduces observation complexity)
   # 26D input -> LSTM(256) -> [256, 256] -> 6D output
@@ -150,7 +150,7 @@ training:
   # Entropy decay schedule (encourage exploration early, exploitation late)
   entropy_schedule:
     enabled: true
-    initial: 0.02  # Moderate initial exploration
+    initial: 0.01  # REDUCED from 0.02 (less early exploration)
     final: 0.001  # Low final entropy for precise terminal guidance
     decay_steps: 10000000  # Decay over full training duration
   
