@@ -14,15 +14,68 @@ os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
 # Uncomment to force specific GPU: os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 import torch
+import torch.nn as nn
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecFrameStack
 from stable_baselines3.common.callbacks import (
     BaseCallback, EvalCallback, CheckpointCallback, CallbackList
 )
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 from environment import InterceptEnvironment
 from logger import UnifiedLogger, EpisodeEvent
+
+
+class CustomMLP(BaseFeaturesExtractor):
+    """
+    Custom MLP features extractor with orthogonal initialization and layer normalization.
+
+    This architecture follows expert recommendations:
+    - Orthogonal weight initialization for stable gradient flow
+    - Layer normalization on hidden layers to prevent covariate shift
+    - Larger network [512, 512, 256] to compensate for no LSTM
+    """
+
+    def __init__(self, observation_space, features_dim: int = 256,
+                 net_arch: list = [512, 512, 256],
+                 use_orthogonal_init: bool = True,
+                 use_layer_norm: bool = True):
+        super().__init__(observation_space, features_dim)
+
+        self.net_arch = net_arch
+        self.use_layer_norm = use_layer_norm
+
+        # Build network layers
+        layers = []
+        input_dim = observation_space.shape[0]
+
+        for i, hidden_dim in enumerate(net_arch):
+            # Linear layer
+            linear = nn.Linear(input_dim, hidden_dim)
+
+            # Orthogonal initialization (recommended for RL)
+            if use_orthogonal_init:
+                nn.init.orthogonal_(linear.weight, gain=np.sqrt(2))
+                nn.init.constant_(linear.bias, 0.0)
+
+            layers.append(linear)
+
+            # Layer normalization (stabilizes training)
+            if use_layer_norm:
+                layers.append(nn.LayerNorm(hidden_dim))
+
+            # ReLU activation
+            layers.append(nn.ReLU())
+
+            input_dim = hidden_dim
+
+        # Final output layer
+        self.network = nn.Sequential(*layers)
+        self._features_dim = net_arch[-1]  # Output is last layer size
+
+    def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        return self.network(observations)
 
 
 def get_device() -> str:
@@ -307,89 +360,77 @@ def train(config_path: str):
     # Create environments
     n_envs = config['training'].get('n_envs', 8)
     env_config = config.get('environment', {})
-    
+
     envs = DummyVecEnv([create_env(env_config, i) for i in range(n_envs)])
 
-    # OPTIMIZATION: VecNormalize removed to prevent double normalization
-    # Observations are already manually normalized in core.py observation generator
-    # Double normalization creates non-stationary input distributions during curriculum
-    #
-    # If normalization is needed in future, use ONLY VecNormalize OR manual normalization, not both
-    # envs = VecNormalize(
-    #     envs,
-    #     norm_obs=True,
-    #     norm_reward=True,
-    #     clip_obs=10.0,
-    #     clip_reward=10.0
-    # )
+    # Add frame-stacking for temporal context (without LSTM)
+    frame_stack = config['training'].get('frame_stack', 1)
+    if frame_stack > 1:
+        logger.logger.info(f"Adding frame-stacking: {frame_stack} frames (26D -> {26 * frame_stack}D)")
+        envs = VecFrameStack(envs, n_stack=frame_stack)
+
+    # Add observation normalization with running statistics
+    # CRITICAL: Use VecNormalize with fixed statistics during eval for consistency
+    logger.logger.info("Adding VecNormalize for per-feature observation normalization")
+    envs = VecNormalize(
+        envs,
+        norm_obs=True,          # Normalize observations
+        norm_reward=False,      # Don't normalize rewards (already scaled in environment)
+        clip_obs=10.0,          # Clip normalized obs to [-10, 10]
+        clip_reward=10.0,       # Safety clip for rewards
+        gamma=config['training'].get('gamma', 0.99)
+    )
     
     # Detect available device with graceful fallback
     device = get_device()
     logger.logger.info(f"Using device: {device}")
 
-    # Create model with LSTM support for handling partial observability
-    # LSTM policy maintains hidden state across timesteps to integrate radar observations
-    use_lstm = config['training'].get('use_lstm', True)
+    # Create MLP policy with custom architecture (NO LSTM)
+    # Testing hypothesis that LSTM causes training instability
+    # Using frame-stacking (4x26D=104D) for temporal context instead
 
-    if use_lstm:
-        # RecurrentPPO with LSTM for temporal integration of radar detections
-        policy_kwargs = dict(
-            net_arch=config['training'].get('net_arch', [256, 256]),
-            activation_fn=torch.nn.ReLU,
-            lstm_hidden_size=config['training'].get('lstm_hidden_size', 256),
-            n_lstm_layers=config['training'].get('n_lstm_layers', 1),
-            enable_critic_lstm=config['training'].get('enable_critic_lstm', True),
-            lstm_kwargs=dict(dropout=0.0)  # No dropout for stable training
-        )
+    # Get network architecture parameters
+    net_arch = config['training'].get('net_arch', [512, 512, 256])
+    use_orthogonal_init = config['training'].get('use_orthogonal_init', True)
+    use_layer_norm = config['training'].get('use_layer_norm', True)
 
-        # Use RecurrentPPO for LSTM support
-        from sb3_contrib import RecurrentPPO
+    logger.logger.info(f"Building MLP policy with architecture: {net_arch}")
+    logger.logger.info(f"  - Orthogonal init: {use_orthogonal_init}")
+    logger.logger.info(f"  - Layer normalization: {use_layer_norm}")
 
-        model = RecurrentPPO(
-            "MlpLstmPolicy",
-            envs,
-            learning_rate=config['training'].get('learning_rate', 3e-4),
-            n_steps=config['training'].get('n_steps', 2048),
-            batch_size=config['training'].get('batch_size', 64),
-            n_epochs=config['training'].get('n_epochs', 10),
-            gamma=config['training'].get('gamma', 0.99),
-            gae_lambda=config['training'].get('gae_lambda', 0.95),
-            clip_range=config['training'].get('clip_range', 0.2),
-            ent_coef=config['training'].get('ent_coef', 0.01),
-            vf_coef=config['training'].get('vf_coef', 0.5),
-            max_grad_norm=config['training'].get('max_grad_norm', 0.5),
-            policy_kwargs=policy_kwargs,
-            tensorboard_log=str(logger.log_dir / "tensorboard"),
-            device=device,
-            verbose=1
-        )
-        logger.logger.info("Using RecurrentPPO with LSTM policy for temporal integration")
-    else:
-        # Standard MLP policy (memoryless, for comparison)
-        policy_kwargs = dict(
-            net_arch=config['training'].get('net_arch', [256, 256]),
-            activation_fn=torch.nn.ReLU
-        )
+    # Configure custom MLP features extractor
+    policy_kwargs = dict(
+        features_extractor_class=CustomMLP,
+        features_extractor_kwargs=dict(
+            features_dim=net_arch[-1],  # Last layer size
+            net_arch=net_arch,
+            use_orthogonal_init=use_orthogonal_init,
+            use_layer_norm=use_layer_norm
+        ),
+        net_arch=[],  # Empty - we handle architecture in features_extractor
+        activation_fn=torch.nn.ReLU
+    )
 
-        model = PPO(
-            "MlpPolicy",
-            envs,
-            learning_rate=config['training'].get('learning_rate', 3e-4),
-            n_steps=config['training'].get('n_steps', 2048),
-            batch_size=config['training'].get('batch_size', 64),
-            n_epochs=config['training'].get('n_epochs', 10),
-            gamma=config['training'].get('gamma', 0.99),
-            gae_lambda=config['training'].get('gae_lambda', 0.95),
-            clip_range=config['training'].get('clip_range', 0.2),
-            ent_coef=config['training'].get('ent_coef', 0.01),
-            vf_coef=config['training'].get('vf_coef', 0.5),
-            max_grad_norm=config['training'].get('max_grad_norm', 0.5),
-            policy_kwargs=policy_kwargs,
-            tensorboard_log=str(logger.log_dir / "tensorboard"),
-            device=device,
-            verbose=1
-        )
-        logger.logger.info("Using standard MLP policy (memoryless)")
+    model = PPO(
+        "MlpPolicy",
+        envs,
+        learning_rate=config['training'].get('learning_rate', 3e-4),
+        n_steps=config['training'].get('n_steps', 2048),
+        batch_size=config['training'].get('batch_size', 256),
+        n_epochs=config['training'].get('n_epochs', 10),
+        gamma=config['training'].get('gamma', 0.997),
+        gae_lambda=config['training'].get('gae_lambda', 0.97),
+        clip_range=config['training'].get('clip_range', 0.2),
+        ent_coef=config['training'].get('ent_coef', 0.01),
+        vf_coef=config['training'].get('vf_coef', 0.5),
+        max_grad_norm=config['training'].get('max_grad_norm', 0.5),
+        policy_kwargs=policy_kwargs,
+        tensorboard_log=str(logger.log_dir / "tensorboard"),
+        device=device,
+        verbose=1
+    )
+
+    logger.logger.info("Using standard MLP policy with extended horizon (gamma=0.997, lambda=0.97)")
     
     logger.logger.info(f"Created PPO model with {n_envs} parallel environments")
     
@@ -419,10 +460,22 @@ def train(config_path: str):
         save_vecnormalize=True
     ))
 
-    # Evaluation callback
+    # Evaluation callback - must match training preprocessing
     eval_env = DummyVecEnv([create_env(env_config)])
-    # VecNormalize removed from training, keep it commented for eval too
-    # eval_env = VecNormalize(eval_env, training=False, norm_reward=False)
+
+    # Apply same preprocessing as training environment
+    if frame_stack > 1:
+        eval_env = VecFrameStack(eval_env, n_stack=frame_stack)
+
+    # VecNormalize for eval (training=False keeps statistics frozen during eval)
+    eval_env = VecNormalize(
+        eval_env,
+        norm_obs=True,
+        norm_reward=False,
+        clip_obs=10.0,
+        training=False,  # Don't update normalization stats during eval
+        gamma=config['training'].get('gamma', 0.99)
+    )
 
     callbacks.append(EvalCallback(
         eval_env,
@@ -455,10 +508,12 @@ def train(config_path: str):
     final_path.mkdir(exist_ok=True)
     model.save(str(final_path / "model"))
 
-    # VecNormalize removed - skip saving it
-    # Only save if VecNormalize wrapper is actually used
-    if hasattr(envs, 'save'):
+    # Save VecNormalize statistics (critical for inference!)
+    if isinstance(envs, VecNormalize):
         envs.save(str(final_path / "vec_normalize.pkl"))
+        logger.logger.info("Saved VecNormalize statistics for inference")
+    else:
+        logger.logger.warning("VecNormalize not found - may need to wrap for inference")
 
     logger.logger.info(f"Training completed. Final model saved to {final_path}")
     
