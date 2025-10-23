@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Training Monitor for Hlynr Intercept RL System
-Provides real-time training diagnostics and status
+Provides real-time training diagnostics and status with terminal graphs
 """
 
 import json
@@ -10,6 +10,7 @@ import glob
 from pathlib import Path
 from datetime import datetime, timedelta
 import numpy as np
+import plotext as plt
 
 
 def find_latest_training():
@@ -140,6 +141,61 @@ def get_training_progress(metrics):
         'current_steps': current_steps,
         'target_steps': target_steps,
     }
+
+
+def plot_success_rate_graph(metrics):
+    """Plot success rate over training with plotext."""
+    success_data = [(m.get('total_timesteps', 0), m.get('success_rate_pct', 0))
+                    for m in metrics if 'success_rate_pct' in m]
+
+    if not success_data:
+        return
+
+    steps, rates = zip(*success_data)
+
+    # Convert steps to millions for readability
+    steps_m = [s / 1_000_000 for s in steps]
+
+    print(f"\n{'='*70}")
+    print("SUCCESS RATE OVER TRAINING")
+    print(f"{'='*70}")
+
+    plt.clf()
+    plt.plot(steps_m, rates, marker="braille")
+    plt.title("Success Rate vs Training Steps")
+    plt.xlabel("Training Steps (Millions)")
+    plt.ylabel("Success Rate (%)")
+    plt.ylim(0, max(max(rates) * 1.2, 25))  # Give some headroom
+    plt.theme("dark")
+    plt.plotsize(60, 15)
+    plt.show()
+
+
+def plot_reward_graph(metrics):
+    """Plot reward over training with plotext."""
+    reward_data = [(m.get('total_timesteps', 0), m.get('mean_reward', 0))
+                   for m in metrics if 'mean_reward' in m]
+
+    if not reward_data:
+        return
+
+    steps, rewards = zip(*reward_data)
+
+    # Convert steps to millions for readability
+    steps_m = [s / 1_000_000 for s in steps]
+
+    print(f"\n{'='*70}")
+    print("MEAN REWARD OVER TRAINING")
+    print(f"{'='*70}")
+
+    plt.clf()
+    plt.plot(steps_m, rewards, marker="braille")
+    plt.title("Mean Episode Reward vs Training Steps")
+    plt.xlabel("Training Steps (Millions)")
+    plt.ylabel("Mean Reward")
+    plt.theme("dark")
+    plt.plotsize(60, 15)
+    plt.show()
 
 
 def print_success_rate_trend(metrics, window=10):
@@ -314,6 +370,10 @@ def main():
 
     print(f"\nCurrent Mean Reward:   {stats.get('current_reward', 0):.1f}")
     print(f"Average Episode Length: {stats.get('current_episode_length', 0):.0f} steps")
+
+    # Plot graphs
+    plot_success_rate_graph(metrics)
+    plot_reward_graph(metrics)
 
     # Print success rate trend
     print_success_rate_trend(metrics, window=15)
