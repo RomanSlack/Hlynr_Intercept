@@ -19,7 +19,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecFrameStack
 
 from environment import InterceptEnvironment
 from core import Radar26DObservation, CoordinateTransform, SafetyClamp
@@ -373,9 +373,19 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
                 scenario_config = yaml.safe_load(f)
                 env_config.update(scenario_config.get('environment', {}))
 
-    # Create environment first to check observation space
+    # Create environment with same preprocessing as training
     env = InterceptEnvironment(env_config)
-    current_obs_dim = env.observation_space.shape[0]
+    base_obs_dim = env.observation_space.shape[0]
+
+    # Apply frame-stacking if configured (must match training)
+    frame_stack = config['training'].get('frame_stack', 1)
+    if frame_stack > 1:
+        logger.logger.info(f"Applying frame-stacking: {frame_stack} frames ({base_obs_dim}D → {base_obs_dim * frame_stack}D)")
+        env = DummyVecEnv([lambda: env])
+        env = VecFrameStack(env, n_stack=frame_stack)
+        current_obs_dim = base_obs_dim * frame_stack
+    else:
+        current_obs_dim = base_obs_dim
 
     # Load model and check compatibility
     logger.logger.info(f"Loading model from {candidates[0]}")
@@ -408,33 +418,34 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
             f"Retrain model with current observation space or adjust config."
         )
 
-    # Load VecNormalize if available and compatible
-    vecnorm_path = Path(model_path) / "vec_normalize.pkl"
-    vec_normalize = None
-    if vecnorm_path.exists():
-        try:
-            # Create dummy env for VecNormalize
-            dummy_env = DummyVecEnv([lambda: InterceptEnvironment(env_config)])
-            vec_normalize = VecNormalize.load(str(vecnorm_path), dummy_env)
-            vec_normalize.training = False
+    # Load VecNormalize if available (must apply AFTER frame-stacking)
+    # Try multiple locations
+    model_dir = Path(model_path).parent if Path(model_path).suffix == '.zip' else Path(model_path)
+    vecnorm_candidates = [
+        model_dir / "vec_normalize.pkl",  # Same dir as model
+        model_dir.parent / "final" / "vec_normalize.pkl",  # Training final dir
+        model_dir.parent / "vec_normalize.pkl",  # Parent training dir
+    ]
 
-            # Check dimension compatibility
-            vecnorm_obs_dim = vec_normalize.observation_space.shape[0]
-            if vecnorm_obs_dim != current_obs_dim:
-                logger.logger.warning(
-                    f"⚠️  VecNormalize observation dimension mismatch: "
-                    f"Model trained with {vecnorm_obs_dim}D, current env is {current_obs_dim}D"
-                )
-                logger.logger.warning(
-                    f"⚠️  Skipping VecNormalize (model likely trained before ground radar was added)"
-                )
-                vec_normalize = None
-            else:
-                logger.logger.info(f"✓ Loaded VecNormalize with {vecnorm_obs_dim}D observation space")
+    vecnorm_path = None
+    for candidate in vecnorm_candidates:
+        if candidate.exists():
+            vecnorm_path = candidate
+            break
+
+    if vecnorm_path:
+        try:
+            logger.logger.info(f"Loading VecNormalize from {vecnorm_path}")
+            env = VecNormalize.load(str(vecnorm_path), env)
+            env.training = False  # Freeze normalization stats for inference
+            env.norm_reward = False  # Don't normalize rewards during inference
+            logger.logger.info(f"✓ Loaded VecNormalize (training=False)")
         except Exception as e:
             logger.logger.warning(f"⚠️  Failed to load VecNormalize: {e}")
             logger.logger.warning(f"⚠️  Continuing without normalization")
-            vec_normalize = None
+    else:
+        logger.logger.warning(f"⚠️  VecNormalize not found in: {[str(c) for c in vecnorm_candidates]}")
+        logger.logger.warning(f"⚠️  Model may have been trained with VecNormalize - results may be inaccurate!")
     
     # Run episodes
     results = []
@@ -446,55 +457,58 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
             'rewards': [],
             'info': []
         }
-        
-        obs, info = env.reset(seed=ep)
+
+        # Reset environment (VecEnv returns array)
+        obs = env.reset()
+        if isinstance(obs, tuple):  # Handle (obs, info) tuple from newer gym
+            obs = obs[0]
         logger.begin_episode(episode_data['episode_id'])
-        
+
         done = False
-        truncated = False
         total_reward = 0
         steps = 0
-        
-        while not done and not truncated:
-            # Normalize observation if needed
-            if vec_normalize:
-                norm_obs = vec_normalize.normalize_obs(obs.reshape(1, -1))[0]
-            else:
-                # Fallback: Simple clipping to prevent extreme values
-                norm_obs = np.clip(obs, -1.0, 1.0)
 
-            # Get action
-            action, _ = model.predict(norm_obs, deterministic=True)
+        while not done:
+            # Get action (obs already normalized by VecNormalize wrapper)
+            action, _ = model.predict(obs, deterministic=True)
             
-            # Store data
-            episode_data['states'].append(obs.tolist())
-            episode_data['actions'].append(action.tolist())
-            
-            # Step environment
-            obs, reward, done, truncated, info = env.step(action)
-            
-            episode_data['rewards'].append(float(reward))
+            # Store data (extract from VecEnv array format)
+            obs_array = obs[0] if len(obs.shape) > 1 else obs
+            episode_data['states'].append(obs_array.tolist())
+            episode_data['actions'].append(action[0].tolist() if len(action.shape) > 1 else action.tolist())
+
+            # Step environment (VecEnv returns arrays)
+            obs, reward, done_array, info_array = env.step(action)
+
+            # Extract from VecEnv arrays
+            reward_val = reward[0] if isinstance(reward, np.ndarray) else reward
+            done = done_array[0] if isinstance(done_array, np.ndarray) else done_array
+            info = info_array[0] if isinstance(info_array, list) else info_array
+
+            episode_data['rewards'].append(float(reward_val))
             episode_data['info'].append(info)
-            
-            total_reward += reward
+
+            total_reward += reward_val
             steps += 1
-            
+
             # Log state with actions
-            logger.log_state('interceptor', {
-                'position': info['interceptor_pos'].tolist(),
-                'fuel': info['fuel_remaining'],
-                'action': action.tolist()
-            })
-            logger.log_state('missile', {
-                'position': info['missile_pos'].tolist()
-            })
-        
+            if 'interceptor_pos' in info:
+                logger.log_state('interceptor', {
+                    'position': info['interceptor_pos'].tolist(),
+                    'fuel': info.get('fuel_remaining', 0),
+                    'action': action[0].tolist() if len(action.shape) > 1 else action.tolist()
+                })
+            if 'missile_pos' in info:
+                logger.log_state('missile', {
+                    'position': info['missile_pos'].tolist()
+                })
+
         # Episode complete
         outcome = "intercepted" if info.get('intercepted', False) else "failed"
         episode_data['outcome'] = outcome
-        episode_data['total_reward'] = total_reward
-        episode_data['steps'] = steps
-        episode_data['final_distance'] = info['distance']
+        episode_data['total_reward'] = float(total_reward)
+        episode_data['steps'] = int(steps)
+        episode_data['final_distance'] = float(info.get('distance', 0))
         
         results.append(episode_data)
         
