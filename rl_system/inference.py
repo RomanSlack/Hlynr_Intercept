@@ -334,8 +334,9 @@ class InferenceServer:
         uvicorn.run(self.app, host=host, port=port)
 
 
-def run_offline_inference(model_path: str, config_path: str, num_episodes: int = 100, 
-                         output_dir: str = "inference_results", scenario: Optional[str] = None):
+def run_offline_inference(model_path: str, config_path: str, num_episodes: int = 100,
+                         output_dir: str = "inference_results", scenario: Optional[str] = None,
+                         volley_mode: bool = False, volley_size: int = 1):
     """Run offline inference and save results to JSON files."""
     
     # Load configuration
@@ -449,6 +450,14 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
     
     # Run episodes
     results = []
+    volley_stats = {
+        'total_missiles_spawned': 0,
+        'total_missiles_intercepted': 0,
+        'episodes_all_intercepted': 0,
+        'episodes_partial_interception': 0,
+        'episodes_no_interception': 0
+    } if volley_mode else None
+
     for ep in range(num_episodes):
         episode_data = {
             'episode_id': f"ep_{ep:04d}",
@@ -458,8 +467,19 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
             'info': []
         }
 
-        # Reset environment (VecEnv returns array)
-        obs = env.reset()
+        # Reset environment with volley mode options (VecEnv returns array)
+        # Create reset options for volley mode
+        reset_kwargs = {}
+        if volley_mode:
+            reset_kwargs['options'] = {'volley_mode': True, 'volley_size': volley_size}
+
+        # VecEnv requires calling reset on underlying env
+        if hasattr(env, 'env_method'):
+            # VecNormalize wrapped env
+            obs = env.env_method('reset', **reset_kwargs)[0]
+        else:
+            obs = env.reset(**reset_kwargs)
+
         if isinstance(obs, tuple):  # Handle (obs, info) tuple from newer gym
             obs = obs[0]
         logger.begin_episode(episode_data['episode_id'])
@@ -504,22 +524,54 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
                 })
 
         # Episode complete
-        outcome = "intercepted" if info.get('intercepted', False) else "failed"
+        # Determine outcome based on mode
+        if volley_mode:
+            missiles_intercepted = info.get('missiles_intercepted', 0)
+            volley_sz = info.get('volley_size', volley_size)
+
+            # Update volley statistics
+            volley_stats['total_missiles_spawned'] += volley_sz
+            volley_stats['total_missiles_intercepted'] += missiles_intercepted
+
+            if missiles_intercepted == volley_sz:
+                outcome = "all_intercepted"
+                volley_stats['episodes_all_intercepted'] += 1
+            elif missiles_intercepted > 0:
+                outcome = "partial_interception"
+                volley_stats['episodes_partial_interception'] += 1
+            else:
+                outcome = "failed"
+                volley_stats['episodes_no_interception'] += 1
+
+            # Add volley-specific episode data
+            episode_data['volley_mode'] = True
+            episode_data['volley_size'] = volley_sz
+            episode_data['missiles_intercepted'] = missiles_intercepted
+            episode_data['missiles_remaining'] = info.get('missiles_remaining', 0)
+        else:
+            outcome = "intercepted" if info.get('intercepted', False) else "failed"
+
         episode_data['outcome'] = outcome
         episode_data['total_reward'] = float(total_reward)
         episode_data['steps'] = int(steps)
         episode_data['final_distance'] = float(info.get('distance', 0))
-        
+
         results.append(episode_data)
-        
+
         logger.end_episode(outcome, {
             'total_reward': total_reward,
             'steps': steps,
             'final_distance': info['distance'],
-            'fuel_used': info.get('fuel_used', 0)
+            'fuel_used': info.get('fuel_used', 0),
+            'volley_mode': volley_mode,
+            'missiles_intercepted': info.get('missiles_intercepted', 0) if volley_mode else None,
+            'volley_size': info.get('volley_size', 1) if volley_mode else None
         })
-        
-        print(f"Episode {ep+1}/{num_episodes}: {outcome}, reward={total_reward:.2f}, steps={steps}")
+
+        if volley_mode:
+            print(f"Episode {ep+1}/{num_episodes}: {outcome}, missiles={missiles_intercepted}/{volley_sz}, reward={total_reward:.2f}, steps={steps}")
+        else:
+            print(f"Episode {ep+1}/{num_episodes}: {outcome}, reward={total_reward:.2f}, steps={steps}")
     
     # Save aggregated results
     summary = {
@@ -527,12 +579,24 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
         'model_path': str(model_path),
         'num_episodes': num_episodes,
         'scenario': scenario,
-        'success_rate': sum(1 for r in results if r['outcome'] == 'intercepted') / num_episodes,
+        'volley_mode': volley_mode,
         'avg_reward': np.mean([r['total_reward'] for r in results]),
         'avg_steps': np.mean([r['steps'] for r in results]),
         'avg_final_distance': np.mean([r['final_distance'] for r in results]),
         'episodes': results
     }
+
+    # Add mode-specific metrics
+    if volley_mode:
+        summary['volley_size'] = volley_size
+        summary['volley_statistics'] = volley_stats
+        summary['success_rate_all_intercepted'] = volley_stats['episodes_all_intercepted'] / num_episodes
+        summary['success_rate_partial'] = volley_stats['episodes_partial_interception'] / num_episodes
+        summary['failure_rate'] = volley_stats['episodes_no_interception'] / num_episodes
+        summary['avg_missiles_intercepted_per_episode'] = volley_stats['total_missiles_intercepted'] / num_episodes
+        summary['overall_interception_rate'] = volley_stats['total_missiles_intercepted'] / volley_stats['total_missiles_spawned'] if volley_stats['total_missiles_spawned'] > 0 else 0.0
+    else:
+        summary['success_rate'] = sum(1 for r in results if r['outcome'] == 'intercepted') / num_episodes
     
     # Write summary JSON
     summary_file = run_dir / "summary.json"
@@ -547,9 +611,19 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
     
     logger.create_manifest()
     print(f"\nResults saved to: {run_dir}")
-    print(f"Success rate: {summary['success_rate']:.2%}")
+
+    if volley_mode:
+        print(f"\n=== Volley Mode Results (Volley Size: {volley_size}) ===")
+        print(f"All missiles intercepted: {summary['success_rate_all_intercepted']:.2%} ({volley_stats['episodes_all_intercepted']}/{num_episodes} episodes)")
+        print(f"Partial interception: {summary['success_rate_partial']:.2%} ({volley_stats['episodes_partial_interception']}/{num_episodes} episodes)")
+        print(f"No interception: {summary['failure_rate']:.2%} ({volley_stats['episodes_no_interception']}/{num_episodes} episodes)")
+        print(f"Overall interception rate: {summary['overall_interception_rate']:.2%} ({volley_stats['total_missiles_intercepted']}/{volley_stats['total_missiles_spawned']} missiles)")
+        print(f"Average missiles intercepted per episode: {summary['avg_missiles_intercepted_per_episode']:.2f}")
+    else:
+        print(f"Success rate: {summary['success_rate']:.2%}")
+
     print(f"Average reward: {summary['avg_reward']:.2f}")
-    
+
     return summary
 
 
@@ -609,6 +683,19 @@ def main():
         choices=["easy", "medium", "hard"],
         help="Scenario to use (offline mode)"
     )
+
+    # Volley mode arguments
+    parser.add_argument(
+        "--volley",
+        action="store_true",
+        help="Enable volley mode (multiple missiles per episode)"
+    )
+    parser.add_argument(
+        "--volley-size",
+        type=int,
+        default=3,
+        help="Number of missiles in each volley (default: 3)"
+    )
     
     args = parser.parse_args()
     
@@ -622,7 +709,9 @@ def main():
             config_path=args.config,
             num_episodes=args.episodes,
             output_dir=args.output,
-            scenario=args.scenario
+            scenario=args.scenario,
+            volley_mode=args.volley,
+            volley_size=args.volley_size
         )
 
 
