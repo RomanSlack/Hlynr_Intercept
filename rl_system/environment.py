@@ -19,14 +19,14 @@ class InterceptEnvironment(gym.Env):
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__()
-        
+
         # Default configuration
         self.config = config or {}
         self.dt = self.config.get('dt', 0.01)  # 100Hz simulation
         self.max_steps = self.config.get('max_steps', 1000)
         self.max_range = self.config.get('max_range', 10000.0)
         self.max_velocity = self.config.get('max_velocity', 1000.0)
-        
+
         # Spawn configuration
         self.missile_spawn_range = self.config.get('missile_spawn', {
             'position': [[-500, -500, 200], [500, 500, 500]],
@@ -37,6 +37,11 @@ class InterceptEnvironment(gym.Env):
             'velocity': [[0, 0, 0], [50, 50, 20]]
         })
         self.target_position = np.array(self.config.get('target_position', [900, 900, 5]), dtype=np.float32)
+
+        # Volley mode configuration
+        self.volley_mode = False
+        self.volley_size = 1
+        self.missile_states = []  # List of missile states for volley mode
         
         # Basic physics parameters
         self.gravity = np.array([0, 0, -9.81], dtype=np.float32)
@@ -179,6 +184,9 @@ class InterceptEnvironment(gym.Env):
         self._distance_worsening_count = 0
         self._last_distance = None
 
+        # Volley mode tracking
+        self.intercepted_missile_indices = []  # Track which missiles were intercepted
+
     def get_current_intercept_radius(self) -> float:
         """
         Calculate current intercept radius based on curriculum progress.
@@ -191,6 +199,39 @@ class InterceptEnvironment(gym.Env):
         progress = min(1.0, self.training_step_count / self.curriculum_steps)
         radius = self.initial_intercept_radius * (1.0 - progress) + self.final_intercept_radius * progress
         return radius
+
+    def _select_priority_missile(self) -> Optional[Dict[str, Any]]:
+        """
+        Select the highest priority missile for observation and tracking.
+
+        In volley mode, prioritizes:
+        1. Closest active missile (most immediate threat)
+        2. Falls back to any active missile if none are particularly close
+
+        Returns:
+            Priority missile state dict, or None if no active missiles
+        """
+        if not self.volley_mode or not self.missile_states:
+            return self.missile_state
+
+        # Filter active missiles
+        active_missiles = [ms for ms in self.missile_states if ms.get('active', True)]
+
+        if not active_missiles:
+            return None
+
+        # Find closest active missile to interceptor
+        int_pos = self.interceptor_state['position']
+        closest_missile = active_missiles[0]
+        closest_dist = np.linalg.norm(closest_missile['position'] - int_pos)
+
+        for ms in active_missiles[1:]:
+            dist = np.linalg.norm(ms['position'] - int_pos)
+            if dist < closest_dist:
+                closest_dist = dist
+                closest_missile = ms
+
+        return closest_missile
 
     def set_training_step_count(self, step_count: int):
         """Update global training step count for curriculum learning."""
@@ -279,43 +320,64 @@ class InterceptEnvironment(gym.Env):
     def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
         """Reset environment to initial state."""
         super().reset(seed=seed)
-        
+
         if seed is not None:
             np.random.seed(seed)
             self.observation_generator.seed(seed)
 
         # Reset sensor delays for new episode
         self.observation_generator.reset_sensor_delays()
-        
-        # Initialize missile state
+
+        # Check for volley mode in options
+        if options is not None:
+            self.volley_mode = options.get('volley_mode', False)
+            self.volley_size = options.get('volley_size', 1)
+        else:
+            self.volley_mode = False
+            self.volley_size = 1
+
+        # Reset volley tracking
+        self.intercepted_missile_indices = []
+        self.missile_states = []
+
+        # Initialize missile state(s)
         mis_pos_min, mis_pos_max = self.missile_spawn_range['position']
         mis_vel_min, mis_vel_max = self.missile_spawn_range['velocity']
-
-        missile_pos = np.random.uniform(mis_pos_min, mis_pos_max).astype(np.float32)
 
         # Calculate velocity magnitude range from config
         vel_mag_min = np.linalg.norm(mis_vel_min)
         vel_mag_max = np.linalg.norm(mis_vel_max)
-        desired_speed = np.random.uniform(vel_mag_min, vel_mag_max)
 
-        # Calculate direction from missile spawn to target
-        to_target = self.target_position - missile_pos
-        to_target_dist = np.linalg.norm(to_target)
+        # Spawn missiles (single or volley)
+        num_missiles = self.volley_size if self.volley_mode else 1
 
-        if to_target_dist > 1e-6:
-            # Point velocity toward target with desired speed
-            missile_vel = (to_target / to_target_dist) * desired_speed
-        else:
-            # Fallback if somehow spawned on target
-            missile_vel = np.random.uniform(mis_vel_min, mis_vel_max).astype(np.float32)
+        for i in range(num_missiles):
+            missile_pos = np.random.uniform(mis_pos_min, mis_pos_max).astype(np.float32)
+            desired_speed = np.random.uniform(vel_mag_min, vel_mag_max)
 
-        self.missile_state = {
-            'position': missile_pos,
-            'velocity': missile_vel.astype(np.float32),
-            'orientation': np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            'angular_velocity': np.zeros(3, dtype=np.float32),
-            'active': True
-        }
+            # Calculate direction from missile spawn to target
+            to_target = self.target_position - missile_pos
+            to_target_dist = np.linalg.norm(to_target)
+
+            if to_target_dist > 1e-6:
+                # Point velocity toward target with desired speed
+                missile_vel = (to_target / to_target_dist) * desired_speed
+            else:
+                # Fallback if somehow spawned on target
+                missile_vel = np.random.uniform(mis_vel_min, mis_vel_max).astype(np.float32)
+
+            missile_state = {
+                'position': missile_pos,
+                'velocity': missile_vel.astype(np.float32),
+                'orientation': np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32),
+                'angular_velocity': np.zeros(3, dtype=np.float32),
+                'active': True
+            }
+            self.missile_states.append(missile_state)
+
+        # Set primary missile state (for backward compatibility and observation generation)
+        # In volley mode, this will be dynamically updated to the closest/most threatening missile
+        self.missile_state = self.missile_states[0] if self.missile_states else None
         
         # Initialize interceptor state
         int_pos_min, int_pos_max = self.interceptor_spawn_range['position']
@@ -324,9 +386,21 @@ class InterceptEnvironment(gym.Env):
         interceptor_pos = np.random.uniform(int_pos_min, int_pos_max).astype(np.float32)
         interceptor_vel = np.random.uniform(int_vel_min, int_vel_max).astype(np.float32)
 
-        # Calculate initial orientation: point interceptor toward missile for radar acquisition
+        # Calculate initial orientation: point interceptor toward primary missile for radar acquisition
+        # In volley mode, point at closest missile
         # This uses only the positions (which radar would know), no omniscient data
-        rel_vector = self.missile_state['position'] - interceptor_pos
+        if self.volley_mode and len(self.missile_states) > 0:
+            # Point at closest missile
+            closest_dist = float('inf')
+            closest_missile = self.missile_states[0]
+            for ms in self.missile_states:
+                dist = np.linalg.norm(ms['position'] - interceptor_pos)
+                if dist < closest_dist:
+                    closest_dist = dist
+                    closest_missile = ms
+            rel_vector = closest_missile['position'] - interceptor_pos
+        else:
+            rel_vector = self.missile_state['position'] - interceptor_pos
         rel_distance = np.linalg.norm(rel_vector)
 
         if rel_distance > 1e-6:
@@ -445,48 +519,116 @@ class InterceptEnvironment(gym.Env):
         # Update interceptor physics
         if self.interceptor_state['active']:
             self._update_interceptor(clamped_action)
-        
-        # Update missile physics
-        if self.missile_state['active']:
-            self._update_missile()
-        
+
+        # Update missile physics (all missiles in volley mode)
+        if self.volley_mode:
+            for i, missile_state in enumerate(self.missile_states):
+                if missile_state['active']:
+                    self._update_missile_state(missile_state)
+        else:
+            if self.missile_state['active']:
+                self._update_missile()
+
         # Update wind
         self._update_wind()
-        
-        # Check interception
+
+        # Select priority missile for observation and distance calculation
+        priority_missile = self._select_priority_missile()
+        if priority_missile is None:
+            # No active missiles (all intercepted or hit ground)
+            priority_missile = self.missile_states[0] if self.volley_mode else self.missile_state
+
+        # Update primary missile state for observation generation
+        self.missile_state = priority_missile
+
+        # Check interception for all missiles in volley mode
         # NOTE: This uses true positions for ground truth termination/reward calculation.
-        # The POLICY only receives radar observations through the 17D observation vector.
+        # The POLICY only receives radar observations through the 26D observation vector.
         # Using privileged info for reward shaping is standard RL practice and doesn't
         # violate the radar-only constraint on the policy's observations.
-        distance = np.linalg.norm(
-            self.missile_state['position'] - self.interceptor_state['position']
-        )
-
-        # Curriculum-based intercept radius (200m -> 20m over training)
-        # This allows agent to first learn "get close", then gradually refine to precise interception
         current_radius = self.get_current_intercept_radius()
-        intercepted = distance < current_radius
+        intercepted = False
+        any_missile_hit_target = False
+
+        if self.volley_mode:
+            # Check all missiles for interception
+            for i, missile_state in enumerate(self.missile_states):
+                if not missile_state['active']:
+                    continue
+
+                dist = np.linalg.norm(
+                    missile_state['position'] - self.interceptor_state['position']
+                )
+
+                # Check if this missile was intercepted
+                if dist < current_radius and i not in self.intercepted_missile_indices:
+                    intercepted = True
+                    self.intercepted_missile_indices.append(i)
+                    missile_state['active'] = False  # Mark as neutralized
+
+            # Calculate distance to closest active missile for reward
+            active_distances = []
+            for missile_state in self.missile_states:
+                if missile_state['active']:
+                    dist = np.linalg.norm(
+                        missile_state['position'] - self.interceptor_state['position']
+                    )
+                    active_distances.append(dist)
+
+            distance = min(active_distances) if active_distances else 0.0
+        else:
+            # Single missile mode (original behavior)
+            distance = np.linalg.norm(
+                self.missile_state['position'] - self.interceptor_state['position']
+            )
+            intercepted = distance < current_radius
         
         # Check termination conditions
         terminated = False
         truncated = False
         missile_hit_target = False
 
-        if intercepted:
-            terminated = True
-        elif self.missile_state['position'][2] <= 0:  # Missile hit ground
-            # Check if missile hit near the target (mission failure)
-            missile_ground_pos = self.missile_state['position'][:2]  # X, Y only
-            target_ground_pos = self.target_position[:2]
-            ground_distance = np.linalg.norm(missile_ground_pos - target_ground_pos)
+        if self.volley_mode:
+            # Volley mode termination logic
+            # Check if ANY missile hit the target
+            all_missiles_inactive = True
+            for missile_state in self.missile_states:
+                if missile_state['position'][2] <= 0:  # Missile hit ground
+                    missile_state['active'] = False
+                    # Check if missile hit near the target (mission failure)
+                    missile_ground_pos = missile_state['position'][:2]  # X, Y only
+                    target_ground_pos = self.target_position[:2]
+                    ground_distance = np.linalg.norm(missile_ground_pos - target_ground_pos)
 
-            if ground_distance < 500.0:  # Within 500m of target = mission failure
-                missile_hit_target = True
+                    if ground_distance < 500.0:  # Within 500m of target = mission failure
+                        any_missile_hit_target = True
+                        missile_hit_target = True
+
+                if missile_state['active']:
+                    all_missiles_inactive = False
+
+            # Episode ends when all missiles are neutralized (intercepted or hit ground)
+            if all_missiles_inactive:
                 terminated = True
-            else:
-                # Missile hit ground far from target (harmless)
+        else:
+            # Single missile mode (original behavior)
+            if intercepted:
                 terminated = True
-        elif self.interceptor_state['position'][2] < 0:  # Interceptor crashed
+            elif self.missile_state['position'][2] <= 0:  # Missile hit ground
+                # Check if missile hit near the target (mission failure)
+                missile_ground_pos = self.missile_state['position'][:2]  # X, Y only
+                target_ground_pos = self.target_position[:2]
+                ground_distance = np.linalg.norm(missile_ground_pos - target_ground_pos)
+
+                if ground_distance < 500.0:  # Within 500m of target = mission failure
+                    missile_hit_target = True
+                    terminated = True
+                else:
+                    # Missile hit ground far from target (harmless)
+                    terminated = True
+
+        # Common termination conditions (both modes)
+        if self.interceptor_state['position'][2] < 0:  # Interceptor crashed
             terminated = True
         elif self.interceptor_state['fuel'] <= 0:  # Out of fuel
             terminated = True
@@ -537,7 +679,12 @@ class InterceptEnvironment(gym.Env):
             'interceptor_pos': self.interceptor_state['position'].copy(),
             'steps': self.steps,
             'radar_detected': self.last_detection_info.get('detected', False) if self.last_detection_info else False,
-            'radar_quality': self.last_detection_info.get('radar_quality', 0.0) if self.last_detection_info else 0.0
+            'radar_quality': self.last_detection_info.get('radar_quality', 0.0) if self.last_detection_info else 0.0,
+            # Volley mode specific info
+            'volley_mode': self.volley_mode,
+            'volley_size': self.volley_size if self.volley_mode else 1,
+            'missiles_intercepted': len(self.intercepted_missile_indices) if self.volley_mode else (1 if intercepted else 0),
+            'missiles_remaining': sum(1 for ms in self.missile_states if ms['active']) if self.volley_mode else (0 if intercepted else 1)
         }
         
         return obs, reward, terminated, truncated, info
@@ -648,10 +795,14 @@ class InterceptEnvironment(gym.Env):
     
     def _update_missile(self):
         """Update missile state with enhanced ballistic trajectory."""
+        self._update_missile_state(self.missile_state)
+
+    def _update_missile_state(self, missile_state: Dict[str, Any]):
+        """Update a specific missile state with enhanced ballistic trajectory."""
         mass = 1000.0  # kg
 
         # Get atmospheric properties at missile altitude
-        altitude = max(0.0, self.missile_state['position'][2])
+        altitude = max(0.0, missile_state['position'][2])
         if self.atmospheric_model:
             atm_props = self.atmospheric_model.get_atmospheric_properties(altitude)
             air_density = atm_props['density']
@@ -661,7 +812,7 @@ class InterceptEnvironment(gym.Env):
             speed_of_sound = 343.0
 
         # Calculate drag with enhanced physics
-        vel = self.missile_state['velocity']
+        vel = missile_state['velocity']
         vel_air = vel - self.current_wind
 
         if self.mach_drag_model and np.linalg.norm(vel_air) > 1e-6:
@@ -693,8 +844,8 @@ class InterceptEnvironment(gym.Env):
                 total_accel = np.nan_to_num(total_accel, nan=0.0, posinf=20.0, neginf=-20.0)
 
         # Update velocity and position
-        self.missile_state['velocity'] += total_accel * self.dt
-        self.missile_state['position'] += self.missile_state['velocity'] * self.dt
+        missile_state['velocity'] += total_accel * self.dt
+        missile_state['position'] += missile_state['velocity'] * self.dt
     
     def _update_wind(self):
         """Update wind with enhanced modeling."""

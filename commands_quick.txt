@@ -9,3 +9,8 @@ python inference.py --model checkpoints/best --mode offline --episodes 100 --con
 
 Tensorboard:
 tensorboard --logdir logs
+
+
+
+
+python inference.py --model checkpoints/best --mode offline --episodes 100 --config config.yaml --volley --volley-size 5
