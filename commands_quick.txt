@@ -11,6 +11,9 @@ Tensorboard:
 tensorboard --logdir logs
 
 
+ python analyze_metrics.py /home/roman/Hlynr_Intercept/rl_system/inference_results/offline_run_20251025_183616/offline_inference_20251025_183616/metrics.jsonl
 
 
 python inference.py --model checkpoints/best --mode offline --episodes 100 --config config.yaml --volley --volley-size 5
+
+ python monitor_training.py

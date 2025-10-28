@@ -38,9 +38,9 @@ class InterceptEnvironment(gym.Env):
         })
         self.target_position = np.array(self.config.get('target_position', [900, 900, 5]), dtype=np.float32)
 
-        # Volley mode configuration
-        self.volley_mode = False
-        self.volley_size = 1
+        # Volley mode configuration (can be set via config or reset options)
+        self.volley_mode = self.config.get('volley_mode', False)
+        self.volley_size = self.config.get('volley_size', 1)
         self.missile_states = []  # List of missile states for volley mode
         
         # Basic physics parameters
@@ -186,6 +186,7 @@ class InterceptEnvironment(gym.Env):
 
         # Volley mode tracking
         self.intercepted_missile_indices = []  # Track which missiles were intercepted
+        self.missile_min_distances = []  # Track minimum distance achieved to each missile
 
     def get_current_intercept_radius(self) -> float:
         """
@@ -328,17 +329,16 @@ class InterceptEnvironment(gym.Env):
         # Reset sensor delays for new episode
         self.observation_generator.reset_sensor_delays()
 
-        # Check for volley mode in options
+        # Check for volley mode in options (overrides config if provided)
         if options is not None:
-            self.volley_mode = options.get('volley_mode', False)
-            self.volley_size = options.get('volley_size', 1)
-        else:
-            self.volley_mode = False
-            self.volley_size = 1
+            self.volley_mode = options.get('volley_mode', self.config.get('volley_mode', False))
+            self.volley_size = options.get('volley_size', self.config.get('volley_size', 1))
+        # Otherwise use config values (already set in __init__)
 
         # Reset volley tracking
         self.intercepted_missile_indices = []
         self.missile_states = []
+        self.missile_min_distances = []
 
         # Initialize missile state(s)
         mis_pos_min, mis_pos_max = self.missile_spawn_range['position']
@@ -378,13 +378,19 @@ class InterceptEnvironment(gym.Env):
         # Set primary missile state (for backward compatibility and observation generation)
         # In volley mode, this will be dynamically updated to the closest/most threatening missile
         self.missile_state = self.missile_states[0] if self.missile_states else None
-        
+
         # Initialize interceptor state
         int_pos_min, int_pos_max = self.interceptor_spawn_range['position']
         int_vel_min, int_vel_max = self.interceptor_spawn_range['velocity']
 
         interceptor_pos = np.random.uniform(int_pos_min, int_pos_max).astype(np.float32)
         interceptor_vel = np.random.uniform(int_vel_min, int_vel_max).astype(np.float32)
+
+        # Initialize minimum distance tracking for all missiles (now that interceptor position is known)
+        if self.volley_mode:
+            for missile_state in self.missile_states:
+                initial_dist = np.linalg.norm(missile_state['position'] - interceptor_pos)
+                self.missile_min_distances.append(initial_dist)
 
         # Calculate initial orientation: point interceptor toward primary missile for radar acquisition
         # In volley mode, point at closest missile
@@ -551,7 +557,7 @@ class InterceptEnvironment(gym.Env):
         any_missile_hit_target = False
 
         if self.volley_mode:
-            # Check all missiles for interception
+            # Check all missiles for interception and update minimum distances
             for i, missile_state in enumerate(self.missile_states):
                 if not missile_state['active']:
                     continue
@@ -559,6 +565,10 @@ class InterceptEnvironment(gym.Env):
                 dist = np.linalg.norm(
                     missile_state['position'] - self.interceptor_state['position']
                 )
+
+                # Update minimum distance for this missile
+                if dist < self.missile_min_distances[i]:
+                    self.missile_min_distances[i] = dist
 
                 # Check if this missile was intercepted
                 if dist < current_radius and i not in self.intercepted_missile_indices:
@@ -684,7 +694,8 @@ class InterceptEnvironment(gym.Env):
             'volley_mode': self.volley_mode,
             'volley_size': self.volley_size if self.volley_mode else 1,
             'missiles_intercepted': len(self.intercepted_missile_indices) if self.volley_mode else (1 if intercepted else 0),
-            'missiles_remaining': sum(1 for ms in self.missile_states if ms['active']) if self.volley_mode else (0 if intercepted else 1)
+            'missiles_remaining': sum(1 for ms in self.missile_states if ms['active']) if self.volley_mode else (0 if intercepted else 1),
+            'missile_min_distances': self.missile_min_distances.copy() if self.volley_mode else [distance]
         }
         
         return obs, reward, terminated, truncated, info
