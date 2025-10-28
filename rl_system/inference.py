@@ -374,6 +374,12 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
                 scenario_config = yaml.safe_load(f)
                 env_config.update(scenario_config.get('environment', {}))
 
+    # Add volley mode to environment config if enabled
+    if volley_mode:
+        env_config['volley_mode'] = True
+        env_config['volley_size'] = volley_size
+        logger.logger.info(f"Volley mode enabled: {volley_size} missiles per episode")
+
     # Create environment with same preprocessing as training
     env = InterceptEnvironment(env_config)
     base_obs_dim = env.observation_space.shape[0]
@@ -467,19 +473,9 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
             'info': []
         }
 
-        # Reset environment with volley mode options (VecEnv returns array)
-        # Create reset options for volley mode
-        reset_kwargs = {}
-        if volley_mode:
-            reset_kwargs['options'] = {'volley_mode': True, 'volley_size': volley_size}
-
-        # VecEnv requires calling reset on underlying env
-        if hasattr(env, 'env_method'):
-            # VecNormalize wrapped env
-            obs = env.env_method('reset', **reset_kwargs)[0]
-        else:
-            obs = env.reset(**reset_kwargs)
-
+        # Reset environment (VecEnv returns array)
+        # Volley mode is already configured in environment config
+        obs = env.reset()
         if isinstance(obs, tuple):  # Handle (obs, info) tuple from newer gym
             obs = obs[0]
         logger.begin_episode(episode_data['episode_id'])
@@ -528,6 +524,7 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
         if volley_mode:
             missiles_intercepted = info.get('missiles_intercepted', 0)
             volley_sz = info.get('volley_size', volley_size)
+            missile_min_distances = info.get('missile_min_distances', [])
 
             # Update volley statistics
             volley_stats['total_missiles_spawned'] += volley_sz
@@ -548,6 +545,7 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
             episode_data['volley_size'] = volley_sz
             episode_data['missiles_intercepted'] = missiles_intercepted
             episode_data['missiles_remaining'] = info.get('missiles_remaining', 0)
+            episode_data['missile_min_distances'] = missile_min_distances
         else:
             outcome = "intercepted" if info.get('intercepted', False) else "failed"
 
