@@ -98,27 +98,28 @@ class UnifiedLogger:
             self.run_id = f"{run_name}_{timestamp}"
         else:
             self.run_id = f"run_{timestamp}"
-        
+
         self.log_dir = Path(log_dir) / self.run_id
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Setup Python logger
         self._setup_python_logger()
-        
+
         # Episode tracking
         self.current_episode = None
         self.episode_count = 0
         self.episode_file = None
         self.episode_buffer = []
-        
+        self.episode_start_time = None  # Track start time for relative timestamps
+
         # Metrics tracking
         self.metrics_buffer = []
         self.metrics_file = self.log_dir / "metrics.jsonl"
-        
+
         # Training tracking
         self.training_metrics = {}
         self.training_file = self.log_dir / "training.jsonl"
-        
+
         self.logger.info(f"Unified logger initialized: {self.log_dir}")
     
     def _setup_python_logger(self):
@@ -148,34 +149,39 @@ class UnifiedLogger:
         """Start logging a new episode."""
         self.episode_count += 1
         episode_id = episode_id or f"ep_{self.episode_count:06d}"
-        
+
+        # Store episode start time for relative timestamps
+        self.episode_start_time = time.time()
+
         # Create episode file
         self.episode_file = self.log_dir / "episodes" / f"{episode_id}.jsonl"
         self.episode_file.parent.mkdir(exist_ok=True)
-        
-        # Write episode header
+
+        # Write episode header with absolute start time
         header = {
             'type': 'header',
             'episode_id': episode_id,
-            'start_time': time.time(),
+            'start_time': self.episode_start_time,
             'metadata': metadata or {}
         }
-        
+
         with open(self.episode_file, 'w') as f:
             f.write(json.dumps(make_json_serializable(header)) + '\n')
-        
+
         self.current_episode = episode_id
         self.episode_buffer = []
-        
+
         self.logger.info(f"Episode {episode_id} started")
     
     def log_state(self, entity_id: str, state: Dict[str, Any], timestamp: Optional[float] = None):
-        """Log entity state during episode."""
+        """Log entity state during episode with relative timestamp."""
         if not self.current_episode:
             return
-        
-        timestamp = timestamp or time.time()
-        
+
+        # Get absolute timestamp and convert to relative
+        abs_timestamp = timestamp or time.time()
+        relative_timestamp = abs_timestamp - self.episode_start_time if self.episode_start_time else 0.0
+
         # Convert numpy arrays to lists
         clean_state = {}
         for key, value in state.items():
@@ -183,67 +189,77 @@ class UnifiedLogger:
                 clean_state[key] = value.tolist()
             else:
                 clean_state[key] = value
-        
+
         entry = {
             'type': 'state',
-            'timestamp': timestamp,
+            'timestamp': relative_timestamp,
             'entity_id': entity_id,
             'state': clean_state
         }
-        
+
         self.episode_buffer.append(entry)
-        
+
         # Flush periodically
         if len(self.episode_buffer) >= 100:
             self._flush_episode_buffer()
     
     def log_event(self, event: EpisodeEvent):
-        """Log discrete event during episode."""
+        """Log discrete event during episode with relative timestamp."""
         if not self.current_episode:
             return
-        
+
+        # Convert absolute timestamp to relative
+        relative_timestamp = event.timestamp - self.episode_start_time if self.episode_start_time else event.timestamp
+
         entry = {
             'type': 'event',
-            'timestamp': event.timestamp,
+            'timestamp': relative_timestamp,
             'event_type': event.event_type,
             'source': event.source,
             'target': event.target,
             'data': event.data
         }
-        
+
         self.episode_buffer.append(entry)
-        self.logger.info(f"Event: {event.event_type} at {event.timestamp:.3f}")
+        self.logger.info(f"Event: {event.event_type} at {relative_timestamp:.3f}s")
     
     def end_episode(self, outcome: str, metrics: Dict[str, Any]):
         """Finish logging current episode."""
         if not self.current_episode:
             return
-        
+
         # Flush remaining buffer
         self._flush_episode_buffer()
-        
-        # Write episode footer
+
+        # Calculate episode duration
+        end_time = time.time()
+        episode_duration = end_time - self.episode_start_time if self.episode_start_time else 0.0
+
+        # Write episode footer with both absolute end time and relative duration
         footer = {
             'type': 'footer',
             'episode_id': self.current_episode,
-            'end_time': time.time(),
+            'end_time': end_time,
+            'duration': episode_duration,
             'outcome': outcome,
             'metrics': metrics
         }
-        
+
         with open(self.episode_file, 'a') as f:
             f.write(json.dumps(make_json_serializable(footer)) + '\n')
-        
+
         # Log metrics
         self.log_metrics({
             'episode': self.current_episode,
             'outcome': outcome,
+            'duration': episode_duration,
             **metrics
         })
-        
-        self.logger.info(f"Episode {self.current_episode} ended: {outcome}")
+
+        self.logger.info(f"Episode {self.current_episode} ended: {outcome} (duration: {episode_duration:.3f}s)")
         self.current_episode = None
         self.episode_file = None
+        self.episode_start_time = None
     
     def _flush_episode_buffer(self):
         """Write buffered episode data to file."""
