@@ -1,0 +1,59 @@
+# Hard scenario - challenging interception
+
+name: hard
+description: Difficult scenario with aggressive missiles and poor conditions
+difficulty: 3
+
+environment:
+  # Hard scenario - realistic BMD geometry with challenging conditions
+  target_position: [0, 0, 0]  # Defended target at origin
+
+  # Interceptor launches from defended target
+  interceptor_spawn:
+    position: [[0, 0, 0], [70, 70, 15]]  # Launch from target area (wider variation)
+    velocity: [[10, 10, 30], [35, 35, 70]]  # Slow launch (challenging)
+
+  # Incoming threat - far distance, high speed
+  missile_spawn:
+    position: [[2500, 2500, 2500], [4000, 4000, 4000]]  # 3.5-5.5km away
+    velocity: [[-140, -140, -75], [-200, -200, -100]]  # Fast aggressive descent toward origin
+
+  # Extended episode length
+  max_steps: 2000  # 20 seconds
+  
+  # Strong variable wind
+  wind:
+    velocity: [15.0, 8.0, -2.0]
+    variability: 0.25
+  
+  # Poor radar for hard scenario
+  radar_range: 3500.0  # Short range
+  radar_noise: 0.15  # High noise
+  radar_quality: 0.75  # Degraded quality
+  radar_beam_width: 45.0  # Narrow beam
+  min_detection_range: 75.0  # Poor close tracking
+
+  # Ground radar (degraded for hard scenario)
+  ground_radar:
+    enabled: true
+    position: [0, 0, 100]
+    max_range: 18000.0  # Slightly reduced
+    min_elevation_angle: 5.0
+    max_elevation_angle: 85.0
+    range_accuracy: 15.0  # More noise
+    velocity_accuracy: 3.0
+    base_quality: 0.88  # Lower quality
+    weather_sensitivity: 0.3  # More weather impact
+    max_datalink_range: 45000.0  # Reduced range
+    datalink_packet_loss: 0.10  # Higher packet loss
+    ground_sensor_delay_ms: 60.0  # Higher delay
+
+  # Aggressive evasion
+  missile_evasion: true
+
+# Challenging rewards
+rewards:
+  interception_bonus: 80.0
+  fuel_efficiency_weight: 0.3
+  time_bonus_weight: 0.1
+  distance_penalty: 0.002

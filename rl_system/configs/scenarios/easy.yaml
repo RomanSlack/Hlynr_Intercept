@@ -1,0 +1,59 @@
+# Easy scenario - basic single missile interception
+
+name: easy
+description: Simple scenario for initial training and testing
+difficulty: 1
+
+environment:
+  # Easy scenario - realistic BMD geometry but closer and slower
+  target_position: [0, 0, 0]  # Defended target at origin
+
+  # Interceptor launches from defended target
+  interceptor_spawn:
+    position: [[0, 0, 0], [30, 30, 10]]  # Launch from target area
+    velocity: [[30, 30, 50], [50, 50, 90]]  # Moderate launch (still easier than standard)
+
+  # Incoming threat - close and slow for easier learning
+  missile_spawn:
+    position: [[1000, 1000, 1200], [2000, 2000, 2000]]  # 1.5-3km away
+    velocity: [[-60, -60, -30], [-90, -90, -50]]  # Slow descent toward origin
+
+  # Extended episode length for learning
+  max_steps: 2000  # 20 seconds
+
+  # Reduced physics difficulty
+  wind:
+    velocity: [2.0, 0.0, 0.0]
+    variability: 0.05
+  
+  # Better radar for easy scenario
+  radar_range: 6000.0  # Extended range
+  radar_noise: 0.02  # Low noise
+  radar_quality: 1.0  # Perfect quality
+  radar_beam_width: 90.0  # Wide beam
+  min_detection_range: 30.0
+
+  # Ground radar (enabled with good quality for easier learning)
+  ground_radar:
+    enabled: true
+    position: [0, 0, 100]
+    max_range: 20000.0
+    min_elevation_angle: 5.0
+    max_elevation_angle: 85.0
+    range_accuracy: 8.0  # Better accuracy for easy mode
+    velocity_accuracy: 1.5
+    base_quality: 0.98  # Higher quality
+    weather_sensitivity: 0.1  # Less weather impact
+    max_datalink_range: 50000.0
+    datalink_packet_loss: 0.02  # Lower packet loss
+    ground_sensor_delay_ms: 40.0
+
+  # No evasion
+  missile_evasion: false
+
+# Adjusted rewards
+rewards:
+  interception_bonus: 150.0
+  fuel_efficiency_weight: 0.8
+  time_bonus_weight: 0.2
+  distance_penalty: 0.0005

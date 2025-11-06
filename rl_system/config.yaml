@@ -300,3 +300,8 @@ physics_enhancements:
 
   # Backward compatibility
   fallback_to_simple_physics: true  # Fall back if advanced physics fails
+
+# Hierarchical RL Configuration (Phase 1: Stub/Scaffolding Only)
+hrl:
+  enabled: false  # Default OFF - use flat PPO unless explicitly enabled
+  decision_interval_steps: 100  # High-level selector decides every N steps (1Hz @ 100Hz sim)

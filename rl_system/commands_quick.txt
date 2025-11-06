@@ -1,0 +1,54 @@
+## Standard (Non-HRL) Training Commands
+
+python train.py --config config.yaml
+
+python train.py --config scenarios/easy.yaml
+
+python inference.py --model checkpoints/best --mode offline --episodes 100 --config config.yaml
+
+
+
+
+## HRL Specialist Pre-Training (Step 7 - Stubs)
+
+# Pre-train search specialist (stub: validates config only)
+python scripts/train_hrl_pretrain.py --agent search --config configs/hrl/search_specialist.yaml
+
+# Pre-train track specialist (stub: validates config only)
+python scripts/train_hrl_pretrain.py --agent track --config configs/hrl/track_specialist.yaml
+
+# Pre-train terminal specialist (stub: validates config only)
+python scripts/train_hrl_pretrain.py --agent terminal --config configs/hrl/terminal_specialist.yaml
+
+## HRL Smoke Run (Very Short Test)
+
+# Run minimal HRL-enabled training (HRL feature flag enabled, but stubs return zero actions)
+# NOTE: This currently warns and falls back to flat PPO due to VecEnv wrapping limitation
+python train.py --config configs/hrl/hrl_base.yaml
+
+
+## Directory Structure Verification
+
+# List HRL module files
+ls -la hrl/
+
+# List HRL config files
+ls -la configs/hrl/
+
+# Verify no top-level moves were performed (scenarios/ should still exist)
+ls -la scenarios/
+
+## Phase 2 TODO Commands (Not Yet Implemented)
+
+# These commands are planned but not functional in Phase 1:
+# - Actual specialist training with custom env wrappers
+# - Selector training with frozen specialists
+# - Joint HRL training with all components
+# - HRL-specific inference and evaluation
+
+## Notes
+
+- Phase 1 Status: Scaffolding complete, all imports working, no-op stubs in place
+- HRL feature flag: `hrl.enabled` in config (default: false)
+- Current limitation: VecEnv wrapping not implemented, so HRL warns and falls back to flat PPO
+- Next Steps: Implement actual specialist training logic, VecHRLWrapper, reward shaping

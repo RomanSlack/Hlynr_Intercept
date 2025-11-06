@@ -1,0 +1,38 @@
+# HRL Curriculum Training Configuration (Phase 1: Stub)
+# Sequential training: specialists → selector → optional fine-tuning
+
+# Inherit base settings
+parent_config: ../../config.yaml
+
+# Curriculum stages (Phase 1: documentation only)
+curriculum:
+  stages:
+    - name: "pretrain_specialists"
+      description: "Pre-train search, track, and terminal specialists"
+      configs:
+        - configs/hrl/search_specialist.yaml
+        - configs/hrl/track_specialist.yaml
+        - configs/hrl/terminal_specialist.yaml
+      parallel: true  # Can train specialists in parallel
+
+    - name: "train_selector"
+      description: "Train selector with frozen specialists"
+      configs:
+        - configs/hrl/selector_config.yaml
+      parallel: false
+
+    - name: "joint_finetune"
+      description: "Optional end-to-end fine-tuning"
+      configs: []
+      parallel: false
+      enabled: false  # Phase 1: not implemented
+
+# Training settings
+training:
+  total_timesteps: 10000  # Minimal smoke test
+  n_envs: 1
+
+# HRL settings
+hrl:
+  enabled: true
+  decision_interval_steps: 100

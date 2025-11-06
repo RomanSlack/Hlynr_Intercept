@@ -1,0 +1,59 @@
+# Medium scenario - moderate difficulty
+
+name: medium
+description: Intermediate scenario with environmental challenges
+difficulty: 2
+
+environment:
+  # Medium scenario - realistic BMD geometry, standard difficulty
+  target_position: [0, 0, 0]  # Defended target at origin
+
+  # Interceptor launches from defended target
+  interceptor_spawn:
+    position: [[0, 0, 0], [50, 50, 10]]  # Launch from target area
+    velocity: [[20, 20, 40], [40, 40, 80]]  # Standard launch velocity
+
+  # Incoming threat - standard distance and speed
+  missile_spawn:
+    position: [[1800, 1800, 1800], [3200, 3200, 3200]]  # 2.5-4.5km away
+    velocity: [[-110, -110, -55], [-160, -160, -75]]  # Standard descent toward origin
+
+  # Extended episode length
+  max_steps: 2000  # 20 seconds
+  
+  # Moderate wind
+  wind:
+    velocity: [8.0, 3.0, 0.0]
+    variability: 0.15
+  
+  # Degraded radar for medium scenario
+  radar_range: 4500.0  # Reduced range
+  radar_noise: 0.08  # Higher noise
+  radar_quality: 0.9  # Some degradation
+  radar_beam_width: 60.0  # Standard beam
+  min_detection_range: 50.0
+
+  # Ground radar (standard configuration)
+  ground_radar:
+    enabled: true
+    position: [0, 0, 100]
+    max_range: 20000.0
+    min_elevation_angle: 5.0
+    max_elevation_angle: 85.0
+    range_accuracy: 10.0
+    velocity_accuracy: 2.0
+    base_quality: 0.95
+    weather_sensitivity: 0.2
+    max_datalink_range: 50000.0
+    datalink_packet_loss: 0.05
+    ground_sensor_delay_ms: 50.0
+
+  # Light evasion
+  missile_evasion: true
+
+# Standard rewards
+rewards:
+  interception_bonus: 100.0
+  fuel_efficiency_weight: 0.5
+  time_bonus_weight: 0.15
+  distance_penalty: 0.001
