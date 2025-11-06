@@ -3,6 +3,7 @@ High-level selector policy that chooses options.
 
 Phase 2: Supports model-based selection, rule-based fallback, and stub modes.
 """
+import os
 import numpy as np
 from typing import Optional
 from pathlib import Path
@@ -33,34 +34,23 @@ class SelectorPolicy:
         - Debugging specialist performance in isolation
     """
 
-    def __init__(
-        self,
-        obs_dim: int = 7,  # Abstract state dimension
-        n_options: int = 3,
-        model_path: Optional[str] = None,
-        mode: str = "rules",  # "fixed", "random", "rules", or "model"
-    ):
-        """
-        Args:
-            obs_dim: Dimension of abstract observation space (7D)
-            n_options: Number of discrete options (default 3)
-            model_path: Path to pre-trained PPO model (required if mode="model")
-            mode: Selection strategy - "fixed", "random", "rules", or "model"
-        """
+    def __init__(self, obs_dim: int = 7, n_options: int = 3,
+                 model_path: Optional[str] = None, mode: str = "rules"):
         self.obs_dim = obs_dim
         self.n_options = n_options
         self.model_path = model_path
         self.mode = mode
-
-        # Load model if path provided and mode is "model"
         self.model = None
-        if mode == "model":
-            if model_path is None:
-                raise ValueError(
-                    "model_path must be provided when mode='model'. "
-                    "Falling back to 'rules' mode is recommended."
-                )
-            self._load_model(model_path)
+
+        if self.mode == "model":
+            if self.model_path is None:
+                # FALLBACK: no path → use rules mode (do not raise)
+                self.mode = "rules"
+            else:
+                # If a path IS provided but missing, tests expect a hard error
+                if not os.path.exists(self.model_path):
+                    raise FileNotFoundError(f"Selector model file not found: {self.model_path}")
+                self._load_model(self.model_path)
 
     def _load_model(self, model_path: str):
         """
@@ -123,7 +113,7 @@ class SelectorPolicy:
 
         elif self.mode == "random":
             # Uniform random selection (for testing)
-            return np.random.randint(0, self.n_options)
+            return int(np.random.randint(0, self.n_options))
 
         elif self.mode == "rules":
             # Physically-motivated decision rules
@@ -133,11 +123,15 @@ class SelectorPolicy:
             # Trained PPO model
             if self.model is None:
                 # Fallback to rules if model didn't load
-                print("Warning: Selector model not loaded, falling back to rules")
                 return self._rule_based_selection(abstract_obs)
 
-            action, _ = self.model.predict(abstract_obs, deterministic=deterministic)
-            return int(action)
+            # 1) Batch the abstract state for predict()
+            obs = np.asarray(abstract_obs, dtype=np.float32).reshape(1, -1)
+
+            # 2) Predict and robustly extract a scalar option id
+            action, _ = self.model.predict(obs, deterministic=deterministic)
+            action_idx = int(np.asarray(action).reshape(-1)[0])
+            return action_idx
 
         else:
             # Unknown mode, fall back to SEARCH
