@@ -363,6 +363,16 @@ def train(config_path: str):
 
     envs = DummyVecEnv([create_env(env_config, i) for i in range(n_envs)])
 
+    # Phase 1 HRL Toggle: Wrap with HRL if enabled
+    use_hrl = config.get('hrl', {}).get('enabled', False)
+    if use_hrl:
+        logger.logger.info("HRL enabled - wrapping environment with HierarchicalManager (stub)")
+        from hrl.hierarchical_env import make_hrl_env
+        # Note: VecEnv doesn't support direct wrapping, so HRL would need custom vec wrapper
+        # For Phase 1, we log this and continue with flat PPO
+        logger.logger.warning("HRL VecEnv wrapping not yet implemented - continuing with flat PPO")
+        logger.logger.warning("To use HRL, set training.n_envs=1 or implement VecHRLWrapper")
+
     # Add frame-stacking for temporal context (without LSTM)
     frame_stack = config['training'].get('frame_stack', 1)
     if frame_stack > 1:

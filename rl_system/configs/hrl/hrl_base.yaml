@@ -1,0 +1,31 @@
+# HRL Base Configuration (Phase 1: Stub/Scaffolding)
+# This config enables the HRL system with no-op specialists
+
+# Inherit base settings from parent config
+parent_config: ../../config.yaml
+
+# HRL-specific settings
+hrl:
+  enabled: true  # Enable HRL for this config
+
+  # Hierarchy settings
+  decision_interval_steps: 100  # High-level decides every 100 steps (1Hz @ 100Hz)
+  default_option: 0  # Start with SEARCH
+  enable_forced_transitions: true  # Allow physics-based option switching
+
+  # Forced transition thresholds
+  thresholds:
+    radar_lock_quality_min: 0.3      # Below this, lose track → SEARCH
+    radar_lock_quality_search: 0.7   # Above this, exit search → TRACK
+    close_range_threshold: 100.0     # meters - trigger TERMINAL
+    terminal_fuel_min: 0.1           # Min fuel to enter terminal
+    miss_imminent_distance: 200.0    # If distance increasing beyond this
+
+# Training overrides for HRL
+training:
+  total_timesteps: 100000  # Short smoke test
+  n_envs: 1  # Single environment for Phase 1 smoke test
+  n_steps: 512  # Shorter rollouts for smoke test
+  checkpoint_freq: 10000
+  eval_freq: 10000
+  n_eval_episodes: 3

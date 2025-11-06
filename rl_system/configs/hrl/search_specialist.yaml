@@ -1,0 +1,27 @@
+# Search Specialist Pre-Training Configuration (Phase 1: Stub)
+# Specialist for wide-area scanning and target acquisition
+
+# Inherit base settings
+parent_config: ../../config.yaml
+
+# Specialist-specific training
+training:
+  total_timesteps: 100000  # Pre-training steps (stub: minimal)
+  n_envs: 4  # Parallel environments
+  n_steps: 1024
+
+  # Learning parameters
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+
+  # Network architecture
+  net_arch: [512, 512, 256]
+  use_lstm: false  # Phase 1: No LSTM yet
+  frame_stack: 4
+
+# Environment modifications for search training
+environment:
+  # Start without radar lock (search scenarios)
+  # TODO(Phase 2): Implement custom initial conditions
+  max_steps: 500  # Shorter episodes for search phase

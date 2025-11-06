@@ -1,0 +1,26 @@
+# Terminal Specialist Pre-Training Configuration (Phase 1: Stub)
+# Specialist for final intercept guidance
+
+# Inherit base settings
+parent_config: ../../config.yaml
+
+# Specialist-specific training
+training:
+  total_timesteps: 100000  # Pre-training steps (stub: minimal)
+  n_envs: 4
+  n_steps: 1024
+
+  # Learning parameters
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+
+  # Network architecture
+  net_arch: [512, 512, 256]
+  use_lstm: false  # Phase 1: No LSTM yet
+  frame_stack: 4
+
+# Environment modifications for terminal training
+environment:
+  # TODO(Phase 2): Start at close range (<200m)
+  max_steps: 300  # Short episodes for terminal phase
