@@ -155,7 +155,7 @@ class HierarchicalManager:
 
         # 4. Execute specialist
         active_specialist = self.specialists[self.state.current_option]
-        action = active_specialist.predict(full_obs, deterministic)
+        action = active_specialist.predict(full_obs, deterministic=deterministic)
 
         # 5. Update state and option manager
         self.state.steps_in_option += 1
