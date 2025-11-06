@@ -64,22 +64,6 @@ class OptionManager:
         current_option: Option,
         env_state: Dict[str, Any],
     ) -> Optional[Option]:
-        """
-        Check if environment state forces an option change.
-
-        Phase 2: Uses hysteresis bands and respects min-dwell times.
-
-        Args:
-            current_option: Current active option
-            env_state: Environment state dict with keys:
-                - lock_quality: float [0, 1]
-                - distance: float (meters)
-                - fuel: float [0, 1]
-                - closing_rate: float (m/s)
-
-        Returns:
-            Required option, or None if no forced transition
-        """
         if not self.enable_forced:
             return None
 
@@ -87,12 +71,11 @@ class OptionManager:
         distance = env_state.get('distance', float('inf'))
         fuel = env_state.get('fuel', 1.0)
 
-        # Determine forced transition based on rules
         forced_option = None
+        critical_override = False  # NEW: allows bypassing min-dwell
 
         # Rule 1: Lost radar lock → SEARCH
         if current_option in [Option.TRACK, Option.TERMINAL]:
-            # Use hysteresis: different threshold for losing lock
             threshold = (
                 HYSTERESIS_BANDS['lock_maintain_threshold']
                 if self.enable_hysteresis
@@ -101,9 +84,8 @@ class OptionManager:
             if lock_quality < threshold:
                 forced_option = Option.SEARCH
 
-        # Rule 2: Acquired lock during search → TRACK
+        # Rule 2: Acquired lock during SEARCH → TRACK
         if current_option == Option.SEARCH:
-            # Use hysteresis: higher threshold for acquiring lock
             threshold = (
                 HYSTERESIS_BANDS['lock_acquire_threshold']
                 if self.enable_hysteresis
@@ -112,46 +94,47 @@ class OptionManager:
             if lock_quality >= threshold:
                 forced_option = Option.TRACK
 
-        # Rule 3: Close range → TERMINAL
+        # Rule 3: TRACK → TERMINAL (close range OR fuel-critical bypass)
         if current_option == Option.TRACK:
-            # Use hysteresis: tighter threshold for entering terminal
-            threshold = (
+            enter_dist = (
                 HYSTERESIS_BANDS['terminal_enter_distance']
                 if self.enable_hysteresis
                 else self.thresholds['close_range_threshold']
             )
-            if distance < threshold and fuel >= self.thresholds['terminal_fuel_min']:
+            fuel_crit = self.thresholds.get('fuel_critical', 0.10)
+            term_fuel_min = self.thresholds.get('terminal_fuel_min', 0.10)
+
+            # (3a) Fuel-critical bypass: CLOSE RANGE + FUEL ≤ CRITICAL → TERMINAL
+            if distance <= enter_dist and fuel <= fuel_crit:
+                forced_option = Option.TERMINAL
+                critical_override = True  # NEW: skip min-dwell later
+            # (3b) Normal entry: CLOSE RANGE + enough fuel → TERMINAL
+            elif distance <= enter_dist and fuel >= term_fuel_min:
                 forced_option = Option.TERMINAL
 
-        # Rule 4: Out of terminal range → TRACK
+        # Rule 4: TERMINAL → TRACK (out of terminal range)
         if current_option == Option.TERMINAL:
-            # Use hysteresis: wider threshold for exiting terminal
-            threshold = (
+            exit_dist = (
                 HYSTERESIS_BANDS['terminal_exit_distance']
                 if self.enable_hysteresis
                 else self.thresholds['miss_imminent_distance']
             )
-            if distance > threshold:
+            if distance > exit_dist:
                 forced_option = Option.TRACK
 
-        # No forced transition needed
         if forced_option is None:
             return None
 
-        # Check min-dwell time (prevent rapid switching)
-        if self.enable_min_dwell:
+        # Min-dwell guard — but allow critical override to bypass it
+        if self.enable_min_dwell and not critical_override:
             min_dwell = MIN_DWELL_STEPS.get(current_option, 0)
             if self.steps_in_current_option < min_dwell:
-                # Allow critical transitions (e.g., lock lost, fuel critical)
-                is_critical = self._is_critical_transition(
-                    current_option, forced_option, env_state
-                )
+                # Keep your existing critical hook if you want (optional):
+                is_critical = self._is_critical_transition(current_option, forced_option, env_state)
                 if not is_critical:
-                    # Block transition, haven't been in option long enough
                     self.transition_counts['min_dwell_blocked'] += 1
                     return None
 
-        # Transition is allowed
         self.transition_counts['forced'] += 1
         return forced_option
 
