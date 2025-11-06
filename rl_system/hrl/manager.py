@@ -79,6 +79,14 @@ class HierarchicalManager:
         self.state = None
         self.reset()
 
+    def _due_for_selector(self) -> bool:
+        """
+        Return True exactly when the selector should be called.
+        With total_steps incremented at the end of select_action(),
+        the 10th call after reset should trigger if decision_interval=10.
+        """
+        return (self.state.total_steps + 1) % self.decision_interval == 0
+
     def reset(self):
         """Reset to initial state."""
         self.state = HRLState(
@@ -138,12 +146,14 @@ class HierarchicalManager:
             new_option = forced_option
             option_switched = (new_option != self.state.current_option)
             switch_reason = "forced"
-        elif self.should_switch_option():
-            # Selector decision
-            selector_choice = self.selector.predict(abstract_state, deterministic)
+        elif self.selector is not None and self._due_for_selector():
+            # Selector decision at cadence; feed 7D abstract state
+            selector_choice = int(self.selector.predict(abstract_state, deterministic))
             new_option = Option(selector_choice)
             option_switched = (new_option != self.state.current_option)
             switch_reason = "selector" if option_switched else "continue"
+            # Record when we made the decision (optional but helpful for info/debug)
+            self.state.last_decision_step = self.state.total_steps + 1
         else:
             new_option = self.state.current_option
             switch_reason = "continue"
