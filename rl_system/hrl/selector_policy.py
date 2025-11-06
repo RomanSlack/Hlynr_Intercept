@@ -35,7 +35,7 @@ class SelectorPolicy:
     """
 
     def __init__(self, obs_dim: int = 7, n_options: int = 3,
-                 model_path: Optional[str] = None, mode: str = "rules"):
+                 model_path: str | None = None, mode: str = "rules"):
         self.obs_dim = obs_dim
         self.n_options = n_options
         self.model_path = model_path
@@ -44,13 +44,12 @@ class SelectorPolicy:
 
         if self.mode == "model":
             if self.model_path is None:
-                # FALLBACK: no path → use rules mode (do not raise)
-                self.mode = "rules"
-            else:
-                # If a path IS provided but missing, tests expect a hard error
-                if not os.path.exists(self.model_path):
-                    raise FileNotFoundError(f"Selector model file not found: {self.model_path}")
-                self._load_model(self.model_path)
+                # REQUIRED by test_model_mode_requires_model_path
+                raise ValueError("model_path must be provided when mode='model'.")
+            if not os.path.exists(self.model_path):
+                # Required by missing-file test (already passing for you)
+                raise FileNotFoundError(f"Selector model file not found: {self.model_path}")
+            self._load_model(self.model_path)
 
     def _load_model(self, model_path: str):
         """
@@ -120,16 +119,16 @@ class SelectorPolicy:
             return self._rule_based_selection(abstract_obs)
 
         elif self.mode == "model":
-            # Trained PPO model
             if self.model is None:
-                # Fallback to rules if model didn't load
+                # Fallback if someone toggled mode to 'model' but didn't set a model
                 return self._rule_based_selection(abstract_obs)
 
-            # 1) Batch the abstract state for predict()
+            # Batch to (1, 7) for SB3-style predict
             obs = np.asarray(abstract_obs, dtype=np.float32).reshape(1, -1)
 
-            # 2) Predict and robustly extract a scalar option id
             action, _ = self.model.predict(obs, deterministic=deterministic)
+
+            # Robust scalar extraction: handles 1, array([1]), [[1]], etc.
             action_idx = int(np.asarray(action).reshape(-1)[0])
             return action_idx
 
