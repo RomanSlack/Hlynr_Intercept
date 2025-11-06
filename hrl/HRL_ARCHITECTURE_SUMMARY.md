@@ -499,7 +499,7 @@ tests/
 METRIC                  │ FLAT PPO      │ HRL (Target)  │ Notes
 ────────────────────────┼───────────────┼───────────────┼──────────────────
 Intercept Success Rate  │ 75-85%        │ 70-90%        │ Should be comparable
-Training Time           │ 25-30 min     │ 90-120 min    │ Includes pre-training
+Training Time           │ 120-180 min   │ 480-720 min   │ Includes pre-training
                         │ (5M steps)    │ (total)       │
 Fuel Efficiency         │ Baseline      │ 10-20% better │ HRL can optimize phases
 Sample Efficiency       │ Baseline      │ 20-30% better │ Curriculum learning
