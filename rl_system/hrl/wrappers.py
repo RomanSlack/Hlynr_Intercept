@@ -1,7 +1,9 @@
 """
 Gymnasium wrappers for hierarchical RL.
 
-Phase 1 stub: Basic wrapper structure with pass-through.
+CRITICAL: This wrapper manages observation persistence for HRL manager.
+The manager needs the current observation to make decisions, but Gymnasium
+doesn't provide it during step(). We store _last_obs to solve this.
 """
 import numpy as np
 import gymnasium as gym
@@ -44,21 +46,37 @@ class HRLActionWrapper(gym.Wrapper):
 
     def step(self, action=None):
         """
-        Step with hierarchical action selection (stub: ignores input action).
+        Step with hierarchical action selection.
 
         Args:
             action: Ignored - actions come from HRL manager
 
         Returns:
             Standard Gymnasium step output with HRL info
+
+        Note:
+            Uses stored _last_obs for manager decision. After env step,
+            updates _last_obs with next_obs for the next iteration.
         """
-        # Get action from manager
-        obs = self._last_obs if self._last_obs is not None else np.zeros(self.observation_space.shape, dtype=np.float32)
-        env_state = extract_env_state_for_transitions(obs)
+        # CRITICAL: Use stored observation from previous step
+        # This is the current observation needed for manager decision
+        if self._last_obs is None:
+            raise RuntimeError(
+                "HRLActionWrapper.step() called before reset(). "
+                "Must call reset() first to initialize observation."
+            )
+
+        obs = self._last_obs
+
+        # Get action from manager - will use env_state for forced transitions
+        # (env_info will be passed after we have it from env.step)
+        env_state = extract_env_state_for_transitions(obs, env_info=None)
         action, hrl_info = self.manager.select_action(obs, env_state)
 
         # Execute in base environment
         next_obs, reward, terminated, truncated, info = self.env.step(action)
+
+        # CRITICAL: Update stored observation for next step
         self._last_obs = next_obs
 
         # Add HRL info
