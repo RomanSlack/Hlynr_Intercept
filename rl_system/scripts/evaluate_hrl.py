@@ -151,7 +151,7 @@ class HRLEvaluator:
 
         done = False
         truncated = False
-        prev_option = info['hrl/option']
+        prev_option = info.get('hrl/option', 0)  # Default to SEARCH (0) if not present
 
         while not (done or truncated):
             # Get action from HRL policy

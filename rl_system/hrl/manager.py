@@ -149,6 +149,8 @@ class HierarchicalManager:
         elif self.selector is not None and self._due_for_selector():
             # Selector decision at cadence; feed 7D abstract state
             selector_choice = int(self.selector.predict(abstract_state, deterministic))
+            # Clamp to valid option range [0, 1, 2] in case model outputs invalid values
+            selector_choice = max(0, min(2, selector_choice))
             new_option = Option(selector_choice)
             option_switched = (new_option != self.state.current_option)
             switch_reason = "selector" if option_switched else "continue"

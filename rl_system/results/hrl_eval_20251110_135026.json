@@ -1,0 +1,37 @@
+{
+  "n_episodes": 2,
+  "timestamp": "2025-11-10T13:50:26.374228",
+  "success_rate": 1.0,
+  "mean_reward": 2670.5535583496094,
+  "std_reward": 3182.1148986816406,
+  "min_reward": -511.56134033203125,
+  "max_reward": 5852.66845703125,
+  "mean_miss_distance": 0.4811488091945648,
+  "std_miss_distance": 0.4158288538455963,
+  "mean_min_distance": 0.04075627401471138,
+  "mean_episode_length": 1096.5,
+  "std_episode_length": 81.5,
+  "mean_fuel_used": 0.0,
+  "std_fuel_used": 0.0,
+  "option_usage": {
+    "SEARCH": 600,
+    "TRACK": 643,
+    "TERMINAL": 950
+  },
+  "option_usage_percentages": {
+    "SEARCH": 27.359781121751027,
+    "TRACK": 29.320565435476514,
+    "TERMINAL": 43.31965344277246
+  },
+  "mean_switches_per_episode": 17.0,
+  "std_switches_per_episode": 1.0,
+  "total_switches": 34,
+  "mean_forced_transitions": 11.0,
+  "mean_selector_decisions": 6.0,
+  "episodes": [
+    {
+      "episode_id": 0,
+      "seed": null,
+      "reward": 5852.66845703125,
+      "steps": 1178,
+      "success": 
