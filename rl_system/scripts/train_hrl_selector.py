@@ -226,11 +226,25 @@ def create_hrl_env_for_selector(config: Dict[str, Any], specialists: Dict[Option
     """
     Create HRL environment for selector training.
 
-    Returns a function that creates Monitor(AbstractObservationWrapper(HRL(InterceptEnv)))
+    CRITICAL: Frame-stacking is applied at single-env level BEFORE HRL wrappers
+    so specialists receive 104D observations (26D × 4 frames) as they were trained.
+
+    Wrapper hierarchy:
+        Monitor(AbstractObservationWrapper(HRLActionWrapper(FrameStack(InterceptEnv))))
+                                                             ↑ 26D → 104D here
+
+    Returns a function that creates the wrapped environment.
     """
     def _init():
-        # Create base environment
+        from gymnasium.wrappers import FrameStackObservation
+
+        # Create base environment (26D observations)
         base_env = InterceptEnvironment(config.get('environment', {}))
+
+        # Apply frame-stacking at single-env level (26D → 104D)
+        # CRITICAL: This must match the frame_stack used during specialist training
+        frame_stack = 4  # Must match specialist training configuration
+        stacked_env = FrameStackObservation(base_env, stack_size=frame_stack)
 
         # Create HRL manager with frozen specialists
         decision_interval = config.get('hrl', {}).get('decision_interval_steps', 100)
@@ -242,9 +256,9 @@ def create_hrl_env_for_selector(config: Dict[str, Any], specialists: Dict[Option
             enable_forced_transitions=True,
         )
 
-        # Wrap with HRL environment
+        # Wrap with HRL environment (receives 104D frame-stacked observations)
         from hrl.wrappers import HRLActionWrapper
-        hrl_env = HRLActionWrapper(base_env, manager, return_hrl_info=True)
+        hrl_env = HRLActionWrapper(stacked_env, manager, return_hrl_info=True)
 
         # Wrap with abstract observation for selector
         abstract_env = AbstractObservationWrapper(hrl_env)
@@ -295,8 +309,13 @@ def train_selector(
         for i in range(n_envs)
     ])
 
+    # NOTE: Frame-stacking is already applied at single-env level (see create_hrl_env_for_selector)
+    # - Specialists receive 104D frame-stacked observations (26D × 4 frames)
+    # - Selector receives 7D abstract observations (converted by AbstractObservationWrapper)
+    # DO NOT apply VecFrameStack here as it would stack the 7D abstract observations
+
     # Add observation normalization for abstract state (7D)
-    logger.logger.info("Adding VecNormalize for abstract observation normalization")
+    logger.logger.info("Adding VecNormalize for abstract observation normalization (7D)")
     envs = VecNormalize(
         envs,
         norm_obs=True,
