@@ -10,7 +10,7 @@ import gymnasium as gym
 from typing import Dict, Any, Optional
 
 from .manager import HierarchicalManager
-from .observation_abstraction import extract_env_state_for_transitions
+from .observation_abstraction import extract_env_state_for_transitions, abstract_observation
 
 
 class HRLActionWrapper(gym.Wrapper):
@@ -84,3 +84,31 @@ class HRLActionWrapper(gym.Wrapper):
             info.update(hrl_info)
 
         return next_obs, reward, terminated, truncated, info
+
+
+class AbstractObservationWrapper(gym.ObservationWrapper):
+    """
+    Wrapper to convert 26D/104D observations to abstract 7D state for selector training.
+
+    This wrapper is used when training the selector policy, which operates on
+    abstract strategic information rather than raw sensor data.
+    """
+
+    def __init__(self, env: gym.Env):
+        """
+        Args:
+            env: Base environment (should output 26D base or 104D frame-stacked obs)
+        """
+        super().__init__(env)
+
+        # Override observation space to abstract state dimension
+        self.observation_space = gym.spaces.Box(
+            low=-1.0,
+            high=1.0,
+            shape=(7,),  # Abstract state dimension
+            dtype=np.float32,
+        )
+
+    def observation(self, obs: np.ndarray) -> np.ndarray:
+        """Convert full observation to abstract state."""
+        return abstract_observation(obs)

@@ -56,35 +56,40 @@ class SpecialistPolicy:
 
     def _load_model(self, model_path: str):
         """
-        Load RecurrentPPO model from disk.
+        Load PPO or RecurrentPPO model from disk.
 
         Args:
-            model_path: Path to saved RecurrentPPO model (.zip)
+            model_path: Path to saved model (.zip)
 
         Raises:
             FileNotFoundError: If model file doesn't exist
-            ImportError: If sb3_contrib not installed
             RuntimeError: If model loading fails
         """
-        if not HAS_RECURRENT_PPO:
-            raise ImportError(
-                "sb3_contrib is required for RecurrentPPO. "
-                "Install with: pip install sb3-contrib>=2.0.0"
-            )
+        from stable_baselines3 import PPO
 
         model_file = Path(model_path)
         if not model_file.exists():
             raise FileNotFoundError(
                 f"Model file not found: {model_path}\n"
-                f"Expected a trained RecurrentPPO model for {self.option_type.name}"
+                f"Expected a trained model for {self.option_type.name}"
             )
 
+        # Try loading as RecurrentPPO first (if available), then fall back to PPO
         try:
-            self.model = RecurrentPPO.load(model_path)
-            print(f"Loaded RecurrentPPO model for {self.option_type.name} from {model_path}")
+            if HAS_RECURRENT_PPO:
+                self.model = RecurrentPPO.load(model_path)
+                print(f"Loaded RecurrentPPO model for {self.option_type.name} from {model_path}")
+                return
+        except Exception as e:
+            # Fall back to regular PPO
+            pass
+
+        try:
+            self.model = PPO.load(model_path)
+            print(f"Loaded PPO model for {self.option_type.name} from {model_path}")
         except Exception as e:
             raise RuntimeError(
-                f"Failed to load RecurrentPPO model from {model_path}: {e}"
+                f"Failed to load model from {model_path}: {e}"
             )
 
     def predict(
@@ -110,26 +115,30 @@ class SpecialistPolicy:
             # Stub behavior: return zeros (backward compatibility)
             return np.zeros(self.action_dim, dtype=np.float32)
 
-        # RecurrentPPO.predict() interface:
-        # action, lstm_state = model.predict(obs, state=lstm_state,
-        #                                     episode_start=episode_start,
-        #                                     deterministic=deterministic)
+        # Check if model is RecurrentPPO or regular PPO
+        is_recurrent = hasattr(self.model.policy, 'lstm_actor')
 
-        # Reshape obs to (1, obs_dim) for batch processing
-        obs_batch = obs.reshape(1, -1)
+        if is_recurrent:
+            # RecurrentPPO.predict() interface
+            # Reshape obs to (1, obs_dim) for batch processing
+            obs_batch = obs.reshape(1, -1)
 
-        # Episode start flag: True if lstm_state is None (triggers LSTM reset)
-        episode_start = np.array([self.lstm_state is None])
+            # Episode start flag: True if lstm_state is None (triggers LSTM reset)
+            episode_start = np.array([self.lstm_state is None])
 
-        action, self.lstm_state = self.model.predict(
-            obs_batch,
-            state=self.lstm_state,
-            episode_start=episode_start,
-            deterministic=deterministic,
-        )
+            action, self.lstm_state = self.model.predict(
+                obs_batch,
+                state=self.lstm_state,
+                episode_start=episode_start,
+                deterministic=deterministic,
+            )
 
-        # RecurrentPPO returns action as (1, action_dim), flatten to (action_dim,)
-        return action.flatten()
+            # RecurrentPPO returns action as (1, action_dim), flatten to (action_dim,)
+            return action.flatten()
+        else:
+            # Regular PPO.predict() interface - no LSTM state
+            action, _ = self.model.predict(obs, deterministic=deterministic)
+            return action
 
     def predict_with_lstm(
         self,

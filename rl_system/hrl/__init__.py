@@ -19,7 +19,7 @@ from .option_manager import OptionManager
 from .specialist_policies import SpecialistPolicy, SearchSpecialist, TrackSpecialist, TerminalSpecialist
 from .selector_policy import SelectorPolicy
 from .manager import HierarchicalManager, HRLState
-from .wrappers import HRLActionWrapper
+from .wrappers import HRLActionWrapper, AbstractObservationWrapper
 from .hierarchical_env import make_hrl_env, create_hrl_env
 from .reward_decomposition import (
     compute_strategic_reward,
@@ -45,6 +45,7 @@ __all__ = [
     "HierarchicalManager",
     "HRLState",
     "HRLActionWrapper",
+    "AbstractObservationWrapper",
     "make_hrl_env",
     "create_hrl_env",
     "compute_strategic_reward",
