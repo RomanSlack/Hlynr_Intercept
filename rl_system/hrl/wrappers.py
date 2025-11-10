@@ -68,6 +68,12 @@ class HRLActionWrapper(gym.Wrapper):
 
         obs = self._last_obs
 
+        # Handle frame-stacked observations: flatten (4, 26) → (104,)
+        # FrameStackObservation returns shape (stack_size, obs_dim) which needs flattening
+        # for specialists that expect (104,) flattened observations
+        if obs.ndim > 1:
+            obs = obs.flatten()
+
         # Get action from manager - will use env_state for forced transitions
         # (env_info will be passed after we have it from env.step)
         env_state = extract_env_state_for_transitions(obs, env_info=None)
