@@ -46,43 +46,66 @@ class SelectorPolicy:
             if self.model_path is None:
                 # REQUIRED by test_model_mode_requires_model_path
                 raise ValueError("model_path must be provided when mode='model'.")
-            if not os.path.exists(self.model_path):
-                # Required by missing-file test (already passing for you)
-                raise FileNotFoundError(f"Selector model file not found: {self.model_path}")
+            # Note: Path validation moved to _load_model() for smart resolution
+            # (handles directories, .zip files, and paths without extension)
             self._load_model(self.model_path)
 
     def _load_model(self, model_path: str):
         """
         Load PPO model for discrete action space.
+        Handles both directory and file paths (auto-appends model.zip if needed).
 
         Args:
-            model_path: Path to saved PPO model (.zip)
+            model_path: Path to selector model (directory or .zip file)
 
         Raises:
-            FileNotFoundError: If model file doesn't exist
+            FileNotFoundError: If model not found
             ImportError: If stable_baselines3 not installed
             RuntimeError: If model loading fails
         """
         if not HAS_PPO:
             raise ImportError(
-                "stable_baselines3 is required for PPO. "
+                "stable_baselines3 is required for selector policy. "
                 "Install with: pip install stable-baselines3>=2.0.0"
             )
 
-        model_file = Path(model_path)
-        if not model_file.exists():
-            raise FileNotFoundError(
-                f"Selector model file not found: {model_path}\n"
-                f"Expected a trained PPO model for discrete option selection."
-            )
+        model_path_obj = Path(model_path)
+
+        # DEBUG: Print for troubleshooting
+        print(f"[DEBUG] _load_model called with: {repr(model_path)}")
+        print(f"[DEBUG] Is directory: {model_path_obj.is_dir()}")
+        print(f"[DEBUG] Exists: {model_path_obj.exists()}")
+
+        # Smart path resolution (matches specialist training script pattern)
+        if model_path_obj.is_dir():
+            # Directory provided - look for model.zip inside
+            if (model_path_obj / "model.zip").exists():
+                model_file = model_path_obj / "model.zip"
+            else:
+                raise FileNotFoundError(
+                    f"Directory provided but model.zip not found: {model_path}\n"
+                    f"Expected {model_path}/model.zip"
+                )
+        elif model_path_obj.suffix == ".zip":
+            # Explicit .zip file provided
+            if not model_path_obj.exists():
+                raise FileNotFoundError(f"Model file not found: {model_path}")
+            model_file = model_path_obj
+        else:
+            # Neither directory nor .zip - try appending .zip
+            if Path(f"{model_path}.zip").exists():
+                model_file = Path(f"{model_path}.zip")
+            else:
+                raise FileNotFoundError(
+                    f"Model not found at: {model_path}\n"
+                    f"Tried: {model_path}, {model_path}.zip"
+                )
 
         try:
-            self.model = PPO.load(model_path)
-            print(f"Loaded selector PPO model from {model_path}")
+            self.model = PPO.load(str(model_file))
+            print(f"Loaded selector PPO model from {model_file}")
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to load selector model from {model_path}: {e}"
-            )
+            raise RuntimeError(f"Failed to load selector model from {model_file}: {e}")
 
     def predict(
         self,
