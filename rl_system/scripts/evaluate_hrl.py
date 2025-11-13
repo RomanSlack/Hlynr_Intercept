@@ -201,7 +201,7 @@ class HRLEvaluator:
             'seed': seed,
             'reward': float(episode_reward),
             'steps': episode_steps,
-            'success': success,
+            'success': bool(success),
             'miss_distance': float(final_distance) if final_distance is not None else None,
             'min_distance': float(min_distance) if min_distance != float('inf') else None,
             'fuel_used': float(fuel_used),
@@ -210,8 +210,8 @@ class HRLEvaluator:
             'num_switches': len(option_switches),
             'forced_transitions': forced_transitions,
             'selector_decisions': selector_decisions,
-            'done': done,
-            'truncated': truncated,
+            'done': bool(done),
+            'truncated': bool(truncated),
         }
 
     def _compute_metrics(
