@@ -9,12 +9,29 @@ cd /Users/quinnhasse/Hlynr_Intercept/rl_system
 
 # Stage 1: Pre-train specialists (~45 min)
 python scripts/train_hrl_pretrain.py --config configs/hrl/hrl_curriculum.yaml --specialist all
+# OR train individually:
+  python scripts/train_hrl_pretrain.py --specialist search
+  python scripts/train_hrl_pretrain.py --specialist track
+  python scripts/train_hrl_pretrain.py --specialist terminal
 
 # Stage 2: Train selector (~20 min)
 python scripts/train_hrl_selector.py --config configs/hrl/hrl_curriculum.yaml
 
 # Stage 3: Evaluate
 python scripts/evaluate_hrl.py --model checkpoints/hrl/selector/best/ --episodes 100
+
+Evaluation Commands:
+
+  # Basic evaluation
+  python scripts/evaluate_hrl.py --selector checkpoints/hrl/selector/<timestamp>/final --episodes 25
+
+  # With specific scenario
+  python scripts/evaluate_hrl.py --model checkpoints/hrl/selector/best/ --episodes 100 --scenario medium
+
+  # Compare with flat PPO
+  python scripts/compare_policies.py --flat checkpoints/flat_ppo/best/ --hrl
+  checkpoints/hrl/selector/best/ --episodes 100
+
 ```
 
 **Expected Runtime**: ~65 minutes total
