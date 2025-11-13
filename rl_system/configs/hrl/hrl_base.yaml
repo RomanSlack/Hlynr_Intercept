@@ -27,5 +27,5 @@ training:
   n_envs: 1  # Single environment for Phase 1 smoke test
   n_steps: 512  # Shorter rollouts for smoke test
   checkpoint_freq: 10000
-  eval_freq: 10000
-  n_eval_episodes: 3
+  eval_freq: 5000  # Evaluate every 5k steps (more frequent for better model selection)
+  n_eval_episodes: 5  # More episodes for better evaluation quality
