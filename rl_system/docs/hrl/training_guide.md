@@ -18,8 +18,7 @@ python scripts/train_hrl_pretrain.py --config configs/hrl/hrl_curriculum.yaml --
 python scripts/train_hrl_selector.py --config configs/hrl/hrl_curriculum.yaml
 
 # Stage 3: Evaluate
-SEL="checkpoints/hrl/selector/$(ls -t checkpoints/hrl/selector | head -1)/best"
-python scripts/evaluate_hrl.py --selector "$SEL" --episodes 100
+python scripts/evaluate_hrl.py --selector checkpoints/hrl/selector/20251113_110656_12000steps/best/best_model.zip --episodes 100 
 ```
 
 **Expected Runtime**: ~65 minutes total
