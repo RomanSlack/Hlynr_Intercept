@@ -18,9 +18,16 @@ python scripts/train_hrl_pretrain.py --config configs/hrl/hrl_curriculum.yaml --
 python scripts/train_hrl_selector.py --config configs/hrl/hrl_curriculum.yaml
 
 # Stage 3: Evaluate
-python scripts/evaluate_hrl.py --model checkpoints/hrl/selector/best/ --episodes 100
+SEL="checkpoints/hrl/selector/$(ls -t checkpoints/hrl/selector | head -1)/best"
+python scripts/evaluate_hrl.py --selector "$SEL" --episodes 100
+```
 
-Evaluation Commands:
+**Expected Runtime**: ~65 minutes total
+**Expected Performance**: 70-85% intercept success rate
+
+**Note on Checkpoints**: The HRL selector training now saves models to `best/` during training via automatic evaluation. The best model is selected based on evaluation performance at intervals specified in the config (default: every 5000 timesteps).
+
+### Evaluation Commands
 
   # Basic evaluation
   python scripts/evaluate_hrl.py --selector checkpoints/hrl/selector/<timestamp>/final --episodes 25
@@ -149,9 +156,10 @@ python scripts/train_hrl_selector.py --config configs/hrl/hrl_curriculum.yaml
 
 **Training Flow**:
 1. Load frozen specialist checkpoints
-2. Wrap environment with HRL manager
+2. Wrap environment with HRL manager (training_selector=True mode)
 3. Train discrete PPO on abstract observations
-4. Save selector to `checkpoints/hrl/selector/best/`
+4. Automatic evaluation saves best model to `checkpoints/hrl/selector/<timestamp>/best/`
+5. Final model saved to `checkpoints/hrl/selector/<timestamp>/final/`
 
 **Success Metrics**:
 - All 3 options used regularly (check `option_distribution` in TensorBoard)
@@ -165,13 +173,18 @@ python scripts/train_hrl_selector.py --config configs/hrl/hrl_curriculum.yaml
 #### Evaluate HRL System
 
 ```bash
-# Run 100 episodes
+# Run 100 episodes with best model
+SEL="checkpoints/hrl/selector/$(ls -t checkpoints/hrl/selector | head -1)/best"
 python scripts/evaluate_hrl.py \
-    --model checkpoints/hrl/selector/best/ \
-    --episodes 100 \
-    --scenario medium
+    --selector "$SEL" \
+    --episodes 100
 
-# Results saved to: logs/evaluation_*/metrics.jsonl
+# Or use a specific checkpoint
+python scripts/evaluate_hrl.py \
+    --selector checkpoints/hrl/selector/20251113_110656_12000steps/best \
+    --episodes 100
+
+# Results saved to: results/hrl_eval_*.json
 ```
 
 **Metrics Collected**:

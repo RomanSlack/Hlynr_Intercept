@@ -20,6 +20,11 @@ training:
   use_lstm: false
   frame_stack: 1  # Selector uses abstract state, no frame stacking
 
+  # Evaluation settings (ensure best model is saved)
+  eval_freq: 5000  # Evaluate every 5k steps for better model selection
+  n_eval_episodes: 5
+  checkpoint_freq: 10000
+
 # HRL settings
 hrl:
   enabled: true

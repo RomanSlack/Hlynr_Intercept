@@ -257,8 +257,14 @@ def create_hrl_env_for_selector(config: Dict[str, Any], specialists: Dict[Option
         )
 
         # Wrap with HRL environment (receives 104D frame-stacked observations)
+        # CRITICAL: training_selector=True enables external selector training mode
         from hrl.wrappers import HRLActionWrapper
-        hrl_env = HRLActionWrapper(stacked_env, manager, return_hrl_info=True)
+        hrl_env = HRLActionWrapper(
+            stacked_env,
+            manager,
+            return_hrl_info=True,
+            training_selector=True  # Accept discrete actions from PPO selector
+        )
 
         # Wrap with abstract observation for selector
         abstract_env = AbstractObservationWrapper(hrl_env)
@@ -388,12 +394,18 @@ def train_selector(
     callbacks.append(SelectorTrainingCallback(logger))
 
     # Checkpoint callback
+    # CRITICAL: Convert checkpoint_freq from timesteps to callback invocations
+    # With n_envs parallel environments, callback is called once per n_envs timesteps
+    checkpoint_freq_timesteps = config['training'].get('checkpoint_freq', 10000)
+    checkpoint_freq_callbacks = max(1, checkpoint_freq_timesteps // n_envs)
     callbacks.append(CheckpointCallback(
-        save_freq=config['training'].get('checkpoint_freq', 10000),
+        save_freq=checkpoint_freq_callbacks,
         save_path=str(checkpoint_dir / "checkpoints"),
         name_prefix="selector_model",
         save_vecnormalize=True
     ))
+    if checkpoint_freq_callbacks != checkpoint_freq_timesteps:
+        logger.logger.info(f"Checkpoint frequency: {checkpoint_freq_timesteps} timesteps -> {checkpoint_freq_callbacks} callback invocations (n_envs={n_envs})")
 
     # Evaluation callback
     eval_env = DummyVecEnv([create_hrl_env_for_selector(config, specialists)])
@@ -406,14 +418,20 @@ def train_selector(
         gamma=config['training'].get('gamma', 0.99)
     )
 
+    # CRITICAL: Convert eval_freq from timesteps to callback invocations
+    # With n_envs parallel environments, callback is called once per n_envs timesteps
+    eval_freq_timesteps = config['training'].get('eval_freq', 10000)
+    eval_freq_callbacks = max(1, eval_freq_timesteps // n_envs)
     callbacks.append(EvalCallback(
         eval_env,
         best_model_save_path=str(checkpoint_dir / "best"),
         log_path=str(checkpoint_dir / "eval_logs"),
-        eval_freq=config['training'].get('eval_freq', 10000),
+        eval_freq=eval_freq_callbacks,
         n_eval_episodes=config['training'].get('n_eval_episodes', 10),
         deterministic=True
     ))
+    if eval_freq_callbacks != eval_freq_timesteps:
+        logger.logger.info(f"Evaluation frequency: {eval_freq_timesteps} timesteps -> {eval_freq_callbacks} callback invocations (n_envs={n_envs})")
 
     callback_list = CallbackList(callbacks)
 
