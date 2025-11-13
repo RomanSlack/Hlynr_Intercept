@@ -111,3 +111,5 @@ dist/
 .eggs/
 *.egg-info/
 /research_checkpoints/
+
+results/
