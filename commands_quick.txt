@@ -20,5 +20,12 @@ python analyze_metrics.py /home/roman/Hlynr_Intercept/rl_system/inference_result
 
 /home/roman/Hlynr_Intercept/research_checkpoints/best_model_10-23-25_21_10mil_frame_stack_47p/training_20251023_111720_10000000steps/best/best_model.zip
 python inference.py --model /home/roman/Hlynr_Intercept/research_checkpoints/best_model_10-23-25_21_10mil_frame_stack_47p/training_20251023_111720_10000000steps/best/best_model.zip --mode offline --episodes 100 --config config.yaml --volley --volley-size 5
-python inference.py --model /home/roman/Hlynr_Intercept/research_checkpoints/best_model_10-23-25_21_10mil_frame_stack_47p/training_20251023_111720_10000000steps/best/best_model.zip --mode offline --episodes 10 --config config.yaml
+python inference.py --model /home/roman/Hlynr_Intercept/research_checkpoints/best_model_10-23-25_21_10mil_frame_stack_47p/training_20251023_111720_10000000steps/best/best_model.zip --mode offline --episodes 100 --config config.yaml
  python monitor_training.py
+
+
+
+HRL:
+python scripts/evaluate_hrl.py \
+      --selector checkpoints/hrl/selector/20251116_163811_10000steps/final/model.zip \
+      --episodes 100
