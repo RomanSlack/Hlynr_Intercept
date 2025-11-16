@@ -1,0 +1,36 @@
+Corrected Training Commands
+
+  Train all specialists at once (easiest):
+
+  cd /home/roman/Hlynr_Intercept/rl_system
+
+  # Train all 3 specialists sequentially (~45 min total)
+  python scripts/train_hrl_pretrain.py --agent all --config configs/hrl/hrl_curriculum.yaml
+
+  Or train specialists individually:
+
+  # Search specialist (~15 min)
+  python scripts/train_hrl_pretrain.py --agent search --config configs/hrl/search_specialist.yaml
+
+  # Track specialist (~15 min)
+  python scripts/train_hrl_pretrain.py --agent track --config configs/hrl/track_specialist.yaml
+
+  # Terminal specialist (~15 min)
+  python scripts/train_hrl_pretrain.py --agent terminal --config configs/hrl/terminal_specialist.yaml
+
+  Then train the selector:
+
+  # Selector training (~20 min)
+  python scripts/train_hrl_selector.py \
+      --config configs/hrl/hrl_curriculum.yaml \
+      --specialist-dir checkpoints/hrl/specialists/
+
+  Finally evaluate:
+
+  # After training completes, find the latest checkpoint
+  ls -lt checkpoints/hrl/selector/
+
+  # Evaluate (replace <timestamp> with actual folder name)
+python scripts/evaluate_hrl.py \
+      --selector checkpoints/hrl/selector/20251116_163811_10000steps/final/model.zip \
+      --episodes 100

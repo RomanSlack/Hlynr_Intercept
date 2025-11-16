@@ -193,8 +193,9 @@ class HRLEvaluator:
 
             prev_option = current_option
 
-        # Determine success (close intercept)
-        success = final_distance < 50.0 if final_distance is not None else False
+        # Determine success based on environment's actual intercept radius
+        # The environment already determined success via info dict, use that
+        success = info.get('intercepted', False) if info else False
 
         return {
             'episode_id': episode_id,

@@ -380,8 +380,15 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
         env_config['volley_size'] = volley_size
         logger.logger.info(f"Volley mode enabled: {volley_size} missiles per episode")
 
+    # Create full config dict for environment (needs curriculum section!)
+    full_env_config = {
+        **env_config,
+        'curriculum': config.get('curriculum', {}),
+        'physics_enhancements': config.get('physics_enhancements', {}),
+    }
+
     # Create environment with same preprocessing as training
-    env = InterceptEnvironment(env_config)
+    env = InterceptEnvironment(full_env_config)
     base_obs_dim = env.observation_space.shape[0]
 
     # Apply frame-stacking if configured (must match training)
