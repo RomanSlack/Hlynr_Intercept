@@ -73,8 +73,8 @@ environment:
 # Strategy: Master 150m completely before considering harder difficulties
 curriculum:
   enabled: true
-  initial_radius: 1.0  # Ultra-realistic 1m direct hit requirement
-  final_radius: 1.0  # Ultra-realistic 1m direct hit requirement
+  initial_radius: 150.0  # Train at this difficulty (MUST MATCH TRAINING CONFIG)
+  final_radius: 150.0  # FROZEN - no progression (was 100m)
 
   # Curriculum DISABLED - stay at 150m for entire training
   # Once policy achieves 40-50% success at 150m, we can enable progression
