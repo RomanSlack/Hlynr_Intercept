@@ -242,18 +242,37 @@ def compute_terminal_reward(
 
     # Primary objective: minimize miss distance
     distance = next_env_state.get('distance', float('inf'))
+    distance_before = env_state.get('distance', float('inf'))
+
     if distance < float('inf'):
-        # Exponential reward for getting very close
+        # Multi-scale exponential reward for getting very close
+        # Scale 1: Coarse guidance (effective 0-100m)
+        reward += np.exp(-distance / 50.0) * 5.0
+
+        # Scale 2: Fine guidance (effective 0-20m)
         reward += np.exp(-distance / 10.0) * 10.0
 
-        # Strong penalty for increasing distance
-        distance_before = env_state.get('distance', float('inf'))
+        # Scale 3: Precision guidance (effective 0-5m) - big bonus for sub-5m
+        reward += np.exp(-distance / 2.0) * 20.0
+
+        # Milestone bonuses for crossing distance thresholds
+        if distance_before < float('inf'):
+            if distance_before >= 50.0 and distance < 50.0:
+                reward += 10.0  # Crossed 50m threshold
+            if distance_before >= 20.0 and distance < 20.0:
+                reward += 25.0  # Crossed 20m threshold
+            if distance_before >= 10.0 and distance < 10.0:
+                reward += 50.0  # Crossed 10m threshold
+            if distance_before >= 5.0 and distance < 5.0:
+                reward += 100.0  # Crossed 5m threshold - realistic intercept!
+
+        # Strong penalty for increasing distance in terminal phase
         if distance_before < float('inf') and distance > distance_before:
-            reward -= (distance - distance_before) * 5.0
+            reward -= (distance - distance_before) * 10.0  # Increased penalty
 
     # Reward high closing rate (impact speed)
     closing_rate = next_env_state.get('closing_rate', 0.0)
-    reward += closing_rate * 1.0
+    reward += closing_rate * 1.5  # Increased weight
 
     # Encourage maximum thrust in terminal phase
     thrust_action = action[0:3]  # Thrust components [thrust_x, thrust_y, thrust_z]

@@ -69,16 +69,17 @@ environment:
   missile_evasion: false  # Enable missile evasion maneuvers
 
 # Curriculum Learning Configuration
-# FROZEN: Curriculum progression disabled - focus on mastering 150m intercepts first
-# Strategy: Master 150m completely before considering harder difficulties
+# ENABLED: Progressive difficulty from easy (100m) to realistic (5m)
+# Strategy: Learn to get close first, then progressively tighten requirements
 curriculum:
   enabled: true
-  initial_radius: 150.0  # Train at this difficulty (MUST MATCH TRAINING CONFIG)
-  final_radius: 150.0  # FROZEN - no progression (was 100m)
+  initial_radius: 100.0  # Start with 100m intercept radius (achievable)
+  final_radius: 5.0      # End at realistic 5m proximity fuse radius
 
-  # Curriculum DISABLED - stay at 150m for entire training
-  # Once policy achieves 40-50% success at 150m, we can enable progression
-  curriculum_steps: 100000000  # Effectively frozen (progression disabled)
+  # Progressive curriculum over training
+  # For specialists (500k steps): Most training at easier difficulty
+  # For full HRL (longer): Progress to realistic difficulty
+  curriculum_steps: 2000000  # Progress from 100m -> 5m over 2M steps
 
   # Curriculum-based radar difficulty progression (radar-only, no omniscient data)
   # OPTIMIZED: Gentle progression after policy demonstrates basic competence

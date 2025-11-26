@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional
 from .manager import HierarchicalManager
 from .observation_abstraction import extract_env_state_for_transitions, abstract_observation
 from .selector_policy import Option
+from .reward_decomposition import compute_tactical_reward
 
 
 class HRLActionWrapper(gym.Wrapper):
@@ -200,3 +201,140 @@ class AbstractObservationWrapper(gym.ObservationWrapper):
     def observation(self, obs: np.ndarray) -> np.ndarray:
         """Convert full observation to abstract state."""
         return abstract_observation(obs)
+
+
+class SpecialistRewardWrapper(gym.Wrapper):
+    """
+    Wrapper that applies specialist-specific tactical rewards during pre-training.
+
+    This is CRITICAL for specialist learning - each specialist needs rewards
+    tailored to their specific objective:
+    - SEARCH: Lock acquisition, scan coverage, fuel efficiency
+    - TRACK: Lock maintenance, distance reduction, closing rate
+    - TERMINAL: Proximity (exponential), closing rate, thrust usage
+
+    Without this wrapper, specialists train on the base environment reward,
+    which doesn't differentiate between search/track/terminal objectives.
+    """
+
+    def __init__(
+        self,
+        env: gym.Env,
+        specialist_type: str,
+        blend_with_base: float = 0.3,
+    ):
+        """
+        Args:
+            env: Base InterceptEnvironment
+            specialist_type: 'search', 'track', or 'terminal'
+            blend_with_base: How much of base reward to include (0.0 = only tactical,
+                           1.0 = only base). Default 0.3 means 70% tactical + 30% base.
+        """
+        super().__init__(env)
+
+        # Map string to Option enum
+        type_map = {
+            'search': Option.SEARCH,
+            'track': Option.TRACK,
+            'terminal': Option.TERMINAL,
+        }
+        if specialist_type.lower() not in type_map:
+            raise ValueError(f"Unknown specialist type: {specialist_type}. "
+                           f"Expected one of: {list(type_map.keys())}")
+
+        self.specialist_option = type_map[specialist_type.lower()]
+        self.specialist_type = specialist_type.lower()
+        self.blend_with_base = blend_with_base
+
+        # Track previous state for reward computation
+        self._prev_env_state = None
+        self._last_action = None
+
+    def reset(self, **kwargs):
+        """Reset environment and state tracking."""
+        obs, info = self.env.reset(**kwargs)
+
+        # Initialize previous state from first observation
+        self._prev_env_state = self._extract_env_state(obs, info)
+        self._last_action = None
+
+        return obs, info
+
+    def step(self, action):
+        """Step with specialist-specific reward."""
+        # Store action for reward computation
+        self._last_action = action
+
+        # Execute in base environment
+        next_obs, base_reward, terminated, truncated, info = self.env.step(action)
+
+        # Extract current state for reward computation
+        curr_env_state = self._extract_env_state(next_obs, info)
+
+        # Compute tactical reward for this specialist
+        tactical_reward = compute_tactical_reward(
+            env_state=self._prev_env_state,
+            action=action,
+            option=self.specialist_option,
+            next_env_state=curr_env_state,
+            episode_done=(terminated or truncated),
+        )
+
+        # Blend tactical and base rewards
+        # Higher tactical weight helps specialists learn their specific objectives
+        blended_reward = (
+            (1.0 - self.blend_with_base) * tactical_reward +
+            self.blend_with_base * base_reward
+        )
+
+        # Update previous state for next step
+        self._prev_env_state = curr_env_state
+
+        # Add reward breakdown to info for debugging
+        info['reward/tactical'] = tactical_reward
+        info['reward/base'] = base_reward
+        info['reward/blended'] = blended_reward
+
+        return next_obs, blended_reward, terminated, truncated, info
+
+    def _extract_env_state(self, obs: np.ndarray, info: Optional[Dict] = None) -> Dict[str, Any]:
+        """
+        Extract environment state features needed for reward computation.
+
+        Uses info dict when available (ground truth), falls back to observation
+        if info not provided.
+        """
+        # Handle frame-stacked observations: use latest frame
+        if obs.ndim > 1:
+            # Shape is (stack_size, obs_dim), use last frame
+            latest_obs = obs[-1]
+        else:
+            # Already flattened or single frame
+            if len(obs) > 26:
+                # Flattened frame stack, extract last 26 elements
+                latest_obs = obs[-26:]
+            else:
+                latest_obs = obs
+
+        # Extract from info dict if available (ground truth)
+        if info is not None:
+            distance = info.get('distance', None)
+            if distance is None and 'interceptor_pos' in info and 'missile_pos' in info:
+                int_pos = np.array(info['interceptor_pos'])
+                mis_pos = np.array(info['missile_pos'])
+                distance = float(np.linalg.norm(int_pos - mis_pos))
+
+            return {
+                'lock_quality': info.get('radar_quality', latest_obs[14] if len(latest_obs) > 14 else 0.0),
+                'distance': distance if distance is not None else float(np.linalg.norm(latest_obs[0:3]) * 10000.0),
+                'fuel': info.get('fuel_remaining', latest_obs[12] if len(latest_obs) > 12 else 1.0),
+                'closing_rate': latest_obs[15] * 1000.0 if len(latest_obs) > 15 else 0.0,  # Unnormalize
+            }
+
+        # Fallback: extract from observation (normalized values)
+        return {
+            'lock_quality': float(latest_obs[14]) if len(latest_obs) > 14 else 0.0,
+            'distance': float(np.linalg.norm(latest_obs[0:3]) * 10000.0),  # Unnormalize position
+            'fuel': float(latest_obs[12]) if len(latest_obs) > 12 else 1.0,
+            'closing_rate': float(latest_obs[15] * 1000.0) if len(latest_obs) > 15 else 0.0,  # Unnormalize
+        }

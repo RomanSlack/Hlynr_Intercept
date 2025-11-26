@@ -56,6 +56,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from environment import InterceptEnvironment
 from logger import UnifiedLogger
+from hrl.wrappers import SpecialistRewardWrapper
 
 
 class CustomMLP(BaseFeaturesExtractor):
@@ -207,10 +208,28 @@ class SpecialistTrainingCallback(BaseCallback):
                 )
 
 
-def create_env(config: Dict[str, Any], rank: int = 0) -> InterceptEnvironment:
-    """Create and wrap environment."""
+def create_env(config: Dict[str, Any], rank: int = 0, specialist_type: str = None) -> InterceptEnvironment:
+    """
+    Create and wrap environment with specialist-specific rewards.
+
+    Args:
+        config: Environment configuration
+        rank: Environment rank for parallel training
+        specialist_type: 'search', 'track', or 'terminal' for tactical rewards
+    """
     def _init():
         env = InterceptEnvironment(config)
+
+        # CRITICAL: Apply specialist reward wrapper for tactical rewards
+        # Without this, specialists train on base reward which doesn't
+        # differentiate between search/track/terminal objectives
+        if specialist_type is not None:
+            env = SpecialistRewardWrapper(
+                env,
+                specialist_type=specialist_type,
+                blend_with_base=0.3,  # 70% tactical + 30% base reward
+            )
+
         env = Monitor(env)
         return env
     return _init
@@ -273,11 +292,12 @@ def train_specialist(
     logger.logger.info(f"Training {agent.upper()} Specialist")
     logger.logger.info(f"{'='*60}\n")
 
-    # Create environments
+    # Create environments with specialist-specific reward wrapper
     n_envs = config['training'].get('n_envs', 4)
     env_config = config.get('environment', {})
 
-    envs = DummyVecEnv([create_env(env_config, i) for i in range(n_envs)])
+    logger.logger.info(f"Creating {n_envs} environments with {agent.upper()} tactical rewards")
+    envs = DummyVecEnv([create_env(env_config, i, specialist_type=agent) for i in range(n_envs)])
 
     # Add frame-stacking
     frame_stack = config['training'].get('frame_stack', 4)
@@ -412,8 +432,8 @@ def train_specialist(
         save_vecnormalize=True
     ))
 
-    # Evaluation callback
-    eval_env = DummyVecEnv([create_env(env_config)])
+    # Evaluation callback (also use specialist rewards for consistent evaluation)
+    eval_env = DummyVecEnv([create_env(env_config, specialist_type=agent)])
     if frame_stack > 1:
         eval_env = VecFrameStack(eval_env, n_stack=frame_stack)
     eval_env = VecNormalize(
