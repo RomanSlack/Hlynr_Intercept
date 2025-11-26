@@ -336,9 +336,16 @@ class InferenceServer:
 
 def run_offline_inference(model_path: str, config_path: str, num_episodes: int = 100,
                          output_dir: str = "inference_results", scenario: Optional[str] = None,
-                         volley_mode: bool = False, volley_size: int = 1):
+                         volley_mode: bool = False, volley_size: int = 1,
+                         seed: Optional[int] = None):
     """Run offline inference and save results to JSON files."""
-    
+
+    # Set random seed for reproducibility
+    if seed is not None:
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        print(f"Random seed set to: {seed}")
+
     # Load configuration
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
@@ -490,6 +497,8 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
         done = False
         total_reward = 0
         steps = 0
+        min_distance = float('inf')
+        initial_fuel = None
 
         while not done:
             # Get action (obs already normalized by VecNormalize wrapper)
@@ -529,6 +538,16 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
             if 'radar_debug' in info and info['radar_debug'] is not None:
                 logger.log_state('radar', info['radar_debug'])
 
+            # Track min distance and fuel
+            if 'interceptor_pos' in info and 'missile_pos' in info:
+                int_pos = np.array(info['interceptor_pos'])
+                mis_pos = np.array(info['missile_pos'])
+                distance = np.linalg.norm(int_pos - mis_pos)
+                min_distance = min(min_distance, distance)
+
+            if initial_fuel is None and 'fuel_remaining' in info:
+                initial_fuel = info['fuel_remaining']
+
         # Episode complete
         # Determine outcome based on mode
         if volley_mode:
@@ -563,6 +582,9 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
         episode_data['total_reward'] = float(total_reward)
         episode_data['steps'] = int(steps)
         episode_data['final_distance'] = float(info.get('distance', 0))
+        episode_data['min_distance'] = float(min_distance) if min_distance != float('inf') else None
+        fuel_used = (initial_fuel - info.get('fuel_remaining', initial_fuel)) if initial_fuel else 0
+        episode_data['fuel_used'] = float(fuel_used)
 
         results.append(episode_data)
 
@@ -581,16 +603,28 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
         else:
             print(f"Episode {ep+1}/{num_episodes}: {outcome}, reward={total_reward:.2f}, steps={steps}")
     
+    # Calculate min_distance stats
+    min_distances = [r['min_distance'] for r in results if r.get('min_distance') is not None]
+    fuel_used_list = [r['fuel_used'] for r in results if r.get('fuel_used') is not None]
+
     # Save aggregated results
     summary = {
         'run_id': f"offline_{timestamp}",
         'model_path': str(model_path),
         'num_episodes': num_episodes,
+        'n_episodes': num_episodes,  # Alias for compatibility
         'scenario': scenario,
         'volley_mode': volley_mode,
         'avg_reward': np.mean([r['total_reward'] for r in results]),
+        'mean_reward': np.mean([r['total_reward'] for r in results]),
+        'std_reward': np.std([r['total_reward'] for r in results]),
         'avg_steps': np.mean([r['steps'] for r in results]),
+        'mean_episode_length': np.mean([r['steps'] for r in results]),
+        'std_episode_length': np.std([r['steps'] for r in results]),
         'avg_final_distance': np.mean([r['final_distance'] for r in results]),
+        'mean_min_distance': np.mean(min_distances) if min_distances else 0,
+        'best_min_distance': min(min_distances) if min_distances else 0,
+        'mean_fuel_used': np.mean(fuel_used_list) if fuel_used_list else 0,
         'episodes': results
     }
 
@@ -704,7 +738,13 @@ def main():
         default=3,
         help="Number of missiles in each volley (default: 3)"
     )
-    
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for reproducibility (offline mode)"
+    )
+
     args = parser.parse_args()
     
     if args.mode == "server":
@@ -719,7 +759,8 @@ def main():
             output_dir=args.output,
             scenario=args.scenario,
             volley_mode=args.volley,
-            volley_size=args.volley_size
+            volley_size=args.volley_size,
+            seed=args.seed
         )
 
 
