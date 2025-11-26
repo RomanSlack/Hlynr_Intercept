@@ -1,0 +1,28 @@
+ # 1. Train SEARCH specialist (500k steps, ~20 min)
+  python scripts/train_hrl_pretrain.py --agent search --config configs/hrl/search_specialist.yaml
+
+  # 2. Train TRACK specialist (500k steps with LSTM, ~30 min)
+  python scripts/train_hrl_pretrain.py --agent track --config configs/hrl/track_specialist.yaml
+
+  # 3. Train TERMINAL specialist (750k steps with LSTM, ~40 min)
+  python scripts/train_hrl_pretrain.py --agent terminal --config configs/hrl/terminal_specialist.yaml
+
+  Monitor Training (in another terminal):
+
+  tensorboard --logdir logs --port 6006
+
+  Watch for:
+  - specialists/*/real_distance - Should decrease over training
+  - specialists/*/success_rate - Should increase over training
+
+  After Training - Test Specialists:
+
+  # Find the latest model paths
+  ls -la checkpoints/hrl/specialists/*/
+
+  # Test each specialist (use the newest timestamped directory)
+  python scripts/test_specialist.py --specialist all \
+      --search-model checkpoints/hrl/specialists/search/<TIMESTAMP>/final/model.zip \
+      --track-model checkpoints/hrl/specialists/track/<TIMESTAMP>/final/model.zip \
+      --terminal-model checkpoints/hrl/specialists/terminal/<TIMESTAMP>/final/model.zip \
+      --episodes 50 --frame-stack 4

@@ -1,21 +1,38 @@
 # HRL Fix Plan: From 200m to Actually Good Performance
 
-## What Went Wrong
+## STATUS: FIXES APPLIED ✅
 
-### 1. **Measurement Bug** ❌
+The following fixes have been implemented as of November 2025:
+
+### Fixed Issues:
+
+1. **Distance Calculation** ✅ - Now uses world positions from `info['interceptor_pos']` and `info['missile_pos']`
+2. **Frame-Stacking** ✅ - Evaluation now applies `FrameStackObservation` with configurable `--frame-stack` flag
+3. **Sanity Checks** ✅ - Evaluation prints warnings for implausible results (< 10cm distances)
+4. **Specialist Testing** ✅ - New `test_specialist.py` script validates specialists individually
+5. **Training Validation** ✅ - Training callback now logs real distances and warns on suspicious values
+
+---
+
+## What Went Wrong (Historical)
+
+### 1. **Measurement Bug** ❌ → ✅ FIXED
 - **Problem**: Evaluated distance using `np.linalg.norm(obs[0:3])` where `obs[0:3]` is **normalized** relative position (divided by max_range and clipped to [-1, 1])
 - **Result**: Thought we had 0.05m precision, actually had ~200m precision
 - **Impact**: Complete false positive - celebrated a "breakthrough" that didn't exist
+- **Fix**: Now uses `info['interceptor_pos']` and `info['missile_pos']` for true world distances
 
-### 2. **Frame-Stacking Mismatch** ❌
+### 2. **Frame-Stacking Mismatch** ❌ → ✅ FIXED
 - **Problem**: Specialists trained with frame-stacking (104D = 26D × 4 frames), but evaluation runs without it (26D)
 - **Result**: Can't even load the specialist models during evaluation
 - **Impact**: Been running evaluation with **stub policies** (random actions) instead of trained specialists
+- **Fix**: Evaluation now applies `FrameStackObservation` wrapper, configurable via `--frame-stack` flag
 
-### 3. **No Validation** ❌
+### 3. **No Validation** ❌ → ✅ FIXED
 - **Problem**: Never checked actual world-space positions in logs
 - **Result**: Accepted implausible results without verification
 - **Impact**: Wasted time celebrating fake results instead of debugging
+- **Fix**: Added sanity checks that warn when distances are physically implausible
 
 ## Root Cause Analysis
 
@@ -165,15 +182,92 @@ But this only works if:
 
 ## Implementation Checklist
 
-- [ ] Fix `evaluate_hrl.py` distance calculation to use world positions
-- [ ] Add frame-stacking option to evaluation
+- [x] Fix `evaluate_hrl.py` distance calculation to use world positions
+- [x] Add frame-stacking option to evaluation (`--frame-stack` flag)
 - [ ] Test current specialists individually to see if they learned anything
 - [ ] Check training logs/curves for specialists
-- [ ] Decide: retrain without frame-stacking (fast) or with frame-stacking (better?)
-- [ ] Update training scripts with validation hooks
-- [ ] Add sanity checks to prevent future false positives
+- [x] Update training scripts with validation hooks (real distance logging)
+- [x] Add sanity checks to prevent future false positives
 - [ ] Create visualization tools for trajectory analysis
 - [ ] Document actual performance honestly
+- [ ] Retrain specialists from scratch with proper validation
+
+---
+
+## CORRECTED TRAINING WORKFLOW
+
+### Step 1: Train Specialists (WITH VALIDATION)
+
+```bash
+cd /home/roman/Hlynr_Intercept/rl_system
+
+# Train each specialist (15 min each)
+python scripts/train_hrl_pretrain.py --agent search --config configs/hrl/search_specialist.yaml
+python scripts/train_hrl_pretrain.py --agent track --config configs/hrl/track_specialist.yaml
+python scripts/train_hrl_pretrain.py --agent terminal --config configs/hrl/terminal_specialist.yaml
+```
+
+**Monitor TensorBoard during training:**
+```bash
+tensorboard --logdir logs --port 6006
+```
+
+Watch for:
+- `specialists/*/real_distance` - Should be in 50-500m range, NOT sub-meter!
+- `specialists/*/success_rate` - Should improve over training
+- If you see sub-meter distances, STOP - there's still a measurement bug
+
+### Step 2: TEST SPECIALISTS INDIVIDUALLY (CRITICAL!)
+
+```bash
+# Test each specialist BEFORE integrating into HRL
+python scripts/test_specialist.py --specialist search \
+    --model checkpoints/hrl/specialists/search/best/model.zip \
+    --episodes 50 --frame-stack 4
+
+python scripts/test_specialist.py --specialist track \
+    --model checkpoints/hrl/specialists/track/best/model.zip \
+    --episodes 50 --frame-stack 4
+
+python scripts/test_specialist.py --specialist terminal \
+    --model checkpoints/hrl/specialists/terminal/best/model.zip \
+    --episodes 50 --frame-stack 4
+```
+
+**Expected Results (REALISTIC):**
+- Search: >80% lock acquisition rate
+- Track: >70% lock maintenance rate
+- Terminal: Mean min distance <100m (NOT sub-meter!)
+
+**If any specialist fails these checks, DO NOT proceed to selector training!**
+
+### Step 3: Train Selector
+
+Only after specialists pass validation:
+
+```bash
+python scripts/train_hrl_selector.py --config configs/hrl/hrl_curriculum.yaml
+```
+
+### Step 4: Evaluate Full HRL System
+
+```bash
+python scripts/evaluate_hrl.py \
+    --selector checkpoints/hrl/selector/best/best_model.zip \
+    --search checkpoints/hrl/specialists/search/best/model.zip \
+    --track checkpoints/hrl/specialists/track/best/model.zip \
+    --terminal checkpoints/hrl/specialists/terminal/best/model.zip \
+    --episodes 100 \
+    --frame-stack 4 \
+    --config config.yaml
+```
+
+**Sanity check the output:**
+- If you see "SANITY CHECK WARNINGS" - STOP and investigate
+- Distances should be in the 50-200m range initially
+- Sub-10m distances are good, sub-1m is suspicious, sub-10cm is DEFINITELY WRONG
+
+---
 
 ## Timeline
 

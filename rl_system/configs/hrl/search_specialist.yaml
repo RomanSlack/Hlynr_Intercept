@@ -1,27 +1,39 @@
-# Search Specialist Pre-Training Configuration (Phase 1: Stub)
+# Search Specialist Pre-Training Configuration
 # Specialist for wide-area scanning and target acquisition
+# OBJECTIVE: Rapidly acquire radar lock on target
 
 # Inherit base settings
 parent_config: ../../config.yaml
 
 # Specialist-specific training
 training:
-  total_timesteps: 100000  # Pre-training steps (stub: minimal)
-  n_envs: 4  # Parallel environments
-  n_steps: 1024
+  total_timesteps: 500000  # 500k steps for proper learning
+  n_envs: 8  # More parallel environments for faster training
+  n_steps: 2048  # Longer rollouts for better gradient estimates
+  batch_size: 256
 
   # Learning parameters
   learning_rate: 0.0003
   gamma: 0.99
-  gae_lambda: 0.95
+  gae_lambda: 0.97  # Higher for longer-horizon credit assignment
+
+  # Entropy for exploration (search needs more exploration)
+  ent_coef: 0.02
+  ent_coef_final: 0.005  # Decay entropy over training
+  ent_decay_steps: 400000
 
   # Network architecture
   net_arch: [512, 512, 256]
-  use_lstm: false  # Phase 1: No LSTM yet
+  use_lstm: false  # MLP is sufficient for search
+  use_layer_norm: true
+  use_orthogonal_init: true
   frame_stack: 4
+
+  # Evaluation
+  eval_freq: 25000  # Evaluate every 25k steps
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
 
 # Environment modifications for search training
 environment:
-  # Start without radar lock (search scenarios)
-  # TODO(Phase 2): Implement custom initial conditions
-  max_steps: 500  # Shorter episodes for search phase
+  max_steps: 1000  # Give enough time to acquire lock

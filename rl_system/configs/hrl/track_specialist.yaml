@@ -1,26 +1,40 @@
-# Track Specialist Pre-Training Configuration (Phase 1: Stub)
+# Track Specialist Pre-Training Configuration
 # Specialist for maintaining radar lock and closing distance
+# OBJECTIVE: Maintain lock while reducing distance to target
 
 # Inherit base settings
 parent_config: ../../config.yaml
 
 # Specialist-specific training
 training:
-  total_timesteps: 100000  # Pre-training steps (stub: minimal)
-  n_envs: 4
-  n_steps: 1024
+  total_timesteps: 500000  # 500k steps for proper learning
+  n_envs: 8  # More parallel environments
+  n_steps: 2048  # Longer rollouts
+  batch_size: 256
 
   # Learning parameters
   learning_rate: 0.0003
-  gamma: 0.99
-  gae_lambda: 0.95
+  gamma: 0.995  # Higher gamma for long tracking phases
+  gae_lambda: 0.97
+
+  # Entropy (track needs balanced exploration)
+  ent_coef: 0.01
+  ent_coef_final: 0.002
+  ent_decay_steps: 400000
 
   # Network architecture
   net_arch: [512, 512, 256]
-  use_lstm: false  # Phase 1: No LSTM yet
+  use_lstm: true  # LSTM helps with temporal tracking patterns
+  lstm_hidden_dim: 256
+  use_layer_norm: true
+  use_orthogonal_init: true
   frame_stack: 4
+
+  # Evaluation
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
 
 # Environment modifications for track training
 environment:
-  # TODO(Phase 2): Start with existing radar lock
-  max_steps: 1000  # Medium episodes for tracking phase
+  max_steps: 2000  # Longer episodes for tracking phase

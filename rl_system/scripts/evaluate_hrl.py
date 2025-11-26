@@ -35,6 +35,9 @@ import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
 
+from gymnasium.wrappers import FrameStackObservation
+from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
+
 from environment import InterceptEnvironment
 from hrl.hierarchical_env import make_hrl_env
 from hrl.option_definitions import Option
@@ -51,6 +54,8 @@ class HRLEvaluator:
         config: Dict[str, Any],
         output_dir: str = "inference_results",
         seed: Optional[int] = None,
+        vecnorm_path: Optional[str] = None,
+        frame_stack: int = 4,
     ):
         """
         Initialize HRL evaluator.
@@ -61,11 +66,14 @@ class HRLEvaluator:
             config: Configuration dictionary
             output_dir: Directory to save results
             seed: Random seed for reproducibility
+            vecnorm_path: Path to VecNormalize stats file (vec_normalize.pkl) - CRITICAL for proper evaluation
+            frame_stack: Number of frames to stack (must match training, default 4)
         """
         self.logger = logging.getLogger("HRLEvaluator")
         self.logger.setLevel(logging.INFO)
         self.config = config
         self.seed = seed
+        self.frame_stack = frame_stack
 
         # Create output directory
         output_path = Path(output_dir)
@@ -77,12 +85,18 @@ class HRLEvaluator:
         self.unified_logger = UnifiedLogger(log_dir=str(self.run_dir), run_name="hrl_offline_inference")
 
         # Create base environment
-        env_config = config['environment']
+        env_config = config['environment'].copy()
         env_config['dt'] = config.get('dt', 0.01)
         env_config['max_steps'] = config['environment']['max_steps']
         base_env = InterceptEnvironment(env_config)
 
-        # Create HRL environment
+        # CRITICAL FIX: Apply frame-stacking to match specialist training
+        # Specialists were trained with 4-frame stacking (26D -> 104D observations)
+        if frame_stack > 1:
+            self.logger.info(f"Applying frame-stacking: {frame_stack} frames (26D -> {26 * frame_stack}D)")
+            base_env = FrameStackObservation(base_env, stack_size=frame_stack)
+
+        # Create HRL environment with frame-stacked base
         self.env = make_hrl_env(
             base_env=base_env,
             cfg=config,
@@ -91,9 +105,22 @@ class HRLEvaluator:
             mode='inference',
         )
 
+        # Store VecNormalize stats path for potential future use
+        # Note: VecNormalize is typically applied during vectorized training
+        # For single-env inference, the specialists should handle their own normalization
+        # BUT if VecNormalize was used during training, we need to apply it here too
+        self.vecnorm_path = vecnorm_path
+        if vecnorm_path:
+            self.logger.warning(
+                f"VecNormalize path provided: {vecnorm_path}\n"
+                "Note: For proper VecNormalize support, the environment should be wrapped in DummyVecEnv.\n"
+                "Current implementation runs single episodes without VecNormalize."
+            )
+
         self.logger.info(f"HRL Evaluator initialized")
         self.logger.info(f"Selector: {selector_path or 'rule-based'}")
         self.logger.info(f"Specialists: {specialist_paths}")
+        self.logger.info(f"Frame stacking: {frame_stack} frames")
         self.logger.info(f"Output directory: {self.run_dir}")
 
     def evaluate_episodes(self, n_episodes: int) -> Dict[str, Any]:
@@ -417,15 +444,66 @@ class HRLEvaluator:
         sub_50cm = sum(1 for d in min_distances if d < 0.5)
         sub_1m = sum(1 for d in min_distances if d < 1.0)
 
+        # ============================================================
+        # SANITY CHECKS - Catch bogus results from measurement errors
+        # ============================================================
+        mean_min = metrics.get('mean_min_distance', 0) or 0
+        best_min = metrics.get('best_min_distance', 0) or 0
+
+        sanity_warnings = []
+
+        # Check 1: Sub-meter distances are physically implausible for missile intercepts
+        # A missile is typically 3-5m long, intercept happens when proximity fuse triggers
+        if best_min < 0.1:  # Less than 10cm
+            sanity_warnings.append(
+                f"⚠️  SANITY CHECK FAILED: Best distance {best_min*100:.2f}cm is implausibly small!\n"
+                f"    Missiles are 3-5m long. Sub-10cm precision is physically impossible.\n"
+                f"    This likely indicates a MEASUREMENT BUG (e.g., using normalized obs)."
+            )
+
+        # Check 2: If 100% success with sub-meter precision, something is wrong
+        if metrics['success_rate'] == 1.0 and mean_min < 1.0:
+            sanity_warnings.append(
+                f"⚠️  SANITY CHECK WARNING: 100% success with {mean_min:.2f}m mean distance.\n"
+                f"    This combination is extremely rare. Verify results manually."
+            )
+
+        # Check 3: Compare min_distance to final_distance - they should be similar
+        mean_final = metrics.get('mean_miss_distance', 0) or 0
+        if mean_min > 0 and mean_final > 0:
+            ratio = mean_final / mean_min if mean_min > 0 else float('inf')
+            if ratio > 100:  # Final is 100x larger than min
+                sanity_warnings.append(
+                    f"⚠️  SANITY CHECK WARNING: Mean min ({mean_min:.2f}m) vs final ({mean_final:.2f}m) differ by {ratio:.0f}x.\n"
+                    f"    Large discrepancy may indicate measurement inconsistency."
+                )
+
+        # Check 4: Distances should be in reasonable range (1m - 10000m for this sim)
+        if mean_min > 0 and mean_min < 0.01:  # Less than 1cm
+            sanity_warnings.append(
+                f"⚠️  SANITY CHECK FAILED: Mean min distance {mean_min*100:.4f}cm is impossibly small!\n"
+                f"    Are you using normalized observations instead of world positions?"
+            )
+
+        if sanity_warnings:
+            print("⚠️" * 20)
+            print("SANITY CHECK WARNINGS - RESULTS MAY BE INVALID!")
+            print("⚠️" * 20)
+            for warning in sanity_warnings:
+                print(warning)
+            print("⚠️" * 20)
+            print()
+
         print("🎯 PRECISION METRICS (Minimum Distance Achieved):")
-        print(f"  Mean Min Distance:       {metrics['mean_min_distance']*100:.2f}cm ({metrics['mean_min_distance']:.4f}m)")
-        print(f"  Median Min Distance:     {metrics.get('median_min_distance', 0)*100:.2f}cm")
-        print(f"  Best (Closest):          {metrics.get('best_min_distance', 0)*100:.2f}cm")
-        print(f"  Worst:                   {metrics.get('worst_min_distance', 0)*100:.2f}cm")
+        print(f"  Mean Min Distance:       {mean_min:.2f}m ({mean_min*100:.2f}cm)")
+        print(f"  Median Min Distance:     {metrics.get('median_min_distance', 0):.2f}m")
+        print(f"  Best (Closest):          {best_min:.2f}m")
+        print(f"  Worst:                   {metrics.get('worst_min_distance', 0):.2f}m")
         print()
-        print(f"  🎯 Sub-10cm Precision:   {sub_10cm}/{metrics['n_episodes']} ({sub_10cm/metrics['n_episodes']*100:.1f}%)")
-        print(f"  🎯 Sub-50cm Precision:   {sub_50cm}/{metrics['n_episodes']} ({sub_50cm/metrics['n_episodes']*100:.1f}%)")
-        print(f"  ✅ Sub-Meter Precision:  {sub_1m}/{metrics['n_episodes']} ({sub_1m/metrics['n_episodes']*100:.1f}%)")
+        print(f"  Sub-10m Precision:    {sum(1 for d in min_distances if d < 10)}/{metrics['n_episodes']}")
+        print(f"  Sub-50m Precision:    {sum(1 for d in min_distances if d < 50)}/{metrics['n_episodes']}")
+        print(f"  Sub-100m Precision:   {sum(1 for d in min_distances if d < 100)}/{metrics['n_episodes']}")
+        print(f"  Sub-150m (baseline):  {sum(1 for d in min_distances if d < 150)}/{metrics['n_episodes']}")
         print()
 
         print("PERFORMANCE METRICS:")
@@ -467,9 +545,9 @@ class HRLEvaluator:
         sorted_episodes = sorted(metrics['episodes'], key=lambda x: x['min_distance'] if x['min_distance'] else float('inf'))
         for i, ep in enumerate(sorted_episodes[:10], 1):
             outcome_sym = "✅" if ep['outcome'] == 'intercepted' else "❌"
-            min_cm = ep['min_distance'] * 100
-            final_cm = ep['final_distance'] * 100
-            print(f"{i:2d}. {outcome_sym} Episode {ep['episode_id']}: {min_cm:6.2f}cm min, {final_cm:6.2f}cm final")
+            min_m = ep['min_distance']
+            final_m = ep['final_distance']
+            print(f"{i:2d}. {outcome_sym} Episode {ep['episode_id']}: {min_m:8.2f}m min, {final_m:8.2f}m final")
         print("=" * 80)
 
 
@@ -541,6 +619,20 @@ def main():
         help="Output directory for results (default: inference_results)",
     )
 
+    # CRITICAL: Frame-stacking and normalization settings
+    parser.add_argument(
+        "--frame-stack",
+        type=int,
+        default=4,
+        help="Number of frames to stack (MUST match training, default: 4)",
+    )
+    parser.add_argument(
+        "--vecnorm",
+        type=str,
+        default=None,
+        help="Path to VecNormalize stats file (vec_normalize.pkl) from training",
+    )
+
     args = parser.parse_args()
 
     # Load configuration
@@ -561,6 +653,18 @@ def main():
     if args.terminal:
         specialist_paths[Option.TERMINAL] = args.terminal
 
+    # Validate frame-stack setting
+    print(f"\n{'='*60}")
+    print("HRL EVALUATION - CONFIGURATION CHECK")
+    print(f"{'='*60}")
+    print(f"Frame stacking: {args.frame_stack} frames")
+    print(f"  -> Observation dim: {26 * args.frame_stack}D")
+    if args.vecnorm:
+        print(f"VecNormalize stats: {args.vecnorm}")
+    else:
+        print("VecNormalize stats: NOT PROVIDED (may cause issues!)")
+    print(f"{'='*60}\n")
+
     # Create evaluator (now handles output directory creation and saving internally)
     evaluator = HRLEvaluator(
         selector_path=args.selector,
@@ -568,6 +672,8 @@ def main():
         config=config,
         output_dir=args.output,
         seed=args.seed,
+        vecnorm_path=args.vecnorm,
+        frame_stack=args.frame_stack,
     )
 
     # Run evaluation (results are saved automatically)

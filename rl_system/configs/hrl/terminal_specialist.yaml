@@ -1,26 +1,40 @@
-# Terminal Specialist Pre-Training Configuration (Phase 1: Stub)
+# Terminal Specialist Pre-Training Configuration
 # Specialist for final intercept guidance
+# OBJECTIVE: Minimize miss distance with aggressive closure
 
 # Inherit base settings
 parent_config: ../../config.yaml
 
 # Specialist-specific training
 training:
-  total_timesteps: 100000  # Pre-training steps (stub: minimal)
-  n_envs: 4
-  n_steps: 1024
+  total_timesteps: 750000  # 750k steps - terminal is hardest, needs more training
+  n_envs: 8  # More parallel environments
+  n_steps: 2048  # Longer rollouts
+  batch_size: 256
 
   # Learning parameters
   learning_rate: 0.0003
-  gamma: 0.99
+  gamma: 0.99  # Standard gamma for terminal phase
   gae_lambda: 0.95
+
+  # Low entropy for exploitation (terminal needs precision)
+  ent_coef: 0.005
+  ent_coef_final: 0.001
+  ent_decay_steps: 500000
 
   # Network architecture
   net_arch: [512, 512, 256]
-  use_lstm: false  # Phase 1: No LSTM yet
+  use_lstm: true  # LSTM helps with precise terminal guidance
+  lstm_hidden_dim: 256
+  use_layer_norm: true
+  use_orthogonal_init: true
   frame_stack: 4
+
+  # Evaluation
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
 
 # Environment modifications for terminal training
 environment:
-  # TODO(Phase 2): Start at close range (<200m)
-  max_steps: 300  # Short episodes for terminal phase
+  max_steps: 1000  # Enough time for terminal approach

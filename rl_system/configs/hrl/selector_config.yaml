@@ -1,32 +1,40 @@
-# Selector Policy Training Configuration (Phase 1: Stub)
-# High-level policy for option selection
+# Selector Policy Training Configuration
+# High-level policy for option selection (SEARCH, TRACK, TERMINAL)
+# OBJECTIVE: Learn when to switch between specialists
 
 # Inherit base settings
 parent_config: ../../config.yaml
 
 # Selector-specific training
 training:
-  total_timesteps: 50000  # Selector training steps (stub: minimal)
-  n_envs: 4
-  n_steps: 512
+  total_timesteps: 500000  # 500k steps for proper selector learning
+  n_envs: 8  # More parallel environments
+  n_steps: 1024  # Medium rollouts for discrete actions
+  batch_size: 128
 
   # Learning parameters
   learning_rate: 0.0003
-  gamma: 0.99
-  gae_lambda: 0.95
+  gamma: 0.995  # Higher gamma for strategic decisions
+  gae_lambda: 0.97
 
-  # Network architecture (smaller for discrete actions)
+  # Entropy for option exploration
+  ent_coef: 0.02  # Higher entropy to explore all options
+  ent_coef_final: 0.005
+  ent_decay_steps: 400000
+
+  # Network architecture (smaller for 7D abstract state -> 3 discrete actions)
   net_arch: [256, 256]
-  use_lstm: false
-  frame_stack: 1  # Selector uses abstract state, no frame stacking
+  use_lstm: false  # MLP sufficient for abstract state
+  use_layer_norm: true
+  frame_stack: 1  # Selector uses 7D abstract state, no frame stacking
 
-  # Evaluation settings (ensure best model is saved)
-  eval_freq: 5000  # Evaluate every 5k steps for better model selection
-  n_eval_episodes: 5
-  checkpoint_freq: 10000
+  # Evaluation settings
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
 
 # HRL settings
 hrl:
   enabled: true
-  decision_interval_steps: 100
-  # TODO(Phase 2): Freeze specialist policies during selector training
+  decision_interval_steps: 100  # Selector decides every 100 steps (1Hz)
+  enable_forced_transitions: true  # Safety overrides for critical situations

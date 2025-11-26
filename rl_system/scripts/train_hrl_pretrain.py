@@ -42,6 +42,15 @@ from stable_baselines3.common.callbacks import (
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
+# Import RecurrentPPO for LSTM support
+try:
+    from sb3_contrib import RecurrentPPO
+    HAS_RECURRENT_PPO = True
+except ImportError:
+    RecurrentPPO = None
+    HAS_RECURRENT_PPO = False
+    print("Warning: sb3_contrib not installed, LSTM policies unavailable")
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -124,10 +133,37 @@ class SpecialistTrainingCallback(BaseCallback):
         self.specialist_name = specialist_name
         self.tb_writer = logger.get_tensorboard_writer()
 
+        # Track validation metrics to catch measurement bugs early
+        self.episode_min_distances = []
+        self.episode_successes = []
+
     def _on_training_start(self):
         self.unified_logger.logger.info(f"Training {self.specialist_name} specialist started")
 
     def _on_step(self) -> bool:
+        # Extract info from environments to track REAL distances
+        # This catches the normalized observation bug early
+        for info in self.locals.get('infos', []):
+            if 'interceptor_pos' in info and 'missile_pos' in info:
+                int_pos = np.array(info['interceptor_pos'])
+                mis_pos = np.array(info['missile_pos'])
+                real_distance = np.linalg.norm(int_pos - mis_pos)
+
+                # Log to tensorboard periodically
+                if self.num_timesteps % 1000 == 0:
+                    if self.tb_writer:
+                        self.tb_writer.add_scalar(
+                            f'specialists/{self.specialist_name}/real_distance',
+                            real_distance,
+                            self.num_timesteps
+                        )
+
+            # Track episode outcomes
+            if info.get('terminal', False) or info.get('TimeLimit.truncated', False):
+                self.episode_successes.append(info.get('intercepted', False))
+                if 'distance' in info:
+                    self.episode_min_distances.append(info['distance'])
+
         return True
 
     def _on_rollout_end(self):
@@ -143,6 +179,32 @@ class SpecialistTrainingCallback(BaseCallback):
                         rollout_info[key],
                         self.num_timesteps
                     )
+
+        # Log validation metrics every rollout
+        if self.episode_min_distances:
+            mean_dist = np.mean(self.episode_min_distances[-100:])  # Last 100 episodes
+            if self.tb_writer:
+                self.tb_writer.add_scalar(
+                    f'specialists/{self.specialist_name}/mean_min_distance_m',
+                    mean_dist,
+                    self.num_timesteps
+                )
+
+            # SANITY CHECK: Warn if distances are implausibly small
+            if mean_dist < 1.0:  # Less than 1 meter
+                self.unified_logger.logger.warning(
+                    f"⚠️  SANITY CHECK: Mean distance {mean_dist:.2f}m is suspiciously small!\n"
+                    f"    This may indicate a measurement bug (using normalized obs?)."
+                )
+
+        if self.episode_successes:
+            success_rate = np.mean(self.episode_successes[-100:])
+            if self.tb_writer:
+                self.tb_writer.add_scalar(
+                    f'specialists/{self.specialist_name}/success_rate',
+                    success_rate,
+                    self.num_timesteps
+                )
 
 
 def create_env(config: Dict[str, Any], rank: int = 0) -> InterceptEnvironment:
@@ -248,8 +310,15 @@ def train_specialist(
     logger.logger.info(f"  - Orthogonal init: {use_orthogonal_init}")
     logger.logger.info(f"  - Layer normalization: {use_layer_norm}")
 
-    # Configure policy
+    # Configure policy and create model
     if use_lstm:
+        if not HAS_RECURRENT_PPO:
+            raise ImportError(
+                "LSTM enabled but sb3_contrib not installed. "
+                "Install with: pip install sb3-contrib"
+            )
+
+        # RecurrentPPO uses different policy kwargs structure
         policy_kwargs = dict(
             features_extractor_class=CustomMLP,
             features_extractor_kwargs=dict(
@@ -258,12 +327,32 @@ def train_specialist(
                 use_orthogonal_init=use_orthogonal_init,
                 use_layer_norm=use_layer_norm
             ),
-            net_arch=[],
-            activation_fn=torch.nn.ReLU,
-            enable_critic_lstm=True,
+            net_arch=[],  # Network handled by features extractor
             lstm_hidden_size=config['training'].get('lstm_hidden_dim', 256),
+            n_lstm_layers=1,
+            shared_lstm=False,  # Separate LSTM for actor and critic
+            enable_critic_lstm=True,
         )
-        policy_type = "MlpLstmPolicy"
+
+        logger.logger.info(f"Creating RecurrentPPO model with LSTM (hidden_dim={config['training'].get('lstm_hidden_dim', 256)})")
+        model = RecurrentPPO(
+            "MlpLstmPolicy",
+            envs,
+            learning_rate=config['training'].get('learning_rate', 3e-4),
+            n_steps=config['training'].get('n_steps', 1024),
+            batch_size=config['training'].get('batch_size', 256),
+            n_epochs=config['training'].get('n_epochs', 10),
+            gamma=config['training'].get('gamma', 0.99),
+            gae_lambda=config['training'].get('gae_lambda', 0.95),
+            clip_range=config['training'].get('clip_range', 0.2),
+            ent_coef=config['training'].get('ent_coef', 0.02),
+            vf_coef=config['training'].get('vf_coef', 0.5),
+            max_grad_norm=config['training'].get('max_grad_norm', 0.5),
+            policy_kwargs=policy_kwargs,
+            tensorboard_log=str(logger.log_dir / "tensorboard"),
+            device=device,
+            verbose=1
+        )
     else:
         policy_kwargs = dict(
             features_extractor_class=CustomMLP,
@@ -276,27 +365,26 @@ def train_specialist(
             net_arch=[],
             activation_fn=torch.nn.ReLU
         )
-        policy_type = "MlpPolicy"
 
-    # Create PPO model
-    model = PPO(
-        policy_type,
-        envs,
-        learning_rate=config['training'].get('learning_rate', 3e-4),
-        n_steps=config['training'].get('n_steps', 1024),
-        batch_size=config['training'].get('batch_size', 256),
-        n_epochs=config['training'].get('n_epochs', 10),
-        gamma=config['training'].get('gamma', 0.99),
-        gae_lambda=config['training'].get('gae_lambda', 0.95),
-        clip_range=config['training'].get('clip_range', 0.2),
-        ent_coef=config['training'].get('ent_coef', 0.02),  # Higher for exploration
-        vf_coef=config['training'].get('vf_coef', 0.5),
-        max_grad_norm=config['training'].get('max_grad_norm', 0.5),
-        policy_kwargs=policy_kwargs,
-        tensorboard_log=str(logger.log_dir / "tensorboard"),
-        device=device,
-        verbose=1
-    )
+        logger.logger.info(f"Creating PPO model (MLP)")
+        model = PPO(
+            "MlpPolicy",
+            envs,
+            learning_rate=config['training'].get('learning_rate', 3e-4),
+            n_steps=config['training'].get('n_steps', 1024),
+            batch_size=config['training'].get('batch_size', 256),
+            n_epochs=config['training'].get('n_epochs', 10),
+            gamma=config['training'].get('gamma', 0.99),
+            gae_lambda=config['training'].get('gae_lambda', 0.95),
+            clip_range=config['training'].get('clip_range', 0.2),
+            ent_coef=config['training'].get('ent_coef', 0.02),
+            vf_coef=config['training'].get('vf_coef', 0.5),
+            max_grad_norm=config['training'].get('max_grad_norm', 0.5),
+            policy_kwargs=policy_kwargs,
+            tensorboard_log=str(logger.log_dir / "tensorboard"),
+            device=device,
+            verbose=1
+        )
 
     logger.logger.info(f"Created PPO model with {n_envs} parallel environments")
 
