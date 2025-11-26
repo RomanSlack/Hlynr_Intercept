@@ -13,3 +13,10 @@
   python scripts/train_hrl_pretrain.py --agent terminal --config configs/hrl/terminal_specialist.yaml
 
   Expected Behavior with Curriculum:
+
+
+python scripts/test_specialist.py --specialist all \
+      --search-model checkpoints/hrl/specialists/search/<TIMESTAMP>/final/model.zip \
+      --track-model checkpoints/hrl/specialists/track/<TIMESTAMP>/final/model.zip \
+      --terminal-model checkpoints/hrl/specialists/terminal/<TIMESTAMP>/final/model.zip \
+      --episodes 50 --frame-stack 4

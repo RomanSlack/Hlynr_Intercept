@@ -298,6 +298,9 @@ class Radar26DObservation:
         self._last_detection_info = None
         self._last_ground_detection_info = None
 
+        # Store comprehensive radar debug info for logging
+        self._last_radar_debug_info = None
+
         # Kalman filter for trajectory estimation (processes radar measurements)
         # This gives the policy smooth position/velocity estimates instead of raw noisy radar
         self.kalman_filter = SimpleKalmanFilter(
@@ -326,6 +329,16 @@ class Radar26DObservation:
         passed to the policy network. The policy only sees the 26D observation vector.
         """
         return self._last_detection_info
+
+    def get_last_radar_debug_info(self) -> Optional[Dict[str, Any]]:
+        """
+        Get comprehensive radar debug info for logging.
+
+        Returns detailed information about both onboard and ground radar state,
+        including cone geometry, detection status, and timing. This is used for
+        visualization and debugging purposes during inference logging.
+        """
+        return self._last_radar_debug_info
 
     def _compute_ground_radar_detection(self, interceptor: Dict[str, Any], missile: Dict[str, Any],
                                         weather_factor: float = 1.0) -> Dict[str, Any]:
@@ -359,16 +372,17 @@ class Radar26DObservation:
             return {'detected': False, 'reason': 'out_of_range'}
 
         # Check elevation angle (can't see below horizon)
+        elevation = 0.0
         if range_to_missile > 1e-6:
             elevation = np.arcsin(np.clip(ground_to_missile[2] / range_to_missile, -1.0, 1.0))
             if elevation < self.ground_radar.min_elevation_angle:
-                return {'detected': False, 'reason': 'below_horizon'}
+                return {'detected': False, 'reason': 'below_horizon', 'elevation_deg': np.degrees(elevation), 'range': range_to_missile}
             if elevation > self.ground_radar.max_elevation_angle:
-                return {'detected': False, 'reason': 'above_coverage'}
+                return {'detected': False, 'reason': 'above_coverage', 'elevation_deg': np.degrees(elevation), 'range': range_to_missile}
 
         # Check terrain masking (simplified: missile below 50m AGL is masked)
         if mis_pos[2] < 50.0:
-            return {'detected': False, 'reason': 'terrain_masking'}
+            return {'detected': False, 'reason': 'terrain_masking', 'elevation_deg': np.degrees(elevation), 'range': range_to_missile}
 
         # Calculate detection probability based on range (with curriculum-based reliability)
         detection_prob = self.ground_radar.base_quality * (1.0 - (range_to_missile / self.ground_radar.max_range) * 0.4)
@@ -376,7 +390,7 @@ class Radar26DObservation:
         detection_prob *= self.ground_detection_reliability  # Curriculum adjustment
 
         if self.rng.random() > detection_prob:
-            return {'detected': False, 'reason': 'weak_return'}
+            return {'detected': False, 'reason': 'weak_return', 'elevation_deg': np.degrees(elevation), 'range': range_to_missile}
 
         # SUCCESS: Generate measurement with realistic errors
         # Relative position: missile to interceptor (as seen from ground perspective)
@@ -394,7 +408,8 @@ class Radar26DObservation:
             'rel_pos': measured_rel_pos,
             'rel_vel': measured_rel_vel,
             'quality': detection_prob,
-            'range': range_to_missile
+            'range': range_to_missile,
+            'elevation_deg': np.degrees(elevation)
         }
 
     def _compute_datalink_quality(self, interceptor: Dict[str, Any]) -> float:
@@ -501,13 +516,15 @@ class Radar26DObservation:
             onboard_detection_info['detected'] = False
             onboard_detection_info['reason'] = 'out_of_range'
 
+        # Compute beam geometry (always computed for logging, even if out of range)
+        int_forward = get_forward_vector(int_quat)
+        to_missile = true_rel_pos / (true_range + 1e-6)
+        beam_angle = np.arccos(np.clip(np.dot(int_forward, to_missile), -1, 1))
+        half_beam_width_rad = np.radians(self.radar_beam_width / 2.0)
+
         # Check radar beam width (curriculum-adjustable cone)
         if onboard_detected:
-            int_forward = get_forward_vector(int_quat)
-            to_missile = true_rel_pos / (true_range + 1e-6)
-            beam_angle = np.arccos(np.clip(np.dot(int_forward, to_missile), -1, 1))
             # FIXED: Use HALF beam width (cone half-angle), not full width
-            half_beam_width_rad = np.radians(self.radar_beam_width / 2.0)
             if beam_angle > half_beam_width_rad:
                 onboard_detected = False
                 onboard_detection_info['detected'] = False
@@ -603,6 +620,41 @@ class Radar26DObservation:
         # Store detection info for reward calculation (internal use only)
         self._last_detection_info = delayed_onboard_info.copy()
         self._last_ground_detection_info = {'detected': delayed_ground_detected, 'quality': delayed_ground_quality}
+
+        # Build comprehensive radar debug info for logging
+        self._last_radar_debug_info = {
+            'onboard': {
+                'position': int_pos.tolist(),
+                'forward_vector': int_forward.tolist(),
+                'beam_width_deg': float(self.radar_beam_width),
+                'beam_angle_to_target_deg': float(np.degrees(beam_angle)),
+                'half_beam_width_deg': float(np.degrees(half_beam_width_rad)),
+                'in_beam': bool(beam_angle <= half_beam_width_rad),
+                'range_to_target': float(true_range),
+                'max_range': float(self.radar_range),
+                'detected': bool(delayed_onboard_detected),
+                'detection_reason': delayed_onboard_info.get('reason', 'detected' if delayed_onboard_detected else 'unknown'),
+                'quality': float(delayed_onboard_info.get('radar_quality', 0.0)) if delayed_onboard_detected else 0.0
+            },
+            'ground': {
+                'position': self.ground_radar.position.tolist() if self.ground_radar else [0, 0, 0],
+                'enabled': bool(self.ground_radar_enabled),
+                'max_range': float(self.ground_radar.max_range) if self.ground_radar else 0.0,
+                'min_elevation_deg': float(np.degrees(self.ground_radar.min_elevation_angle)) if self.ground_radar else 0.0,
+                'max_elevation_deg': float(np.degrees(self.ground_radar.max_elevation_angle)) if self.ground_radar else 0.0,
+                'range_to_target': float(ground_detection.get('range', 0.0)),
+                'elevation_deg': float(ground_detection.get('elevation_deg', 0.0)),
+                'detected': bool(delayed_ground_detected),
+                'detection_reason': ground_detection.get('reason', 'detected' if delayed_ground_detected else 'unknown'),
+                'quality': float(delayed_ground_quality)
+            },
+            'fusion': {
+                'datalink_quality': float(datalink_quality),
+                'fusion_confidence': float(fusion_confidence),
+                'both_detected': bool(delayed_onboard_detected and delayed_ground_detected),
+                'any_detected': bool(delayed_onboard_detected or delayed_ground_detected)
+            }
+        }
 
         # Generate 26D observation
         obs = self.compute(

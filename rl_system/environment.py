@@ -690,6 +690,8 @@ class InterceptEnvironment(gym.Env):
             'steps': self.steps,
             'radar_detected': self.last_detection_info.get('detected', False) if self.last_detection_info else False,
             'radar_quality': self.last_detection_info.get('radar_quality', 0.0) if self.last_detection_info else 0.0,
+            # Comprehensive radar debug info for logging
+            'radar_debug': self.observation_generator.get_last_radar_debug_info(),
             # Volley mode specific info
             'volley_mode': self.volley_mode,
             'volley_size': self.volley_size if self.volley_mode else 1,

@@ -220,15 +220,15 @@ def create_env(config: Dict[str, Any], rank: int = 0, specialist_type: str = Non
     def _init():
         env = InterceptEnvironment(config)
 
-        # CRITICAL: Apply specialist reward wrapper for tactical rewards
-        # Without this, specialists train on base reward which doesn't
-        # differentiate between search/track/terminal objectives
-        if specialist_type is not None:
-            env = SpecialistRewardWrapper(
-                env,
-                specialist_type=specialist_type,
-                blend_with_base=0.3,  # 70% tactical + 30% base reward
-            )
+        # NOTE: Specialist reward wrapper DISABLED - tactical rewards were hurting performance
+        # The base environment reward already has good shaping (proximity, closing rate, etc.)
+        # Keeping specialists training on base reward for now
+        # if specialist_type is not None:
+        #     env = SpecialistRewardWrapper(
+        #         env,
+        #         specialist_type=specialist_type,
+        #         blend_with_base=0.7,  # 30% tactical + 70% base reward
+        #     )
 
         env = Monitor(env)
         return env
@@ -432,8 +432,8 @@ def train_specialist(
         save_vecnormalize=True
     ))
 
-    # Evaluation callback (also use specialist rewards for consistent evaluation)
-    eval_env = DummyVecEnv([create_env(env_config, specialist_type=agent)])
+    # Evaluation callback
+    eval_env = DummyVecEnv([create_env(env_config)])
     if frame_stack > 1:
         eval_env = VecFrameStack(eval_env, n_stack=frame_stack)
     eval_env = VecNormalize(

@@ -264,15 +264,29 @@ class HRLEvaluator:
             else:
                 # Fallback: estimate from observation (but this is WRONG for precision!)
                 # obs[0:3] is normalized, so multiply by max_range
-                rel_pos = obs[0:3] * 10000.0  # max_range = 10000m
+                # Handle frame-stacked observations
+                if obs.ndim > 1:
+                    rel_pos = obs[-1, 0:3] * 10000.0  # Latest frame
+                elif len(obs) > 26:
+                    latest_frame_start = (self.frame_stack - 1) * 26
+                    rel_pos = obs[latest_frame_start:latest_frame_start+3] * 10000.0
+                else:
+                    rel_pos = obs[0:3] * 10000.0  # max_range = 10000m
                 distance = np.linalg.norm(rel_pos)
                 min_distance = min(min_distance, distance)
                 final_distance = distance
 
             # Track fuel usage (observation[12] is fuel fraction)
+            # Handle frame-stacked observations (shape (4, 26) or flat (104,))
+            if obs.ndim > 1:
+                current_fuel = obs[-1, 12]  # Latest frame, fuel index
+            elif len(obs) > 26:
+                current_fuel = obs[12 + (self.frame_stack - 1) * 26]  # Flat frame-stacked
+            else:
+                current_fuel = obs[12]  # Single frame
             if initial_fuel is None:
-                initial_fuel = obs[12]
-            fuel_used = initial_fuel - obs[12]
+                initial_fuel = current_fuel
+            fuel_used = initial_fuel - current_fuel
 
             # Log state with actions (same as PPO)
             if 'interceptor_pos' in info:
@@ -286,6 +300,9 @@ class HRLEvaluator:
                 self.unified_logger.log_state('missile', {
                     'position': info['missile_pos'].tolist() if isinstance(info['missile_pos'], np.ndarray) else info['missile_pos']
                 })
+            # Log radar debug info (cone geometry, detection status, etc.)
+            if 'radar_debug' in info and info['radar_debug'] is not None:
+                self.unified_logger.log_state('radar', info['radar_debug'])
 
             prev_option = current_option
 

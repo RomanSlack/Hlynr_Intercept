@@ -525,6 +525,9 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
                 logger.log_state('missile', {
                     'position': info['missile_pos'].tolist()
                 })
+            # Log radar debug info (cone geometry, detection status, etc.)
+            if 'radar_debug' in info and info['radar_debug'] is not None:
+                logger.log_state('radar', info['radar_debug'])
 
         # Episode complete
         # Determine outcome based on mode
