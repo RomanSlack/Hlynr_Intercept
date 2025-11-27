@@ -673,7 +673,10 @@ class Radar26DObservation:
                 datalink_quality: float, fusion_confidence: float,
                 noise_level: float = 0.05) -> np.ndarray:
         """
-        Generate 26D observation vector based on radar detections from both sensors.
+        Generate 30D observation vector based on radar detections from both sensors.
+
+        NEW in v2: Added ZEM (Zero-Effort-Miss), time-to-go, and LOS rates for
+        precision terminal guidance. These are critical for proportional navigation.
 
         ONBOARD RADAR Components:
         [0-2]: Relative position (onboard radar-detected, with noise)
@@ -692,8 +695,14 @@ class Radar26DObservation:
         [23]: Ground radar quality/confidence
         [24]: Data link quality (ground-to-interceptor communication)
         [25]: Multi-radar fusion confidence
+
+        PRECISION GUIDANCE Components (NEW):
+        [26]: Zero-Effort-Miss (ZEM) - predicted miss distance if no corrections
+        [27]: Time-to-go (t_go) - estimated time to closest approach
+        [28]: LOS rate azimuth - line-of-sight rate in horizontal plane (rad/s)
+        [29]: LOS rate elevation - line-of-sight rate in vertical plane (rad/s)
         """
-        obs = np.zeros(26, dtype=np.float32)
+        obs = np.zeros(30, dtype=np.float32)
 
         # Extract interceptor's internal state (perfect self-knowledge)
         int_pos = np.array(interceptor['position'], dtype=np.float32)
