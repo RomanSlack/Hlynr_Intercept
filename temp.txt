@@ -1,22 +1,6 @@
-
-  Now retrain the specialists with all these improvements:
-
-  cd /home/roman/Hlynr_Intercept/rl_system
-
-  # Train SEARCH specialist
-  python scripts/train_hrl_pretrain.py --agent search --config configs/hrl/search_specialist.yaml
-
-  # Train TRACK specialist
-  python scripts/train_hrl_pretrain.py --agent track --config configs/hrl/track_specialist.yaml
-
-  # Train TERMINAL specialist (most important for precision)
-  python scripts/train_hrl_pretrain.py --agent terminal --config configs/hrl/terminal_specialist.yaml
-
-  Expected Behavior with Curriculum:
-
-
-python scripts/test_specialist.py --specialist all \
-      --search-model checkpoints/hrl/specialists/search/<TIMESTAMP>/final/model.zip \
-      --track-model checkpoints/hrl/specialists/track/<TIMESTAMP>/final/model.zip \
-      --terminal-model checkpoints/hrl/specialists/terminal/<TIMESTAMP>/final/model.zip \
-      --episodes 50 --frame-stack 4
+python scripts/evaluate_hrl.py \
+    --selector checkpoints/hrl/selector/20251126_113539_500000steps/best/best_model.zip \
+    --search checkpoints/hrl/specialists/search/20251125_174448_500000steps/final/model.zip \
+    --track checkpoints/hrl/specialists/track/20251125_175356_500000steps/final/model.zip \
+    --terminal checkpoints/hrl/specialists/terminal/20251126_224936_2000000steps/best/best_model.zip \
+    --episodes 50 --seed 44 --config config.yaml

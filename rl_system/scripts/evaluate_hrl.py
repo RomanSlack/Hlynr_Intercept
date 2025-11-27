@@ -96,11 +96,18 @@ class HRLEvaluator:
         # Initialize UnifiedLogger (same as PPO inference)
         self.unified_logger = UnifiedLogger(log_dir=str(self.run_dir), run_name="hrl_offline_inference")
 
-        # Create base environment
+        # Create base environment with full config (including curriculum!)
         env_config = config['environment'].copy()
         env_config['dt'] = config.get('dt', 0.01)
         env_config['max_steps'] = config['environment']['max_steps']
+        # CRITICAL: Include curriculum config for proper intercept radius
+        env_config['curriculum'] = config.get('curriculum', {})
+        env_config['physics_enhancements'] = config.get('physics_enhancements', {})
         base_env = InterceptEnvironment(env_config)
+
+        # Log the actual intercept radius being used
+        intercept_radius = base_env.get_current_intercept_radius()
+        print(f"Intercept radius for evaluation: {intercept_radius:.1f}m")
 
         # CRITICAL FIX: Apply frame-stacking to match specialist training
         # Specialists were trained with 4-frame stacking (26D -> 104D observations)

@@ -35,7 +35,7 @@ os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
 import torch
 import torch.nn as nn
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize, VecFrameStack
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize, VecFrameStack
 from stable_baselines3.common.callbacks import (
     BaseCallback, EvalCallback, CheckpointCallback, CallbackList
 )
@@ -328,8 +328,33 @@ def train_specialist(
     n_envs = config['training'].get('n_envs', 4)
     env_config = config.get('environment', {})
 
+    # CRITICAL: Include curriculum config for proper intercept radius progression
+    # The curriculum config is at the top level, not inside 'environment'
+    env_config['curriculum'] = config.get('curriculum', {})
+    env_config['physics_enhancements'] = config.get('physics_enhancements', {})
+
+    # Log curriculum settings
+    curriculum = config.get('curriculum', {})
+    if curriculum.get('enabled', False):
+        logger.logger.info(f"Curriculum enabled: {curriculum.get('initial_radius', 100)}m -> {curriculum.get('final_radius', 25)}m over {curriculum.get('curriculum_steps', 0)} steps")
+    else:
+        logger.logger.info("Curriculum disabled - using fixed intercept radius")
+
     logger.logger.info(f"Creating {n_envs} environments with {agent.upper()} tactical rewards")
-    envs = DummyVecEnv([create_env(env_config, i, specialist_type=agent) for i in range(n_envs)])
+
+    # Use SubprocVecEnv for true parallel processing (faster on multi-core CPUs)
+    # Each environment runs in its own process
+    use_subproc = n_envs > 1 and config['training'].get('use_subproc', True)
+
+    # create_env already returns a callable, so just use it directly
+    env_fns = [create_env(env_config, i, specialist_type=agent) for i in range(n_envs)]
+
+    if use_subproc:
+        logger.logger.info(f"Using SubprocVecEnv for parallel environment execution")
+        envs = SubprocVecEnv(env_fns)
+    else:
+        logger.logger.info(f"Using DummyVecEnv (sequential execution)")
+        envs = DummyVecEnv(env_fns)
 
     # Add frame-stacking
     frame_stack = config['training'].get('frame_stack', 4)
