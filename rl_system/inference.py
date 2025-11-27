@@ -340,11 +340,19 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
                          seed: Optional[int] = None):
     """Run offline inference and save results to JSON files."""
 
-    # Set random seed for reproducibility
-    if seed is not None:
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        print(f"Random seed set to: {seed}")
+    # Handle random seed - generate one if not provided for reproducibility tracking
+    if seed is None:
+        seed = np.random.randint(0, 2**31 - 1)
+        print(f"Generated random seed: {seed}")
+    else:
+        print(f"Using provided seed: {seed}")
+
+    # Set the seed for reproducibility
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    # Store seed for later saving
+    actual_seed = seed
 
     # Load configuration
     with open(config_path, 'r') as f:
@@ -611,6 +619,7 @@ def run_offline_inference(model_path: str, config_path: str, num_episodes: int =
     summary = {
         'run_id': f"offline_{timestamp}",
         'model_path': str(model_path),
+        'seed': actual_seed,  # Store seed for reproducibility
         'num_episodes': num_episodes,
         'n_episodes': num_episodes,  # Alias for compatibility
         'scenario': scenario,

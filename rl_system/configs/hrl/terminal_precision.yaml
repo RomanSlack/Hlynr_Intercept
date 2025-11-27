@@ -1,0 +1,108 @@
+# Terminal Specialist PRECISION Training Configuration
+# Specialist for final intercept guidance with sub-50m accuracy
+# OBJECTIVE: Train terminal specialist to achieve <50m miss distance
+
+# Inherit base settings
+parent_config: ../../config.yaml
+
+# Specialist-specific training
+training:
+  total_timesteps: 1500000  # 1.5M steps for precision learning
+  n_envs: 8  # Parallel environments
+  n_steps: 2048  # Longer rollouts for credit assignment
+  batch_size: 256
+
+  # Learning parameters - lower LR for precision
+  learning_rate: 0.0001  # Lower LR for fine-tuning precision
+  gamma: 0.995  # Higher gamma for long-term precision
+  gae_lambda: 0.95
+
+  # Very low entropy for exploitation (terminal needs precision, not exploration)
+  ent_coef: 0.002
+  ent_coef_final: 0.0005
+  ent_decay_steps: 1000000
+
+  # Network architecture
+  net_arch: [512, 512, 256]
+  use_lstm: true  # LSTM helps with precise terminal guidance
+  lstm_hidden_dim: 256
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  # More frequent evaluation for precision tracking
+  eval_freq: 10000
+  n_eval_episodes: 30  # More episodes for reliable stats
+  checkpoint_freq: 25000
+
+# PRECISION CURRICULUM: Progressively tighten intercept radius
+# This is the key to achieving sub-50m accuracy
+# NOTE: curriculum_steps MUST match or be less than total_timesteps for full progression
+curriculum:
+  enabled: true
+  # Start at current success level (100m), progressively tighten
+  initial_radius: 100.0   # Start where we already succeed
+  final_radius: 10.0      # Target: 10m precision
+  curriculum_steps: 1500000  # Progress over full training (matches total_timesteps)
+
+  # Distance-based stage progression (linear interpolation):
+  # Step 0:        100m (easy start)
+  # Step 375k:     77m  (25% progress)
+  # Step 750k:     55m  (50% progress)
+  # Step 1125k:    32m  (75% progress)
+  # Step 1500k:    10m  (100% - precision target)
+
+# Environment modifications for terminal training
+environment:
+  max_steps: 1500  # Extended time for terminal approach precision
+
+  # Spawn interceptor closer for terminal-focused scenarios
+  # Terminal specialist should start in "tracking" state with lock acquired
+  interceptor_spawn:
+    position: [[200, 200, 200], [500, 500, 500]]  # Start closer
+    velocity: [[50, 50, 50], [100, 100, 100]]  # Higher initial velocity toward target
+
+  # Missile closer and slower for terminal practice
+  missile_spawn:
+    position: [[600, 600, 600], [1000, 1000, 1000]]  # 800-1700m away
+    velocity: [[-40, -40, -20], [-80, -80, -40]]  # Slower for more intercept opportunities
+
+# Dense reward configuration for precision
+# Override sparse environment rewards with dense shaping
+reward:
+  # Distance-based shaping (continuous)
+  distance_shaping:
+    enabled: true
+    scale: 0.1  # reward += (prev_distance - distance) * scale
+
+  # Exponential proximity bonus (gets stronger as you get closer)
+  proximity_bonus:
+    enabled: true
+    scales:
+      - {threshold: 100, scale: 1.0}   # +1.0 * exp(-d/100) baseline
+      - {threshold: 50, scale: 5.0}    # +5.0 * exp(-d/50) within 100m
+      - {threshold: 25, scale: 10.0}   # +10.0 * exp(-d/25) within 50m
+      - {threshold: 10, scale: 25.0}   # +25.0 * exp(-d/10) within 25m
+
+  # Milestone bonuses (discrete thresholds)
+  milestones:
+    enabled: true
+    thresholds:
+      - {distance: 75, reward: 10}
+      - {distance: 50, reward: 25}
+      - {distance: 25, reward: 50}
+      - {distance: 10, reward: 100}
+      - {distance: 5, reward: 200}
+
+  # Closing rate bonus (reward approach velocity)
+  closing_rate:
+    enabled: true
+    scale: 0.5  # reward += closing_rate * scale
+
+  # Penalty for increasing distance
+  distance_increase_penalty:
+    enabled: true
+    scale: 0.5  # penalty = (new_dist - old_dist) * scale if increasing
+
+  # Success bonus
+  intercept_bonus: 500.0

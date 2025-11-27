@@ -138,10 +138,42 @@ class SpecialistTrainingCallback(BaseCallback):
         self.episode_min_distances = []
         self.episode_successes = []
 
+        # Track last logged curriculum step to avoid excessive logging
+        self._last_curriculum_log = 0
+
     def _on_training_start(self):
         self.unified_logger.logger.info(f"Training {self.specialist_name} specialist started")
 
     def _on_step(self) -> bool:
+        # Update curriculum step count in all training environments
+        # This is CRITICAL for curriculum learning to progress
+        try:
+            self.training_env.env_method('set_training_step_count', self.num_timesteps)
+
+            # Log curriculum progress periodically
+            if self.num_timesteps - self._last_curriculum_log >= 50000:
+                # Get current intercept radius from first env
+                try:
+                    radii = self.training_env.env_method('get_current_intercept_radius')
+                    if radii and len(radii) > 0:
+                        current_radius = radii[0]
+                        self.unified_logger.logger.info(
+                            f"Step {self.num_timesteps}: Curriculum intercept radius = {current_radius:.1f}m"
+                        )
+                        if self.tb_writer:
+                            self.tb_writer.add_scalar(
+                                f'specialists/{self.specialist_name}/intercept_radius',
+                                current_radius,
+                                self.num_timesteps
+                            )
+                        self._last_curriculum_log = self.num_timesteps
+                except Exception:
+                    pass
+        except Exception as e:
+            # Only warn once
+            if self.num_timesteps < 100:
+                self.unified_logger.logger.warning(f"Could not update curriculum step: {e}")
+
         # Extract info from environments to track REAL distances
         # This catches the normalized observation bug early
         for info in self.locals.get('infos', []):

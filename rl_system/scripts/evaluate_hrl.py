@@ -27,6 +27,7 @@ import argparse
 import json
 import yaml
 import numpy as np
+import torch
 import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
@@ -72,8 +73,19 @@ class HRLEvaluator:
         self.logger = logging.getLogger("HRLEvaluator")
         self.logger.setLevel(logging.INFO)
         self.config = config
-        self.seed = seed
         self.frame_stack = frame_stack
+
+        # Handle random seed - generate one if not provided for reproducibility tracking
+        if seed is None:
+            self.seed = np.random.randint(0, 2**31 - 1)
+            print(f"Generated random seed: {self.seed}")
+        else:
+            self.seed = seed
+            print(f"Using provided seed: {self.seed}")
+
+        # Set the seed for reproducibility
+        np.random.seed(self.seed)
+        torch.manual_seed(self.seed)
 
         # Create output directory
         output_path = Path(output_dir)
@@ -398,6 +410,7 @@ class HRLEvaluator:
         metrics = {
             # PPO-compatible fields
             'run_id': f"hrl_offline_{timestamp}",
+            'seed': self.seed,  # Store seed for reproducibility
             'num_episodes': n_episodes,
             'n_episodes': n_episodes,  # Keep both for compatibility
             'timestamp': datetime.now().isoformat(),
