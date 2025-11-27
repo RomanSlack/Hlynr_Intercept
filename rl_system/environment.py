@@ -897,6 +897,15 @@ class InterceptEnvironment(gym.Env):
             time_bonus = (self.max_steps - self.steps) * 0.5
             reward += time_bonus
 
+            # PRECISION BONUS: Reward for getting closer than necessary
+            # This incentivizes sub-threshold accuracy (e.g., 10m hit vs 99m hit)
+            # Bonus scales inversely with distance: closer = more bonus
+            # Max bonus of ~1000 for direct hit (distance ~= 0)
+            intercept_radius = self.get_current_intercept_radius()
+            precision_ratio = max(0, 1.0 - distance / intercept_radius)  # 0 at threshold, 1 at 0m
+            precision_bonus = precision_ratio * 1000.0  # Up to 1000 bonus for precision
+            reward += precision_bonus
+
             return reward
 
         if terminated:

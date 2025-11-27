@@ -1,0 +1,57 @@
+# Terminal Specialist PRECISION Training v2
+# OBJECTIVE: Train terminal specialist to achieve <50m miss distance
+#
+# KEY CHANGES:
+# - New precision bonus reward added to environment
+# - Start at 100m threshold (where we succeed), progress to 50m
+# - Longer training for precision learning
+
+# Inherit base settings
+parent_config: ../../config.yaml
+
+# Specialist-specific training
+training:
+  total_timesteps: 2000000  # 2M steps for proper learning
+  n_envs: 12
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false  # DummyVecEnv + GPU is faster
+
+  # Standard learning rate
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+
+  # Moderate entropy for exploration
+  ent_coef: 0.01
+
+  # Network architecture
+  net_arch: [512, 512, 256]
+  use_lstm: false
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  # Evaluation settings
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
+
+# PRECISION CURRICULUM: 100m -> 50m over 2M steps
+# Start where we succeed, tighten to 50m
+curriculum:
+  enabled: true
+  initial_radius: 100.0   # Start where we can succeed
+  final_radius: 50.0      # Target precision
+  curriculum_steps: 2000000
+
+  # Progression:
+  # Step 0:        100m
+  # Step 500k:     87.5m
+  # Step 1000k:    75m
+  # Step 1500k:    62.5m
+  # Step 2000k:    50m
+
+# Environment
+environment:
+  max_steps: 2000

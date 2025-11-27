@@ -301,6 +301,8 @@ def train_specialist(
     config: Dict[str, Any],
     checkpoint_dir: Optional[Path] = None,
     steps_override: Optional[int] = None,
+    resume_path: Optional[str] = None,
+    vecnorm_path: Optional[str] = None,
 ) -> PPO:
     """
     Train a single specialist policy.
@@ -310,6 +312,8 @@ def train_specialist(
         config: Configuration dictionary
         checkpoint_dir: Directory to save checkpoints
         steps_override: Override total training steps
+        resume_path: Path to existing model to resume training from
+        vecnorm_path: Path to VecNormalize stats to load when resuming
 
     Returns:
         Trained PPO model
@@ -363,15 +367,24 @@ def train_specialist(
         envs = VecFrameStack(envs, n_stack=frame_stack)
 
     # Add observation normalization
-    logger.logger.info("Adding VecNormalize for observation normalization")
-    envs = VecNormalize(
-        envs,
-        norm_obs=True,
-        norm_reward=False,
-        clip_obs=10.0,
-        clip_reward=10.0,
-        gamma=config['training'].get('gamma', 0.99)
-    )
+    # If resuming, load VecNormalize stats; otherwise create fresh
+    if vecnorm_path:
+        logger.logger.info(f"Loading VecNormalize stats from: {vecnorm_path}")
+        # VecNormalize.load expects the unwrapped venv (before VecNormalize)
+        envs = VecNormalize.load(vecnorm_path, envs)
+        envs.training = True  # Continue updating stats
+        envs.norm_reward = False
+        logger.logger.info("VecNormalize stats loaded successfully")
+    else:
+        logger.logger.info("Adding VecNormalize for observation normalization")
+        envs = VecNormalize(
+            envs,
+            norm_obs=True,
+            norm_reward=False,
+            clip_obs=10.0,
+            clip_reward=10.0,
+            gamma=config['training'].get('gamma', 0.99)
+        )
 
     # Detect device
     device = get_device()
@@ -443,27 +456,49 @@ def train_specialist(
             activation_fn=torch.nn.ReLU
         )
 
-        logger.logger.info(f"Creating PPO model (MLP)")
-        model = PPO(
-            "MlpPolicy",
-            envs,
-            learning_rate=config['training'].get('learning_rate', 3e-4),
-            n_steps=config['training'].get('n_steps', 1024),
-            batch_size=config['training'].get('batch_size', 256),
-            n_epochs=config['training'].get('n_epochs', 10),
-            gamma=config['training'].get('gamma', 0.99),
-            gae_lambda=config['training'].get('gae_lambda', 0.95),
-            clip_range=config['training'].get('clip_range', 0.2),
-            ent_coef=config['training'].get('ent_coef', 0.02),
-            vf_coef=config['training'].get('vf_coef', 0.5),
-            max_grad_norm=config['training'].get('max_grad_norm', 0.5),
-            policy_kwargs=policy_kwargs,
-            tensorboard_log=str(logger.log_dir / "tensorboard"),
-            device=device,
-            verbose=1
-        )
+        # Check if resuming from checkpoint
+        if resume_path:
+            logger.logger.info(f"Loading PPO model from: {resume_path}")
+            model = PPO.load(
+                resume_path,
+                env=envs,
+                device=device,
+                # Update hyperparameters from config
+                learning_rate=config['training'].get('learning_rate', 3e-4),
+                n_steps=config['training'].get('n_steps', 1024),
+                batch_size=config['training'].get('batch_size', 256),
+                n_epochs=config['training'].get('n_epochs', 10),
+                gamma=config['training'].get('gamma', 0.99),
+                gae_lambda=config['training'].get('gae_lambda', 0.95),
+                clip_range=config['training'].get('clip_range', 0.2),
+                ent_coef=config['training'].get('ent_coef', 0.02),
+                vf_coef=config['training'].get('vf_coef', 0.5),
+                max_grad_norm=config['training'].get('max_grad_norm', 0.5),
+                tensorboard_log=str(logger.log_dir / "tensorboard"),
+            )
+            logger.logger.info(f"Loaded model for fine-tuning")
+        else:
+            logger.logger.info(f"Creating PPO model (MLP)")
+            model = PPO(
+                "MlpPolicy",
+                envs,
+                learning_rate=config['training'].get('learning_rate', 3e-4),
+                n_steps=config['training'].get('n_steps', 1024),
+                batch_size=config['training'].get('batch_size', 256),
+                n_epochs=config['training'].get('n_epochs', 10),
+                gamma=config['training'].get('gamma', 0.99),
+                gae_lambda=config['training'].get('gae_lambda', 0.95),
+                clip_range=config['training'].get('clip_range', 0.2),
+                ent_coef=config['training'].get('ent_coef', 0.02),
+                vf_coef=config['training'].get('vf_coef', 0.5),
+                max_grad_norm=config['training'].get('max_grad_norm', 0.5),
+                policy_kwargs=policy_kwargs,
+                tensorboard_log=str(logger.log_dir / "tensorboard"),
+                device=device,
+                verbose=1
+            )
 
-    logger.logger.info(f"Created PPO model with {n_envs} parallel environments")
+    logger.logger.info(f"{'Loaded' if resume_path else 'Created'} PPO model with {n_envs} parallel environments")
 
     # Setup checkpoint directory
     if checkpoint_dir is None:
@@ -493,14 +528,21 @@ def train_specialist(
     eval_env = DummyVecEnv([create_env(env_config)])
     if frame_stack > 1:
         eval_env = VecFrameStack(eval_env, n_stack=frame_stack)
-    eval_env = VecNormalize(
-        eval_env,
-        norm_obs=True,
-        norm_reward=False,
-        clip_obs=10.0,
-        training=False,
-        gamma=config['training'].get('gamma', 0.99)
-    )
+
+    # If resuming, load VecNormalize stats for eval env too; otherwise create fresh
+    if vecnorm_path:
+        eval_env = VecNormalize.load(vecnorm_path, eval_env)
+        eval_env.training = False  # Don't update stats during eval
+        eval_env.norm_reward = False
+    else:
+        eval_env = VecNormalize(
+            eval_env,
+            norm_obs=True,
+            norm_reward=False,
+            clip_obs=10.0,
+            training=False,
+            gamma=config['training'].get('gamma', 0.99)
+        )
 
     callbacks.append(EvalCallback(
         eval_env,
@@ -597,6 +639,20 @@ Examples:
         help="Override checkpoint directory"
     )
 
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help="Path to existing model to resume/fine-tune training from (model.zip)"
+    )
+
+    parser.add_argument(
+        "--vecnorm",
+        type=str,
+        default=None,
+        help="Path to VecNormalize stats to load (vec_normalize.pkl) - required when resuming"
+    )
+
     return parser.parse_args()
 
 
@@ -647,7 +703,9 @@ def main():
             agent=args.agent,
             config=config,
             checkpoint_dir=checkpoint_dir,
-            steps_override=args.steps
+            steps_override=args.steps,
+            resume_path=args.resume,
+            vecnorm_path=args.vecnorm,
         )
         print(f"\n✅ {args.agent} specialist training completed")
 
