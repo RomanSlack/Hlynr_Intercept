@@ -1,0 +1,63 @@
+# Terminal Specialist PRECISION Training v3
+# OBJECTIVE: Train terminal specialist for sub-50m precision using ZEM-based rewards
+#
+# KEY CHANGES from v2:
+# - Observation space expanded to 30D (added ZEM, time-to-go, LOS rates)
+# - Reward function now uses exponential precision bonus and ZEM shaping
+# - LSTM enabled for trajectory prediction and target tracking
+# - Network architecture optimized for precision guidance
+#
+# Literature basis:
+# - ZEM (Zero-Effort-Miss) from proportional navigation guidance
+# - LOS (Line-of-Sight) rates for collision course maintenance
+# - Recurrent networks for trajectory prediction
+
+# Inherit base settings
+parent_config: ../../config.yaml
+
+# Specialist-specific training
+training:
+  total_timesteps: 2000000  # 2M steps for proper learning
+  n_envs: 12
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false  # DummyVecEnv + GPU is faster
+
+  # Standard learning rate
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+
+  # Moderate entropy for exploration
+  ent_coef: 0.01
+
+  # LSTM ENABLED - critical for terminal phase trajectory prediction
+  # The terminal phase requires predicting where the target WILL BE
+  # This is fundamentally a sequence prediction problem
+  use_lstm: true
+  lstm_hidden_dim: 128
+
+  # Network architecture (smaller MLP since LSTM handles temporal)
+  net_arch: [256, 256]
+  use_layer_norm: true
+  use_orthogonal_init: true
+
+  # Frame stacking still useful even with LSTM
+  # Provides immediate velocity/acceleration info
+  frame_stack: 4
+
+  # Evaluation settings
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
+
+# PRECISION CURRICULUM: 100m -> 50m over 2M steps
+curriculum:
+  enabled: true
+  initial_radius: 100.0   # Start where we can succeed
+  final_radius: 50.0      # Target precision
+  curriculum_steps: 2000000
+
+# Environment
+environment:
+  max_steps: 2000

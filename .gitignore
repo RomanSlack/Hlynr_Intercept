@@ -113,5 +113,5 @@ dist/
 /research_checkpoints/
 
 results/
-/rl_system/benchmark_results/
-/rl_system/benchmark_results/
+benchmark_results/
+rl_system/benchmark_results/

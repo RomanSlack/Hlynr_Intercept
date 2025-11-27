@@ -1,8 +1,15 @@
 # HRL System Architecture Documentation
 
+**Version 2.0** - Updated with ZEM-based precision guidance
+
 ## Overview
 
 This document describes the Hierarchical Reinforcement Learning (HRL) system for missile interception. The system uses a two-level hierarchy: a **selector policy** that chooses which specialist to activate, and three **specialist policies** that execute phase-specific behaviors.
+
+### Version 2.0 Changes
+- **Observation space expanded from 26D to 30D** with ZEM, time-to-go, and LOS rates
+- **Reward function restructured** for precision-first with exponential scaling
+- **LSTM enabled for terminal specialist** for trajectory prediction
 
 ---
 
@@ -37,40 +44,49 @@ This document describes the Hierarchical Reinforcement Learning (HRL) system for
 
 ## 2. Observation Space
 
-### 2.1 Base Observations (26D)
+### 2.1 Base Observations (30D) - v2.0
 
 ```python
-observation = {
-    # Interceptor State (10D)
-    'position': [x, y, z],           # 3D position (meters)
-    'velocity': [vx, vy, vz],        # 3D velocity (m/s)
-    'orientation': [qw, qx, qy, qz], # Quaternion orientation
+# ONBOARD RADAR Components [0-16]
+[0-2]:   Relative position (Kalman-filtered, normalized by max_range)
+[3-5]:   Relative velocity (Kalman-filtered, normalized by max_velocity)
+[6-8]:   Interceptor velocity (internal sensors, perfect)
+[9-11]:  Interceptor orientation (Euler angles / pi)
+[12]:    Fuel fraction [0,1]
+[13]:    Time to intercept estimate (normalized)
+[14]:    Track quality (Kalman filter uncertainty + radar quality)
+[15]:    Closing rate (normalized by max_velocity)
+[16]:    Off-axis angle (dot product with forward vector)
 
-    # Target Relative (8D)
-    'relative_position': [rx, ry, rz],  # Vector to target
-    'relative_velocity': [rvx, rvy, rvz], # Closing velocity
-    'distance': scalar,                  # Distance to target (m)
-    'closing_rate': scalar,              # Rate of closure (m/s)
+# GROUND RADAR Components [17-25]
+[17-19]: Ground radar relative position
+[20-22]: Ground radar relative velocity
+[23]:    Ground radar quality
+[24]:    Data link quality (ground-to-interceptor)
+[25]:    Multi-radar fusion confidence
 
-    # Sensor State (4D)
-    'radar_lock': bool,               # Has radar lock
-    'radar_signal_strength': float,   # Signal quality [0,1]
-    'time_since_detection': float,    # Seconds since last detection
-    'target_aspect_angle': float,     # Angle to target
-
-    # Resources (4D)
-    'fuel': float,                    # Remaining fuel [0,1]
-    'time_remaining': float,          # Episode time budget
-    'altitude': float,                # Current altitude
-    'speed': float,                   # Current speed
-}
+# PRECISION GUIDANCE Components [26-29] - NEW in v2.0
+[26]:    ZEM (Zero-Effort-Miss) - predicted miss if no corrections
+         Normalized: 0 = perfect collision course, 1 = 1000m+ miss
+[27]:    Time-to-go - estimated seconds to closest approach
+         Normalized: 0 = imminent, 1 = 30+ seconds
+[28]:    LOS rate azimuth - line-of-sight rate horizontal (rad/s)
+         Normalized: ±1 = ±0.1 rad/s (~5.7 deg/s)
+[29]:    LOS rate elevation - line-of-sight rate vertical (rad/s)
+         Normalized: ±1 = ±0.1 rad/s
 ```
+
+**Why ZEM and LOS rates matter:**
+- ZEM is the core concept in proportional navigation - nullifying ZEM = perfect intercept
+- LOS rate of zero means collision course - the target appears stationary
+- Time-to-go enables commit/abort decisions
 
 ### 2.2 Frame Stacking
 
 Observations are frame-stacked (default: 4 frames) to provide temporal context:
-- **Input dimension**: 26D × 4 = **104D**
+- **Input dimension**: 30D × 4 = **120D**
 - Frame stacking helps with velocity estimation and trajectory prediction
+- Even with LSTM, frame stacking provides immediate acceleration information
 
 ### 2.3 Observation Normalization (VecNormalize)
 
@@ -100,56 +116,68 @@ actions = {
 
 ---
 
-## 4. Reward Structure
+## 4. Reward Structure (v2.0 - ZEM-based)
 
-### 4.1 Terminal Rewards (Episode End)
+### 4.1 Terminal Rewards - Exponential Precision (NEW)
+
+The reward function now uses **exponential scaling** to make precision the primary objective:
 
 ```python
 def compute_reward(intercepted, terminated, distance, ...):
     if intercepted:
-        # Base intercept reward
-        reward = 5000.0
+        # EXPONENTIAL precision reward (not linear!)
+        # Decay constant = 30m means closer hits are MUCH better
+        precision_reward = 5000.0 * exp(-distance / 30.0)
 
-        # Time bonus (faster = better)
-        time_bonus = (max_steps - steps) * 0.5
-        reward += time_bonus
+        # Reward breakdown:
+        #   0m hit:   5000 * exp(0)     = 5000 points
+        #   10m hit:  5000 * exp(-0.33) = 3594 points
+        #   30m hit:  5000 * exp(-1)    = 1839 points
+        #   50m hit:  5000 * exp(-1.67) = 946 points
+        #   100m hit: 5000 * exp(-3.33) = 178 points
 
-        # PRECISION BONUS (NEW): Closer hits get more reward
-        # At 100m threshold: 10m hit = +900, 50m hit = +500, 99m hit = +10
-        intercept_radius = get_current_intercept_radius()
-        precision_ratio = max(0, 1.0 - distance / intercept_radius)
-        precision_bonus = precision_ratio * 1000.0
-        reward += precision_bonus
+        # Small time bonus (10% of total, secondary to precision)
+        time_bonus = (max_steps - steps) * 0.1
 
-        return reward
+        return precision_reward + time_bonus
 
     if terminated:  # Failure
-        # Distance penalty (closer misses penalized less)
-        distance_penalty = -distance * 0.5  # -0.5 per meter
-        reward = max(distance_penalty, -2000.0)  # Cap at -2000
-
-        # Additional failure mode penalties
-        if missile_hit_target: reward -= 1000
-        elif crashed: reward -= 500
-        elif out_of_fuel: reward -= 300
-
-        return reward
+        # Exponential penalty (close misses much better than far)
+        miss_penalty = -5000.0 * (1.0 - exp(-distance / 200.0))
+        # Additional failure mode penalties...
+        return miss_penalty
 ```
 
-### 4.2 Per-Step Rewards (Shaping)
+### 4.2 Per-Step Rewards - ZEM Shaping (NEW)
+
+The key insight from guidance literature: **minimize ZEM, not just distance**.
 
 ```python
-# Distance reduction (gradient signal)
-if distance < 500m:
-    reward += distance_delta * 1.0  # Close range
-else:
-    reward += distance_delta * 0.5  # Far range
+# ZEM reduction is the PRIMARY shaping signal
+zem_delta = prev_zem - current_zem
+reward += zem_delta * 0.1  # 10m ZEM reduction = 1 point
 
-# Time penalty
-reward -= 0.5  # Discourage long episodes
+# Quadratic ZEM penalty (gradient toward collision course)
+reward -= (current_zem / 1000.0) ** 2 * 0.5
+
+# Distance reduction (secondary to ZEM)
+if distance < 500m:
+    reward += distance_delta * 0.5
+else:
+    reward += distance_delta * 0.2
+
+# Small time penalty (don't discourage precision adjustments)
+reward -= 0.1
 ```
 
-### 4.3 Intercept Radius (Success Threshold)
+### 4.3 Why ZEM-based Rewards Work
+
+1. **ZEM = predicted miss if no corrections** - agents learn to nullify it
+2. **LOS rate of zero = collision course** - ZEM implicitly captures this
+3. **Exponential precision scaling** prevents "good enough" optimization
+4. **Time penalty is small** so agents can make precision adjustments
+
+### 4.4 Intercept Radius (Success Threshold)
 
 The **intercept_radius** determines what distance counts as a successful intercept:
 - Default: **200m** (in config.yaml)
