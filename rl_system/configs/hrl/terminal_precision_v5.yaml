@@ -1,0 +1,78 @@
+# Terminal Specialist PRECISION Training v5
+# OBJECTIVE: Train terminal specialist for sub-30m precision (realistic fragmentation warhead)
+#
+# KEY CHANGES from v4:
+# - PRECISION MODE ENABLED: Episode doesn't terminate on intercept threshold
+#   Instead, episode continues and model learns reward based on MINIMUM distance achieved
+#   This fixes the "clustering at threshold" problem where models learn to just barely hit 100m
+#
+# The fundamental issue with v4:
+# - When distance < intercept_radius, episode immediately terminates with "success"
+# - Model learns "get to 99m" earns same reward as "get to 10m" (both are "intercepted")
+# - Now: Episode continues after threshold, model sees exponential reward difference
+#
+# Real-world context:
+# - Hit-to-kill (kinetic): 0-2m needed
+# - Proximity fuze fragmentation: 5-30m needed
+# - Blast fragmentation: 10-50m needed
+# We're targeting fragmentation-class precision (~20-30m)
+
+# Inherit base settings
+parent_config: ../../config.yaml
+
+# Specialist-specific training
+training:
+  total_timesteps: 4000000  # 4M steps for precision refinement
+  n_envs: 12
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false  # DummyVecEnv + GPU is faster
+
+  # Standard learning rate
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+
+  # Moderate entropy for exploration
+  ent_coef: 0.01
+
+  # LSTM ENABLED - critical for terminal phase trajectory prediction
+  use_lstm: true
+  lstm_hidden_dim: 128
+
+  # Network architecture
+  net_arch: [256, 256]
+  use_layer_norm: true
+  use_orthogonal_init: true
+
+  # Frame stacking
+  frame_stack: 4
+
+  # Evaluation settings
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 100000
+
+# PRECISION CURRICULUM with PRECISION MODE
+curriculum:
+  enabled: true
+  initial_radius: 50.0    # Start threshold
+  final_radius: 20.0      # Final threshold for "success" classification
+  curriculum_steps: 4000000
+
+  # PRECISION MODE: Key fix for sub-threshold precision
+  # When true: Episode continues after crossing threshold, reward based on minimum distance
+  # When false: Episode terminates immediately on threshold crossing (old behavior)
+  precision_mode: true
+
+  # Progression:
+  # Step 0:        50m threshold
+  # Step 1M:       42.5m threshold
+  # Step 2M:       35m threshold
+  # Step 3M:       27.5m threshold
+  # Step 4M:       20m threshold
+  # But with precision_mode, model learns to beat the threshold, not just hit it!
+
+# Environment
+environment:
+  max_steps: 2000

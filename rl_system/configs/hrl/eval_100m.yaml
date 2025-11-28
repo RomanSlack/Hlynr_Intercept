@@ -1,0 +1,13 @@
+# Evaluation config with 100m intercept radius
+# For testing models that were trained with 100m threshold clustering bug
+
+parent_config: ../config.yaml
+
+curriculum:
+  enabled: true
+  initial_radius: 100.0
+  final_radius: 100.0  # Use 100m for both so we always get 100m
+  curriculum_steps: 1000000
+
+environment:
+  max_steps: 2000

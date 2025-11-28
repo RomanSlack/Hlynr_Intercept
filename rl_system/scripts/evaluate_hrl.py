@@ -105,9 +105,15 @@ class HRLEvaluator:
         env_config['physics_enhancements'] = config.get('physics_enhancements', {})
         base_env = InterceptEnvironment(env_config)
 
+        # CRITICAL FIX: Set training step count to max so curriculum uses FINAL radius
+        # During evaluation, we want to test with the tightest radius the model was trained on
+        curriculum_config = config.get('curriculum', {})
+        curriculum_steps = curriculum_config.get('curriculum_steps', 1000000)
+        base_env.set_training_step_count(curriculum_steps)  # Use final curriculum radius
+
         # Log the actual intercept radius being used
         intercept_radius = base_env.get_current_intercept_radius()
-        print(f"Intercept radius for evaluation: {intercept_radius:.1f}m")
+        print(f"Intercept radius for evaluation: {intercept_radius:.1f}m (final curriculum radius)")
 
         # CRITICAL FIX: Apply frame-stacking to match specialist training
         # Specialists were trained with 4-frame stacking (26D -> 104D observations)
