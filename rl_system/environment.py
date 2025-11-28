@@ -115,13 +115,6 @@ class InterceptEnvironment(gym.Env):
         self.curriculum_steps = self.curriculum_config.get('curriculum_steps', 5000000)  # Over 5M steps
         self.training_step_count = 0  # Track global training steps for curriculum
 
-        # PRECISION TRAINING MODE: Don't terminate on intercept, track minimum distance
-        # This allows the model to learn the reward difference between 99m and 10m intercepts
-        # Instead of stopping at threshold, continue until natural termination (missile lands, etc.)
-        self.precision_mode = self.curriculum_config.get('precision_mode', False)
-        self._intercept_achieved = False  # Track if we've crossed threshold
-        self._min_distance_achieved = float('inf')  # Track best distance this episode
-
         # Radar curriculum learning: Progressive radar difficulty
         self.radar_curriculum_config = self.curriculum_config.get('radar_curriculum', {})
         self.use_radar_curriculum = self.radar_curriculum_config.get('enabled', True)
@@ -166,14 +159,12 @@ class InterceptEnvironment(gym.Env):
             self.observation_generator.measurement_noise_level = self.radar_curriculum_config.get('initial_noise_level', 0.0)
         self.safety_clamp = SafetyClamp(SafetyLimits())
 
-        # Spaces - updated to 30D for precision guidance support (v2)
-        # Added ZEM, time-to-go, and LOS rates for terminal guidance
-        # [26]: ZEM (Zero-Effort-Miss), [27]: time-to-go, [28-29]: LOS rates
+        # Spaces - updated to 26D for ground radar support
         # NOTE: Observation space bounds extended to [-2.0, 1.0] to accommodate sentinel value
         # -2.0 = NO_DETECTION_SENTINEL (used when radar loses lock)
         # [-1.0, 1.0] = Normal observation range (radar measurements, internal state)
         self.observation_space = spaces.Box(
-            low=-2.0, high=1.0, shape=(30,), dtype=np.float32
+            low=-2.0, high=1.0, shape=(26,), dtype=np.float32
         )
         self.action_space = spaces.Box(
             low=-1.0, high=1.0, shape=(6,), dtype=np.float32
@@ -348,10 +339,6 @@ class InterceptEnvironment(gym.Env):
         self.intercepted_missile_indices = []
         self.missile_states = []
         self.missile_min_distances = []
-
-        # Reset precision mode tracking
-        self._intercept_achieved = False
-        self._min_distance_achieved = float('inf')
 
         # Initialize missile state(s)
         mis_pos_min, mis_pos_max = self.missile_spawn_range['position']
@@ -605,15 +592,7 @@ class InterceptEnvironment(gym.Env):
                 self.missile_state['position'] - self.interceptor_state['position']
             )
             intercepted = distance < current_radius
-
-            # Track minimum distance achieved (for precision mode and logging)
-            if distance < self._min_distance_achieved:
-                self._min_distance_achieved = distance
-
-            # Track if intercept threshold was crossed
-            if intercepted and not self._intercept_achieved:
-                self._intercept_achieved = True
-
+        
         # Check termination conditions
         terminated = False
         truncated = False
@@ -642,10 +621,8 @@ class InterceptEnvironment(gym.Env):
             if all_missiles_inactive:
                 terminated = True
         else:
-            # Single missile mode
-            # PRECISION MODE: Don't terminate on intercept - let episode continue to find true minimum
-            # This allows the model to learn the reward difference between 99m and 10m intercepts
-            if intercepted and not self.precision_mode:
+            # Single missile mode (original behavior)
+            if intercepted:
                 terminated = True
             elif self.missile_state['position'][2] <= 0:  # Missile hit ground
                 # Check if missile hit near the target (mission failure)
@@ -703,8 +680,6 @@ class InterceptEnvironment(gym.Env):
         # Info dict (detection info for logging only, not passed to policy observations)
         info = {
             'distance': distance,
-            'min_distance': self._min_distance_achieved,  # Best distance achieved this episode
-            'intercept_achieved': self._intercept_achieved,  # Whether threshold was crossed
             'intercepted': intercepted,
             'missile_hit_target': missile_hit_target,
             'fuel_remaining': self.interceptor_state['fuel'],
@@ -722,8 +697,7 @@ class InterceptEnvironment(gym.Env):
             'volley_size': self.volley_size if self.volley_mode else 1,
             'missiles_intercepted': len(self.intercepted_missile_indices) if self.volley_mode else (1 if intercepted else 0),
             'missiles_remaining': sum(1 for ms in self.missile_states if ms['active']) if self.volley_mode else (0 if intercepted else 1),
-            'missile_min_distances': self.missile_min_distances.copy() if self.volley_mode else [distance],
-            'precision_mode': self.precision_mode,
+            'missile_min_distances': self.missile_min_distances.copy() if self.volley_mode else [distance]
         }
         
         return obs, reward, terminated, truncated, info
@@ -901,51 +875,35 @@ class InterceptEnvironment(gym.Env):
     def _calculate_reward(self, distance: float, intercepted: bool, terminated: bool,
                          missile_hit_target: bool = False) -> float:
         """
-        PRECISION-FIRST reward function based on ZEM (Zero-Effort-Miss).
+        FIXED reward function that prevents reward hacking.
 
-        Key changes from v1 (based on RL guidance literature):
-        1. EXPONENTIAL precision reward - closer hits get exponentially more reward
-        2. ZEM-based shaping - reward reducing predicted miss, not just current distance
-        3. LOS rate awareness - ZEM implicitly captures collision course
-        4. Smaller time penalty to allow precision adjustments
+        Key changes from previous version:
+        1. MASSIVE terminal reward (+5000) to dwarf any per-step accumulation
+        2. MINIMAL intermediate rewards (just for gradient, not exploitation)
+        3. Only distance reduction rewarded (no radar lock farming)
+        4. Failure penalty proportional to final distance (close misses penalized less)
 
-        Literature basis:
-        - ZEM reward from proportional navigation guidance theory
-        - Exponential precision scaling from missile guidance research
-        - "Nullifying ZEM results in perfect interception with zero miss distance"
-
-        Reward breakdown (at 30m decay constant):
-        - 0m intercept:   5000 * exp(0) = 5000 points
-        - 10m intercept:  5000 * exp(-0.33) = 3594 points
-        - 30m intercept:  5000 * exp(-1) = 1839 points
-        - 50m intercept:  5000 * exp(-1.67) = 946 points
-        - 100m intercept: 5000 * exp(-3.33) = 178 points
+        This ensures: intercept_reward >> any_per_step_accumulation * max_episode_length
         """
         reward = 0.0
 
         # === TERMINAL REWARDS (episode end only) ===
+        if intercepted:
+            # MASSIVE success reward to make interception the dominant objective
+            # This must be much larger than any accumulated per-step rewards
+            reward = 5000.0
 
-        # In precision mode, use minimum distance achieved for terminal reward
-        # This is crucial: the model sees reward based on its BEST approach, not final distance
-        reward_distance = self._min_distance_achieved if self.precision_mode else distance
-
-        if intercepted or (terminated and self._intercept_achieved):
-            # EXPONENTIAL precision reward - makes closer hits exponentially better
-            # This strongly incentivizes precision over "good enough"
-            # In precision mode, this uses the minimum distance achieved, not current distance
-            precision_reward = 5000.0 * np.exp(-reward_distance / 30.0)
-
-            # Small time bonus (10% weight) - secondary to precision
-            time_bonus = (self.max_steps - self.steps) * 0.1
-            reward = precision_reward + time_bonus
+            # Large time bonus for quick intercept (hundreds of points, not thousands)
+            time_bonus = (self.max_steps - self.steps) * 0.5
+            reward += time_bonus
 
             return reward
 
         if terminated:
-            # Failure penalty based on closest approach distance
-            # Exponential penalty makes close misses much better than far misses
-            miss_penalty = -5000.0 * (1.0 - np.exp(-reward_distance / 200.0))
-            reward = max(miss_penalty, -5000.0)
+            # Failure penalty proportional to how close we got (encourage "close misses")
+            # This provides gradient even in failure: 200m miss better than 2000m miss
+            distance_penalty = -distance * 0.5  # Lose 0.5 points per meter missed
+            reward = max(distance_penalty, -2000.0)  # Cap at -2000 for very far misses
 
             # Additional penalties for specific failure modes
             if missile_hit_target:
@@ -957,40 +915,27 @@ class InterceptEnvironment(gym.Env):
 
             return reward
 
-        # === PER-STEP REWARDS (ZEM-based shaping) ===
+        # === PER-STEP REWARDS (VERY MINIMAL - just for gradient) ===
 
-        # Get ZEM from observation generator (computed in core.py)
-        current_zem = getattr(self.observation_generator, '_last_zem', None)
-        prev_zem = getattr(self, '_prev_zem', current_zem)
-
-        if current_zem is not None and prev_zem is not None:
-            # ZEM reduction reward - this is the PRIMARY shaping signal
-            # Reducing predicted miss distance is more important than current distance
-            zem_delta = prev_zem - current_zem
-
-            # Scale: 10m ZEM reduction = 1.0 reward (meaningful but bounded)
-            reward += zem_delta * 0.1
-
-            # Quadratic ZEM penalty - small penalty for large ZEM
-            # Provides gradient toward collision course
-            reward -= (current_zem / 1000.0) ** 2 * 0.5
-
-        # Distance-based shaping (secondary to ZEM)
+        # Distance reduction provides gradient, but must be MUCH smaller than terminal
         prev_distance = getattr(self, '_prev_distance', distance)
         distance_delta = prev_distance - distance
 
-        # Small distance reduction bonus (less important than ZEM)
+        # CRITICAL: Per-step rewards must be tiny to prevent "approach farming"
+        # Max possible per-step accumulation (~2000m reduction × 0.5) = 1000 points
+        # This is much less than intercept reward (5000 points)
         if distance < 500.0:
-            reward += distance_delta * 0.5  # Close range
+            # Close range: stronger gradient for terminal guidance
+            reward += distance_delta * 1.0  # REDUCED from 20.0
         else:
-            reward += distance_delta * 0.2  # Far range
+            # Far range: weak gradient for approach
+            reward += distance_delta * 0.5  # REDUCED from 5.0
 
-        # Small time penalty - but don't discourage precision adjustments
-        reward -= 0.1
+        # Time penalty
+        reward -= 0.5  # INCREASED from 0.1 to discourage long episodes
 
-        # Store values for next step
+        # Store distance for next step
         self._prev_distance = distance
-        self._prev_zem = current_zem
 
         return reward
     

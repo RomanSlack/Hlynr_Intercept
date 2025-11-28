@@ -673,10 +673,7 @@ class Radar26DObservation:
                 datalink_quality: float, fusion_confidence: float,
                 noise_level: float = 0.05) -> np.ndarray:
         """
-        Generate 30D observation vector based on radar detections from both sensors.
-
-        NEW in v2: Added ZEM (Zero-Effort-Miss), time-to-go, and LOS rates for
-        precision terminal guidance. These are critical for proportional navigation.
+        Generate 26D observation vector based on radar detections from both sensors.
 
         ONBOARD RADAR Components:
         [0-2]: Relative position (onboard radar-detected, with noise)
@@ -695,14 +692,8 @@ class Radar26DObservation:
         [23]: Ground radar quality/confidence
         [24]: Data link quality (ground-to-interceptor communication)
         [25]: Multi-radar fusion confidence
-
-        PRECISION GUIDANCE Components (NEW):
-        [26]: Zero-Effort-Miss (ZEM) - predicted miss distance if no corrections
-        [27]: Time-to-go (t_go) - estimated time to closest approach
-        [28]: LOS rate azimuth - line-of-sight rate in horizontal plane (rad/s)
-        [29]: LOS rate elevation - line-of-sight rate in vertical plane (rad/s)
         """
-        obs = np.zeros(30, dtype=np.float32)
+        obs = np.zeros(26, dtype=np.float32)
 
         # Extract interceptor's internal state (perfect self-knowledge)
         int_pos = np.array(interceptor['position'], dtype=np.float32)
@@ -847,70 +838,6 @@ class Radar26DObservation:
 
         # [25] Multi-radar fusion confidence
         obs[25] = fusion_confidence
-
-        # === PRECISION GUIDANCE COMPONENTS [26-29] ===
-        # These are critical for terminal guidance and proportional navigation
-        # ZEM, time-to-go, and LOS rates enable the policy to predict intercept geometry
-
-        if measurement_available or self.kalman_filter.initialized:
-            # Use the filtered relative position/velocity for precision guidance
-            rel_pos = filtered_rel_pos
-            rel_vel = filtered_rel_vel
-            range_to_target = np.linalg.norm(rel_pos)
-            closing_speed = -np.dot(rel_pos, rel_vel) / (range_to_target + 1e-6)
-
-            # [26] Zero-Effort-Miss (ZEM)
-            # ZEM = predicted miss distance if no further corrections are made
-            # Formula: ZEM = |r + v * t_go| where t_go = |r| / closing_speed
-            if closing_speed > 10.0:  # Only valid when closing
-                t_go = range_to_target / closing_speed
-                zem_vector = rel_pos + rel_vel * t_go
-                zem = np.linalg.norm(zem_vector)
-                # Normalize: 0 = perfect collision course, 1 = 1000m miss
-                obs[26] = np.clip(zem / 1000.0, 0.0, 1.0)
-
-                # [27] Time-to-go (seconds until closest approach)
-                # Normalize: 0 = imminent, 1 = 30+ seconds
-                obs[27] = np.clip(t_go / 30.0, 0.0, 1.0)
-            else:
-                # Not closing or very slow - set to max values
-                obs[26] = 1.0  # Max ZEM (not on collision course)
-                obs[27] = 1.0  # Max time-to-go
-
-            # [28-29] Line-of-Sight (LOS) rates
-            # LOS rate is the key signal in proportional navigation
-            # A zero LOS rate means we're on a collision course
-            if range_to_target > 1e-6:
-                # LOS rate = (v_rel × r) / |r|^2
-                # This gives the angular rate of the LOS vector
-                los_rate_vec = np.cross(rel_vel, rel_pos) / (range_to_target ** 2 + 1e-6)
-
-                # Decompose into azimuth (horizontal) and elevation (vertical)
-                # Azimuth: rotation around Z axis (up)
-                los_rate_az = los_rate_vec[2]  # rad/s
-
-                # Elevation: rotation in the vertical plane
-                horiz_dist = np.sqrt(rel_pos[0]**2 + rel_pos[1]**2) + 1e-6
-                los_rate_el = (rel_pos[0] * los_rate_vec[1] - rel_pos[1] * los_rate_vec[0]) / horiz_dist
-
-                # Normalize: ±1 corresponds to ±0.1 rad/s (~5.7 deg/s)
-                obs[28] = np.clip(los_rate_az / 0.1, -1.0, 1.0)
-                obs[29] = np.clip(los_rate_el / 0.1, -1.0, 1.0)
-            else:
-                obs[28] = 0.0
-                obs[29] = 0.0
-
-            # Store ZEM for reward calculation
-            self._last_zem = obs[26] * 1000.0  # Store in meters
-            self._last_t_go = obs[27] * 30.0   # Store in seconds
-        else:
-            # No valid tracking - sentinel values
-            obs[26] = 1.0  # Max ZEM
-            obs[27] = 1.0  # Max time-to-go
-            obs[28] = 0.0  # No LOS rate
-            obs[29] = 0.0
-            self._last_zem = None
-            self._last_t_go = None
 
         return obs
 
