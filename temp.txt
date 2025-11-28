@@ -1,6 +1,6 @@
-python scripts/evaluate_hrl.py \
-    --selector checkpoints/hrl/selector/20251126_113539_500000steps/best/best_model.zip \
-    --search checkpoints/hrl/specialists/search/20251125_174448_500000steps/final/model.zip \
-    --track checkpoints/hrl/specialists/track/20251125_175356_500000steps/final/model.zip \
-    --terminal checkpoints/hrl/specialists/terminal/20251126_224936_2000000steps/best/best_model.zip \
-    --episodes 50 --seed 44 --config config.yaml
+Working pretty well HRL:
+
+python scripts/evaluate_hrl.py       --selector checkpoints/hrl/selector/20251126_113539_500000steps/final/model.zip       --search checkpoints/hrl/specialists/search/20251125_174448_500000steps/final/model.zip       --track checkpoints/hrl/specialists/track/20251125_175356_500000steps/final/model.zip       --terminal checkpoints/hrl/specialists/terminal/20251127_123710_2000000steps/final/model.zip       --episodes 50 --seed 44
+
+
+Rest:
