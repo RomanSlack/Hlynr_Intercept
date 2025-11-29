@@ -325,8 +325,16 @@ class HRLEvaluator:
 
             prev_option = current_option
 
-        # Determine success based on environment's actual intercept radius
-        success = info.get('intercepted', False) if info else False
+        # Determine success based on minimum distance achieved
+        # Check proximity fuze trigger first (most accurate)
+        if info.get('proximity_fuze_triggered', False):
+            success = True
+        elif info.get('intercepted', False):
+            success = True
+        else:
+            # Fallback: check if min_distance < proximity_kill_radius (default 20m)
+            kill_radius = info.get('proximity_kill_radius', 20.0)
+            success = min_distance < kill_radius
         outcome = "intercepted" if success else "failed"
 
         # Add summary metrics to episode_data (same as PPO)

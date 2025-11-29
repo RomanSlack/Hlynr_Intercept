@@ -122,6 +122,12 @@ class InterceptEnvironment(gym.Env):
         self._episode_min_distance = float('inf')  # Track minimum distance achieved in episode
         self._crossed_threshold = False  # Track if we've crossed the intercept threshold
 
+        # Proximity fuze termination: Terminate episode when min distance drops below kill radius
+        # This matches real missile defense behavior where proximity fuze detonates at closest approach
+        # Success is achieving min_distance < proximity_kill_radius, not final_distance
+        self.proximity_fuze_enabled = self.config.get('proximity_fuze_enabled', False)
+        self.proximity_kill_radius = self.config.get('proximity_kill_radius', 20.0)  # meters
+
         # Radar curriculum learning: Progressive radar difficulty
         self.radar_curriculum_config = self.curriculum_config.get('radar_curriculum', {})
         self.use_radar_curriculum = self.radar_curriculum_config.get('enabled', True)
@@ -355,12 +361,39 @@ class InterceptEnvironment(gym.Env):
         vel_mag_min = np.linalg.norm(mis_vel_min)
         vel_mag_max = np.linalg.norm(mis_vel_max)
 
+        # Check for spherical spawn mode (full 360° coverage)
+        spawn_mode = self.missile_spawn_range.get('position_mode', 'box')
+
         # Spawn missiles (single or volley)
         num_missiles = self.volley_size if self.volley_mode else 1
 
         for i in range(num_missiles):
-            missile_pos = np.random.uniform(mis_pos_min, mis_pos_max).astype(np.float32)
-            desired_speed = np.random.uniform(vel_mag_min, vel_mag_max)
+            if spawn_mode == 'spherical':
+                # Spherical spawn: full 360° azimuth, configurable elevation
+                radius_min = self.missile_spawn_range.get('radius_min', 800.0)
+                radius_max = self.missile_spawn_range.get('radius_max', 1500.0)
+                azimuth_range = self.missile_spawn_range.get('azimuth_range', [0, 360])
+                elevation_range = self.missile_spawn_range.get('elevation_range', [10, 60])
+
+                # Random radius, azimuth, elevation
+                radius = np.random.uniform(radius_min, radius_max)
+                azimuth = np.random.uniform(azimuth_range[0], azimuth_range[1]) * np.pi / 180.0
+                elevation = np.random.uniform(elevation_range[0], elevation_range[1]) * np.pi / 180.0
+
+                # Convert spherical to Cartesian (relative to target)
+                x = radius * np.cos(elevation) * np.cos(azimuth)
+                y = radius * np.cos(elevation) * np.sin(azimuth)
+                z = radius * np.sin(elevation)
+                missile_pos = (self.target_position + np.array([x, y, z])).astype(np.float32)
+            else:
+                # Box spawn (original behavior)
+                missile_pos = np.random.uniform(mis_pos_min, mis_pos_max).astype(np.float32)
+
+            # Get velocity settings
+            velocity_mode = self.missile_spawn_range.get('velocity_mode', 'toward_target')
+            speed_min = self.missile_spawn_range.get('speed_min', vel_mag_min)
+            speed_max = self.missile_spawn_range.get('speed_max', vel_mag_max)
+            desired_speed = np.random.uniform(speed_min, speed_max)
 
             # Calculate direction from missile spawn to target
             to_target = self.target_position - missile_pos
@@ -582,7 +615,9 @@ class InterceptEnvironment(gym.Env):
                     self.missile_min_distances[i] = dist
 
                 # Check if this missile was intercepted
-                if dist < current_radius and i not in self.intercepted_missile_indices:
+                # When proximity fuze is enabled, use proximity_kill_radius instead of curriculum radius
+                intercept_threshold = self.proximity_kill_radius if self.proximity_fuze_enabled else current_radius
+                if dist < intercept_threshold and i not in self.intercepted_missile_indices:
                     intercepted = True
                     self.intercepted_missile_indices.append(i)
                     missile_state['active'] = False  # Mark as neutralized
@@ -602,7 +637,12 @@ class InterceptEnvironment(gym.Env):
             distance = np.linalg.norm(
                 self.missile_state['position'] - self.interceptor_state['position']
             )
-            intercepted = distance < current_radius
+            # When proximity fuze is enabled, use proximity_kill_radius instead of curriculum radius
+            # This allows the model to fly past the curriculum threshold and trigger proximity fuze
+            if self.proximity_fuze_enabled:
+                intercepted = distance < self.proximity_kill_radius
+            else:
+                intercepted = distance < current_radius
 
         # Track minimum distance achieved in episode (for precision_mode rewards)
         self._episode_min_distance = min(self._episode_min_distance, distance)
@@ -610,6 +650,13 @@ class InterceptEnvironment(gym.Env):
         # Track threshold crossing (for precision_mode)
         if intercepted and not self._crossed_threshold:
             self._crossed_threshold = True
+
+        # PROXIMITY FUZE TERMINATION: If enabled, terminate when min distance < kill radius
+        # This matches real missile defense behavior where proximity fuze detonates at closest approach
+        proximity_fuze_triggered = False
+        if self.proximity_fuze_enabled and self._episode_min_distance < self.proximity_kill_radius:
+            proximity_fuze_triggered = True
+            intercepted = True  # Count as successful intercept
 
         # Check termination conditions
         terminated = False
@@ -638,6 +685,9 @@ class InterceptEnvironment(gym.Env):
             # Episode ends when all missiles are neutralized (intercepted or hit ground)
             if all_missiles_inactive:
                 terminated = True
+            # Proximity fuze termination in volley mode
+            elif proximity_fuze_triggered:
+                terminated = True
         else:
             # Single missile mode termination logic
             # PRECISION MODE: Don't terminate on threshold crossing, continue to learn sub-threshold precision
@@ -660,6 +710,9 @@ class InterceptEnvironment(gym.Env):
             else:
                 # Standard mode (original behavior): terminate on intercept
                 if intercepted:
+                    terminated = True
+                # Proximity fuze termination (terminates when min_distance < kill_radius)
+                elif proximity_fuze_triggered:
                     terminated = True
                 elif self.missile_state['position'][2] <= 0:  # Missile hit ground
                     # Check if missile hit near the target (mission failure)
@@ -739,6 +792,10 @@ class InterceptEnvironment(gym.Env):
             'min_distance': self._episode_min_distance,
             'crossed_threshold': self._crossed_threshold,
             'precision_mode': self.precision_mode,
+            # Proximity fuze tracking
+            'proximity_fuze_enabled': self.proximity_fuze_enabled,
+            'proximity_fuze_triggered': proximity_fuze_triggered,
+            'proximity_kill_radius': self.proximity_kill_radius,
         }
         
         return obs, reward, terminated, truncated, info

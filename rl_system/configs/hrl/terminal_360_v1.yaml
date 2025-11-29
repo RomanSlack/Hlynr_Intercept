@@ -1,0 +1,71 @@
+# Terminal Specialist - Full 360° Direction Training v1
+#
+# OBJECTIVE: Train terminal specialist to intercept from ALL approach directions
+# Previous training only used missiles from positive X,Y,Z octant (12.5% of directions)
+#
+# KEY CHANGES:
+# 1. Spherical spawn mode for full 360° azimuth coverage
+# 2. Proximity fuze termination for realistic success criteria
+# 3. Resumes from best existing checkpoint
+#
+# RESUME FROM: Working terminal checkpoint with sub-100m precision
+
+parent_config: ../../config.yaml
+
+training:
+  total_timesteps: 2000000  # 2M steps for learning new directions
+  n_envs: 12
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false
+
+  # Lower learning rate for fine-tuning from existing checkpoint
+  learning_rate: 0.0001
+  gamma: 0.99
+  gae_lambda: 0.95
+
+  # Moderate entropy for exploring new directions
+  ent_coef: 0.008
+
+  # Match working model architecture
+  net_arch: [512, 512, 256]
+  use_lstm: false
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  # Frequent eval to monitor generalization
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
+
+environment:
+  max_steps: 2000
+
+  # PROXIMITY FUZE: Enable realistic termination
+  proximity_fuze_enabled: true
+  proximity_kill_radius: 20.0  # meters
+
+  # SPHERICAL SPAWN: Full 360° coverage
+  missile_spawn:
+    position_mode: "spherical"
+    radius_min: 800.0
+    radius_max: 1500.0
+    azimuth_range: [0, 360]      # Full horizontal coverage
+    elevation_range: [15, 60]    # Above horizon, realistic ballistic
+    velocity_mode: "toward_target"
+    speed_min: 80.0
+    speed_max: 150.0
+    # Keep fallback box for compatibility
+    position: [[800, 800, 800], [1500, 1500, 1500]]
+    velocity: [[-60, -60, -30], [-100, -100, -50]]
+
+# Curriculum with precision mode for sub-threshold learning
+curriculum:
+  enabled: true
+  initial_radius: 100.0
+  final_radius: 30.0
+  curriculum_steps: 2000000
+
+  # Enable precision mode for learning sub-threshold precision
+  precision_mode: true
