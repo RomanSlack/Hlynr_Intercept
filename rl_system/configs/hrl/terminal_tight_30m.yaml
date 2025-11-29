@@ -1,0 +1,38 @@
+# Terminal Specialist - Fine-tune to 30m
+# SHORT training to avoid catastrophic forgetting
+# Resume from the 50m model that achieved 48.97m precision
+
+parent_config: ../../config.yaml
+
+training:
+  total_timesteps: 1000000  # Only 1M steps - avoid forgetting!
+  n_envs: 12
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false
+
+  # Slightly lower learning rate for fine-tuning
+  learning_rate: 0.0001  # Reduced from 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.005  # Lower entropy for exploitation
+
+  net_arch: [512, 512, 256]
+  use_lstm: false
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 100000
+
+# Fixed 30m radius
+curriculum:
+  enabled: true
+  initial_radius: 30.0
+  final_radius: 30.0
+  curriculum_steps: 1
+
+environment:
+  max_steps: 2000
