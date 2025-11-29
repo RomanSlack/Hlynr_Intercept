@@ -1,0 +1,43 @@
+# Terminal Specialist Training - Fixed 50m Intercept Radius
+#
+# APPROACH: Instead of curriculum (which causes threshold clustering),
+# train with a FIXED tight radius from the start.
+#
+# The model must learn to get within 50m to succeed - no easy 100m threshold.
+# This is harder but produces a model that actually achieves precision.
+
+parent_config: ../../config.yaml
+
+training:
+  total_timesteps: 2000000  # 2M steps
+  n_envs: 12
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false
+
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.01
+
+  # Standard MLP (no LSTM needed for now)
+  net_arch: [512, 512, 256]
+  use_lstm: false
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
+
+# FIXED 50m radius - no curriculum progression
+# The model MUST learn to get within 50m to succeed
+curriculum:
+  enabled: true
+  initial_radius: 50.0   # Start at 50m
+  final_radius: 50.0     # Stay at 50m (no progression)
+  curriculum_steps: 1    # Doesn't matter since initial=final
+
+environment:
+  max_steps: 2000
