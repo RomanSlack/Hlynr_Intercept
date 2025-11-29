@@ -1,0 +1,60 @@
+# Terminal Specialist - Precision Training v6
+#
+# OBJECTIVE: Train terminal specialist for sub-30m precision
+# USING THE SAME SPAWN CONFIG AS BASE (800-1500m) so it works with existing HRL
+#
+# KEY CHANGE: precision_mode=true allows learning beyond threshold
+# Without precision_mode: "get to 99m" = "get to 5m" (both terminate as success)
+# With precision_mode: Episode continues, exponential rewards for getting closer
+#
+# RESUME FROM: Working terminal checkpoint (20251127_123710_2000000steps)
+# This model already achieves ~100m precision - we're fine-tuning for sub-30m
+
+parent_config: ../../config.yaml
+
+training:
+  total_timesteps: 1500000  # 1.5M steps - sweet spot before forgetting
+  n_envs: 12
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false
+
+  # Lower learning rate for fine-tuning from existing checkpoint
+  learning_rate: 0.0001  # Reduced from 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+
+  # Lower entropy for exploitation (already learned basics)
+  ent_coef: 0.005
+
+  # Match working model architecture
+  net_arch: [512, 512, 256]
+  use_lstm: false
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  # More frequent eval to catch sweet spot
+  eval_freq: 20000
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
+
+# USE BASE CONFIG SPAWNS - don't override!
+# This inherits from config.yaml:
+#   interceptor: [0,0,0] to [50,50,10], velocity [20,20,40] to [40,40,80]
+#   missile: [800,800,800] to [1500,1500,1500], velocity [-60,-60,-30] to [-100,-100,-50]
+environment:
+  max_steps: 2000
+
+# Curriculum with PRECISION MODE
+curriculum:
+  enabled: true
+  # Start at 100m (what the base model achieves), progress to 30m
+  initial_radius: 100.0
+  final_radius: 30.0
+  curriculum_steps: 1500000  # Progress over full training
+
+  # CRITICAL: Enable precision mode
+  # Episode continues past threshold crossing
+  # Rewards based on minimum distance achieved
+  precision_mode: true
