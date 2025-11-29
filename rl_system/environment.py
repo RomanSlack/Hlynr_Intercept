@@ -115,6 +115,13 @@ class InterceptEnvironment(gym.Env):
         self.curriculum_steps = self.curriculum_config.get('curriculum_steps', 5000000)  # Over 5M steps
         self.training_step_count = 0  # Track global training steps for curriculum
 
+        # Precision mode: When enabled, episode continues after crossing intercept threshold
+        # This allows the model to learn sub-threshold precision by receiving rewards
+        # based on minimum distance achieved, not just threshold crossing
+        self.precision_mode = self.curriculum_config.get('precision_mode', False)
+        self._episode_min_distance = float('inf')  # Track minimum distance achieved in episode
+        self._crossed_threshold = False  # Track if we've crossed the intercept threshold
+
         # Radar curriculum learning: Progressive radar difficulty
         self.radar_curriculum_config = self.curriculum_config.get('radar_curriculum', {})
         self.use_radar_curriculum = self.radar_curriculum_config.get('enabled', True)
@@ -503,6 +510,10 @@ class InterceptEnvironment(gym.Env):
         self._distance_worsening_count = 0
         self._last_distance = self._prev_distance
 
+        # Reset precision mode tracking
+        self._episode_min_distance = self._prev_distance
+        self._crossed_threshold = False
+
         info = {
             'missile_pos': self.missile_state['position'].copy(),
             'interceptor_pos': self.interceptor_state['position'].copy(),
@@ -592,7 +603,14 @@ class InterceptEnvironment(gym.Env):
                 self.missile_state['position'] - self.interceptor_state['position']
             )
             intercepted = distance < current_radius
-        
+
+        # Track minimum distance achieved in episode (for precision_mode rewards)
+        self._episode_min_distance = min(self._episode_min_distance, distance)
+
+        # Track threshold crossing (for precision_mode)
+        if intercepted and not self._crossed_threshold:
+            self._crossed_threshold = True
+
         # Check termination conditions
         terminated = False
         truncated = False
@@ -621,21 +639,40 @@ class InterceptEnvironment(gym.Env):
             if all_missiles_inactive:
                 terminated = True
         else:
-            # Single missile mode (original behavior)
-            if intercepted:
-                terminated = True
-            elif self.missile_state['position'][2] <= 0:  # Missile hit ground
-                # Check if missile hit near the target (mission failure)
-                missile_ground_pos = self.missile_state['position'][:2]  # X, Y only
-                target_ground_pos = self.target_position[:2]
-                ground_distance = np.linalg.norm(missile_ground_pos - target_ground_pos)
+            # Single missile mode termination logic
+            # PRECISION MODE: Don't terminate on threshold crossing, continue to learn sub-threshold precision
+            if self.precision_mode:
+                # In precision mode, we continue the episode after crossing threshold
+                # Termination only on: missile hits ground, interceptor crash, fuel out, timeout
+                if self.missile_state['position'][2] <= 0:  # Missile hit ground
+                    # Check if missile hit near the target (mission failure)
+                    missile_ground_pos = self.missile_state['position'][:2]  # X, Y only
+                    target_ground_pos = self.target_position[:2]
+                    ground_distance = np.linalg.norm(missile_ground_pos - target_ground_pos)
 
-                if ground_distance < 500.0:  # Within 500m of target = mission failure
-                    missile_hit_target = True
+                    if ground_distance < 500.0:  # Within 500m of target = mission failure
+                        missile_hit_target = True
+                        terminated = True
+                    else:
+                        # Missile hit ground far from target (harmless)
+                        terminated = True
+                # Note: intercepted threshold crossing does NOT terminate in precision_mode
+            else:
+                # Standard mode (original behavior): terminate on intercept
+                if intercepted:
                     terminated = True
-                else:
-                    # Missile hit ground far from target (harmless)
-                    terminated = True
+                elif self.missile_state['position'][2] <= 0:  # Missile hit ground
+                    # Check if missile hit near the target (mission failure)
+                    missile_ground_pos = self.missile_state['position'][:2]  # X, Y only
+                    target_ground_pos = self.target_position[:2]
+                    ground_distance = np.linalg.norm(missile_ground_pos - target_ground_pos)
+
+                    if ground_distance < 500.0:  # Within 500m of target = mission failure
+                        missile_hit_target = True
+                        terminated = True
+                    else:
+                        # Missile hit ground far from target (harmless)
+                        terminated = True
 
         # Common termination conditions (both modes)
         if self.interceptor_state['position'][2] < 0:  # Interceptor crashed
@@ -697,7 +734,11 @@ class InterceptEnvironment(gym.Env):
             'volley_size': self.volley_size if self.volley_mode else 1,
             'missiles_intercepted': len(self.intercepted_missile_indices) if self.volley_mode else (1 if intercepted else 0),
             'missiles_remaining': sum(1 for ms in self.missile_states if ms['active']) if self.volley_mode else (0 if intercepted else 1),
-            'missile_min_distances': self.missile_min_distances.copy() if self.volley_mode else [distance]
+            'missile_min_distances': self.missile_min_distances.copy() if self.volley_mode else [distance],
+            # Precision mode tracking
+            'min_distance': self._episode_min_distance,
+            'crossed_threshold': self._crossed_threshold,
+            'precision_mode': self.precision_mode,
         }
         
         return obs, reward, terminated, truncated, info
@@ -875,64 +916,135 @@ class InterceptEnvironment(gym.Env):
     def _calculate_reward(self, distance: float, intercepted: bool, terminated: bool,
                          missile_hit_target: bool = False) -> float:
         """
-        FIXED reward function that prevents reward hacking.
+        Reward function with precision_mode support.
 
-        Key changes from previous version:
-        1. MASSIVE terminal reward (+5000) to dwarf any per-step accumulation
-        2. MINIMAL intermediate rewards (just for gradient, not exploitation)
-        3. Only distance reduction rewarded (no radar lock farming)
-        4. Failure penalty proportional to final distance (close misses penalized less)
+        Standard mode:
+        - Terminal reward on intercept (+5000)
+        - Distance-based penalty on failure
+        - Small per-step gradient rewards
+
+        Precision mode:
+        - Episode continues after threshold crossing
+        - Rewards based on minimum distance achieved (exponential scaling)
+        - Strong incentive to get closer than threshold
 
         This ensures: intercept_reward >> any_per_step_accumulation * max_episode_length
         """
         reward = 0.0
 
-        # === TERMINAL REWARDS (episode end only) ===
+        # === PRECISION MODE REWARDS ===
+        if self.precision_mode:
+            # In precision mode, we reward based on minimum distance achieved
+            # rather than just threshold crossing
+
+            if terminated:
+                min_dist = self._episode_min_distance
+
+                if self._crossed_threshold:
+                    # Successfully crossed threshold - now reward based on HOW close we got
+                    # Base reward for crossing threshold
+                    reward = 3000.0
+
+                    # Exponential bonus for sub-threshold precision
+                    # This creates strong gradient to get closer than the threshold
+                    current_radius = self.get_current_intercept_radius()
+
+                    # Multi-scale exponential rewards for precision
+                    # Scale 1: Reward for beating threshold significantly
+                    if min_dist < current_radius:
+                        improvement_ratio = (current_radius - min_dist) / current_radius
+                        reward += improvement_ratio * 1000.0  # Up to +1000 for much better than threshold
+
+                    # Scale 2: Exponential bonus for close range (effective 0-50m)
+                    reward += np.exp(-min_dist / 25.0) * 500.0
+
+                    # Scale 3: Strong exponential bonus for very close (effective 0-20m)
+                    reward += np.exp(-min_dist / 10.0) * 1000.0
+
+                    # Scale 4: Extreme precision bonus (effective 0-5m)
+                    reward += np.exp(-min_dist / 3.0) * 500.0
+
+                    # Time bonus for quick intercept
+                    time_bonus = (self.max_steps - self.steps) * 0.3
+                    reward += time_bonus
+
+                else:
+                    # Never crossed threshold - failure
+                    # Penalty proportional to how far we were from threshold
+                    current_radius = self.get_current_intercept_radius()
+                    miss_amount = min_dist - current_radius
+                    reward = -min_dist * 0.5  # Penalty for distance
+                    reward = max(reward, -2000.0)  # Cap penalty
+
+                    if missile_hit_target:
+                        reward -= 1000.0
+                    elif self.interceptor_state['position'][2] < 0:
+                        reward -= 500.0
+                    elif self.interceptor_state['fuel'] <= 0:
+                        reward -= 300.0
+
+                return reward
+
+            # Per-step rewards in precision mode
+            # Strong gradient toward target, especially at close range
+            prev_distance = getattr(self, '_prev_distance', distance)
+            distance_delta = prev_distance - distance
+
+            # Graduated per-step rewards based on distance
+            if distance < 50.0:
+                # Very close: strong gradient for final approach
+                reward += distance_delta * 3.0
+                # Bonus for staying very close
+                reward += np.exp(-distance / 10.0) * 0.5
+            elif distance < 200.0:
+                # Close range: moderate gradient
+                reward += distance_delta * 1.5
+            else:
+                # Far range: weak gradient
+                reward += distance_delta * 0.5
+
+            # Small time penalty to encourage efficiency
+            reward -= 0.3
+
+            # Store distance for next step
+            self._prev_distance = distance
+            return reward
+
+        # === STANDARD MODE REWARDS (original behavior) ===
         if intercepted:
             # MASSIVE success reward to make interception the dominant objective
-            # This must be much larger than any accumulated per-step rewards
             reward = 5000.0
 
-            # Large time bonus for quick intercept (hundreds of points, not thousands)
+            # Large time bonus for quick intercept
             time_bonus = (self.max_steps - self.steps) * 0.5
             reward += time_bonus
 
             return reward
 
         if terminated:
-            # Failure penalty proportional to how close we got (encourage "close misses")
-            # This provides gradient even in failure: 200m miss better than 2000m miss
-            distance_penalty = -distance * 0.5  # Lose 0.5 points per meter missed
-            reward = max(distance_penalty, -2000.0)  # Cap at -2000 for very far misses
+            # Failure penalty proportional to how close we got
+            distance_penalty = -distance * 0.5
+            reward = max(distance_penalty, -2000.0)
 
-            # Additional penalties for specific failure modes
             if missile_hit_target:
-                reward -= 1000.0  # Extra penalty if target was hit
+                reward -= 1000.0
             elif self.interceptor_state['position'][2] < 0:
-                reward -= 500.0  # Penalty for crashing
+                reward -= 500.0
             elif self.interceptor_state['fuel'] <= 0:
-                reward -= 300.0  # Penalty for fuel exhaustion
+                reward -= 300.0
 
             return reward
 
-        # === PER-STEP REWARDS (VERY MINIMAL - just for gradient) ===
-
-        # Distance reduction provides gradient, but must be MUCH smaller than terminal
+        # Per-step rewards (standard mode)
         prev_distance = getattr(self, '_prev_distance', distance)
         distance_delta = prev_distance - distance
 
-        # CRITICAL: Per-step rewards must be tiny to prevent "approach farming"
-        # Max possible per-step accumulation (~2000m reduction × 0.5) = 1000 points
-        # This is much less than intercept reward (5000 points)
         if distance < 500.0:
-            # Close range: stronger gradient for terminal guidance
-            reward += distance_delta * 1.0  # REDUCED from 20.0
+            reward += distance_delta * 1.0
         else:
-            # Far range: weak gradient for approach
-            reward += distance_delta * 0.5  # REDUCED from 5.0
+            reward += distance_delta * 0.5
 
-        # Time penalty
-        reward -= 0.5  # INCREASED from 0.1 to discourage long episodes
+        reward -= 0.5
 
         # Store distance for next step
         self._prev_distance = distance

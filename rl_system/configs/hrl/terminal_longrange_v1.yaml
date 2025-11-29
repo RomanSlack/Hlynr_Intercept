@@ -1,0 +1,78 @@
+# Terminal Specialist - Long Range Entry (200m entry point)
+#
+# OBJECTIVE: Train terminal specialist to handle engagement from 200m down to intercept
+# This addresses the issue where the old specialist was trained for 90m entry but
+# we want earlier terminal phase engagement for better precision.
+#
+# KEY INSIGHT: The specialist must learn to:
+# 1. Handle the full 200m → intercept trajectory
+# 2. Maintain precise guidance over a longer distance
+# 3. Achieve sub-30m precision consistently
+#
+# SPAWN CONFIGURATION: Interceptor and missile start ~200-400m apart
+# This simulates the state when TRACK hands off to TERMINAL
+#
+# PRECISION MODE: Episodes continue past threshold crossing to learn sub-threshold precision.
+# Without precision_mode, model learns "get to 29.9m" = "get to 5m" (both are "success")
+# With precision_mode, model sees exponential reward difference and learns true precision.
+#
+# TRAINING NOTES:
+# - Best results observed at 1-1.5M steps, degradation after 2M+ steps
+# - Use early stopping based on eval performance
+# - Monitor for catastrophic forgetting if reward drops significantly
+
+parent_config: ../../config.yaml
+
+training:
+  total_timesteps: 1500000  # 1.5M steps - sweet spot before forgetting
+  n_envs: 12
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false
+
+  # Standard learning rate
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+
+  # Moderate entropy - need some exploration for long trajectories
+  ent_coef: 0.01
+
+  # Network architecture - larger for complex trajectories
+  net_arch: [512, 512, 256]
+  use_lstm: false  # MLP with frame-stacking works well
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  # Evaluation settings - more frequent to catch early stopping point
+  eval_freq: 20000
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
+
+# CRITICAL: Spawn configuration for close-range engagement
+# Interceptor and missile start 200-400m apart, simulating TRACK→TERMINAL handoff
+environment:
+  max_steps: 2000
+
+  # Interceptor starts at origin area
+  interceptor_spawn:
+    position: [[0, 0, 50], [50, 50, 100]]
+    velocity: [[50, 50, 20], [100, 100, 40]]  # Already moving toward target
+
+  # Missile spawns 200-400m away from interceptor
+  # This simulates the distance at TERMINAL entry
+  missile_spawn:
+    position: [[200, 200, 150], [400, 400, 300]]  # 300-700m from origin → ~200-400m from interceptor
+    velocity: [[-40, -40, -20], [-80, -80, -40]]  # Incoming toward origin
+
+# Curriculum: Fixed 30m threshold - model must achieve precision
+curriculum:
+  enabled: true
+  initial_radius: 30.0   # Fixed 30m from start
+  final_radius: 30.0     # No progression - must learn precision immediately
+  curriculum_steps: 1    # Not used since initial=final
+
+  # PRECISION MODE: Episode continues past threshold to learn minimum distance
+  # This is CRITICAL for sub-30m precision - without it, all intercepts are rewarded equally
+  precision_mode: true

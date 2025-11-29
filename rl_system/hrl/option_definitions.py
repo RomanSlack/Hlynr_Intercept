@@ -47,9 +47,9 @@ OPTION_METADATA: Dict[Option, Dict[str, Any]] = {
 FORCED_TRANSITION_THRESHOLDS = {
     'radar_lock_quality_min': 0.3,      # Below this, lose track → SEARCH
     'radar_lock_quality_search': 0.7,   # Above this, exit search → TRACK
-    'close_range_threshold': 300.0,     # meters - trigger TERMINAL (was 100m, now earlier for precision)
+    'close_range_threshold': 200.0,     # meters - trigger TERMINAL (increased to match long-range training)
     'terminal_fuel_min': 0.1,           # Min fuel to enter terminal
-    'miss_imminent_distance': 500.0,    # If distance increasing beyond this, abort (was 200m)
+    'miss_imminent_distance': 400.0,    # If distance increasing beyond this, abort (increased for long-range)
 }
 
 
@@ -72,8 +72,8 @@ def get_expected_duration(option: Option) -> int:
 HYSTERESIS_BANDS = {
     'lock_acquire_threshold': 0.75,      # Enter TRACK (higher than basic threshold)
     'lock_maintain_threshold': 0.55,     # Exit TRACK (lower, provides hysteresis)
-    'terminal_enter_distance': 300.0,    # Enter TERMINAL earlier for precision (was 90m)
-    'terminal_exit_distance': 400.0,     # Exit TERMINAL (meters, provides hysteresis)
+    'terminal_enter_distance': 200.0,    # Enter TERMINAL (meters) - matches long-range training
+    'terminal_exit_distance': 250.0,     # Exit TERMINAL (meters, provides hysteresis)
 }
 
 
