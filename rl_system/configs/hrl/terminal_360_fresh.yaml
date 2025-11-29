@@ -1,0 +1,66 @@
+# Terminal Specialist - Full 360° Training FROM SCRATCH
+#
+# OBJECTIVE: Train terminal specialist from scratch to intercept from ALL directions
+# Target: Sub-50m precision with 20m proximity fuze kill radius
+#
+# NO RESUME - Fresh training to avoid catastrophic forgetting
+
+parent_config: ../../config.yaml
+
+training:
+  total_timesteps: 3000000  # 3M steps - fresh training needs more time
+  n_envs: 16  # More parallel envs for diverse sampling
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false
+
+  # Standard learning rate for fresh training
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+
+  # Higher entropy for exploration (fresh training)
+  ent_coef: 0.01
+
+  # Network architecture
+  net_arch: [512, 512, 256]
+  use_lstm: false
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  # Frequent eval to monitor progress
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 100000
+
+environment:
+  max_steps: 2000
+
+  # PROXIMITY FUZE: 50m kill radius for sub-50m target
+  proximity_fuze_enabled: true
+  proximity_kill_radius: 50.0  # Target sub-50m
+
+  # SPHERICAL SPAWN: Full 360° coverage
+  missile_spawn:
+    position_mode: "spherical"
+    radius_min: 800.0
+    radius_max: 1500.0
+    azimuth_range: [0, 360]      # Full horizontal coverage
+    elevation_range: [15, 60]    # Above horizon, realistic ballistic
+    velocity_mode: "toward_target"
+    speed_min: 80.0
+    speed_max: 150.0
+    # Fallback box (required by config parser)
+    position: [[800, 800, 800], [1500, 1500, 1500]]
+    velocity: [[-60, -60, -30], [-100, -100, -50]]
+
+# Curriculum: Start easy (200m) -> target (50m)
+curriculum:
+  enabled: true
+  initial_radius: 200.0   # Start easy
+  final_radius: 50.0      # Target sub-50m
+  curriculum_steps: 2500000  # Progress over most of training
+
+  # Enable precision mode for sub-threshold learning
+  precision_mode: true
