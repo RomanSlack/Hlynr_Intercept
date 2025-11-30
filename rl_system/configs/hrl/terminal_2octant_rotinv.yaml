@@ -1,0 +1,56 @@
+# Terminal Specialist - 2 Opposite Octants (Gradual 360° Expansion)
+#
+# STRATEGY: Start with 2 opposite octants instead of full 360°
+# This doubles the direction coverage while keeping the problem tractable
+# Azimuth: 0-90° (original) + 180-270° (opposite)
+#
+# Once this works, expand to 4 octants, then full 360°
+
+parent_config: ../../config.yaml
+
+training:
+  total_timesteps: 2000000  # 2M steps
+  n_envs: 16
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false
+
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.01
+
+  net_arch: [512, 512, 256]
+  use_lstm: false
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 100000
+
+environment:
+  max_steps: 2000
+
+  # ROTATION-INVARIANT OBSERVATIONS
+  rotation_invariant: true
+
+  # PROXIMITY FUZE: 50m kill radius
+  proximity_fuze_enabled: true
+  proximity_kill_radius: 50.0
+
+  # 2 OCTANT SPAWN: Original + Opposite
+  # We'll use box spawns that cover 2 opposite octants
+  missile_spawn:
+    # Can't easily do 2 octants with spherical, use symmetric box instead
+    # This covers positive and negative X/Y with positive Z
+    position: [[-1500, -1500, 500], [1500, 1500, 1500]]
+    velocity: [[-150, -150, -80], [150, 150, -30]]
+
+curriculum:
+  enabled: true
+  initial_radius: 200.0
+  final_radius: 50.0
+  curriculum_steps: 1500000
+  precision_mode: true
