@@ -249,13 +249,19 @@ class Radar26DObservation:
                  radar_range: float = 5000.0, min_detection_range: float = 50.0,
                  sensor_delay_ms: float = 30.0, simulation_dt: float = 0.01,
                  ground_radar_config: Optional[Dict[str, Any]] = None,
-                 radar_beam_width: float = 60.0):
+                 radar_beam_width: float = 60.0,
+                 rotation_invariant: bool = False):
         self.max_range = max_range
         self.max_velocity = max_velocity
         self.radar_range = radar_range  # Onboard radar range
         self.min_detection_range = min_detection_range
         self.radar_beam_width = radar_beam_width  # Beam width in degrees (curriculum-adjusted)
         self.rng = np.random.default_rng()
+
+        # Rotation-invariant mode: Transform all vectors to body frame
+        # This makes observations independent of absolute world orientation,
+        # allowing the model to generalize to missiles from any direction
+        self.rotation_invariant = rotation_invariant
 
         # Curriculum parameters (set externally by environment)
         self.onboard_detection_reliability = 1.0  # 0-1, probability multiplier for detection
@@ -756,11 +762,18 @@ class Radar26DObservation:
             radar_rel_pos = filtered_rel_pos
             radar_rel_vel = filtered_rel_vel
 
-            # [0-2] Kalman-filtered relative position (smooth trajectory estimate)
-            obs[0:3] = np.clip(radar_rel_pos / self.max_range, -1.0, 1.0)
-
-            # [3-5] Kalman-filtered relative velocity (smooth velocity estimate)
-            obs[3:6] = np.clip(radar_rel_vel / self.max_velocity, -1.0, 1.0)
+            # ROTATION-INVARIANT MODE: Transform to body frame
+            # This makes observations independent of absolute world orientation
+            if self.rotation_invariant:
+                # Transform relative position to body frame [forward, right, up]
+                body_rel_pos = world_to_body_frame(radar_rel_pos, int_quat)
+                body_rel_vel = world_to_body_frame(radar_rel_vel, int_quat)
+                obs[0:3] = np.clip(body_rel_pos / self.max_range, -1.0, 1.0)
+                obs[3:6] = np.clip(body_rel_vel / self.max_velocity, -1.0, 1.0)
+            else:
+                # Original world-frame observations
+                obs[0:3] = np.clip(radar_rel_pos / self.max_range, -1.0, 1.0)
+                obs[3:6] = np.clip(radar_rel_vel / self.max_velocity, -1.0, 1.0)
 
             # Computed values from Kalman-filtered data
             radar_range = np.linalg.norm(radar_rel_pos)
@@ -803,11 +816,23 @@ class Radar26DObservation:
             obs[16] = 0.0  # No off-axis angle
 
         # [6-8] Interceptor's own velocity (perfect internal knowledge)
-        obs[6:9] = np.clip(int_vel / self.max_velocity, -1.0, 1.0)
+        if self.rotation_invariant:
+            # In body frame, velocity is expressed as [forward_speed, right_speed, up_speed]
+            body_vel = world_to_body_frame(int_vel, int_quat)
+            obs[6:9] = np.clip(body_vel / self.max_velocity, -1.0, 1.0)
+        else:
+            obs[6:9] = np.clip(int_vel / self.max_velocity, -1.0, 1.0)
 
-        # [9-11] Interceptor's own orientation (perfect internal knowledge)
-        euler = quaternion_to_euler(int_quat)
-        obs[9:12] = euler / np.pi
+        # [9-11] Interceptor's own orientation
+        if self.rotation_invariant:
+            # In rotation-invariant mode, absolute orientation is meaningless
+            # Instead, store angular rates or just zeros (orientation is implicit in body frame)
+            # We use zeros since all vectors are already in body frame
+            obs[9:12] = 0.0
+        else:
+            # Original: absolute euler angles
+            euler = quaternion_to_euler(int_quat)
+            obs[9:12] = euler / np.pi
 
         # [12] Fuel fraction (perfect internal knowledge)
         obs[12] = np.clip(int_fuel / 100.0, 0.0, 1.0)
@@ -819,10 +844,18 @@ class Radar26DObservation:
             ground_radar_vel = ground_rel_vel.copy()
 
             # [17-19] Ground radar relative position
-            obs[17:20] = np.clip(ground_radar_pos / self.max_range, -1.0, 1.0)
+            if self.rotation_invariant:
+                body_ground_pos = world_to_body_frame(ground_radar_pos, int_quat)
+                obs[17:20] = np.clip(body_ground_pos / self.max_range, -1.0, 1.0)
+            else:
+                obs[17:20] = np.clip(ground_radar_pos / self.max_range, -1.0, 1.0)
 
             # [20-22] Ground radar relative velocity
-            obs[20:23] = np.clip(ground_radar_vel / self.max_velocity, -1.0, 1.0)
+            if self.rotation_invariant:
+                body_ground_vel = world_to_body_frame(ground_radar_vel, int_quat)
+                obs[20:23] = np.clip(body_ground_vel / self.max_velocity, -1.0, 1.0)
+            else:
+                obs[20:23] = np.clip(ground_radar_vel / self.max_velocity, -1.0, 1.0)
 
             # [23] Ground radar quality
             obs[23] = ground_quality
@@ -960,3 +993,56 @@ def get_forward_vector(q: np.ndarray) -> np.ndarray:
     ], dtype=np.float32)
     norm = np.linalg.norm(forward)
     return forward / (norm + 1e-6)
+
+
+def get_right_vector(q: np.ndarray) -> np.ndarray:
+    """Get right direction from quaternion (perpendicular to forward, in horizontal plane)."""
+    w, x, y, z = q
+    right = np.array([
+        1 - 2 * (y * y + z * z),
+        2 * (x * y + w * z),
+        2 * (x * z - w * y)
+    ], dtype=np.float32)
+    norm = np.linalg.norm(right)
+    return right / (norm + 1e-6)
+
+
+def get_up_vector(q: np.ndarray) -> np.ndarray:
+    """Get up direction from quaternion."""
+    w, x, y, z = q
+    up = np.array([
+        2 * (x * y - w * z),
+        1 - 2 * (x * x + z * z),
+        2 * (y * z + w * x)
+    ], dtype=np.float32)
+    norm = np.linalg.norm(up)
+    return up / (norm + 1e-6)
+
+
+def world_to_body_frame(vector: np.ndarray, quaternion: np.ndarray) -> np.ndarray:
+    """
+    Transform a world-frame vector into body-frame coordinates.
+
+    Body frame: [forward, right, up] where forward is along interceptor's nose.
+    This makes observations rotation-invariant - the same relative geometry
+    produces the same observation regardless of absolute world orientation.
+
+    Args:
+        vector: 3D vector in world coordinates
+        quaternion: Interceptor orientation [w, x, y, z]
+
+    Returns:
+        3D vector in body coordinates [forward, right, up]
+    """
+    forward = get_forward_vector(quaternion)
+    right = get_right_vector(quaternion)
+    up = get_up_vector(quaternion)
+
+    # Project world vector onto body axes
+    body_vector = np.array([
+        np.dot(vector, forward),  # Forward component
+        np.dot(vector, right),    # Right component
+        np.dot(vector, up)        # Up component
+    ], dtype=np.float32)
+
+    return body_vector

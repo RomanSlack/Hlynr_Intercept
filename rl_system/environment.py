@@ -154,6 +154,10 @@ class InterceptEnvironment(gym.Env):
         if self.use_radar_curriculum and self.radar_curriculum_config:
             initial_beam_width = self.radar_curriculum_config.get('initial_beam_width', 120.0)
 
+        # Rotation-invariant observations: Transform all vectors to body frame
+        # This allows the model to generalize to missiles from any direction
+        self.rotation_invariant = self.config.get('rotation_invariant', False)
+
         self.observation_generator = Radar26DObservation(
             max_range=self.max_range,
             max_velocity=self.max_velocity,
@@ -162,7 +166,8 @@ class InterceptEnvironment(gym.Env):
             sensor_delay_ms=sensor_delay_ms,
             simulation_dt=self.dt,
             ground_radar_config=ground_radar_config,
-            radar_beam_width=initial_beam_width
+            radar_beam_width=initial_beam_width,
+            rotation_invariant=self.rotation_invariant
         )
 
         # Set initial curriculum parameters for radar (perfect detection at start)
