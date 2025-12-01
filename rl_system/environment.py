@@ -944,11 +944,17 @@ class InterceptEnvironment(gym.Env):
         Called at the start of each step to establish the frame for action transformation.
         The LOS frame is defined as:
         - los_unit: Points from interceptor toward missile (along LOS)
-        - los_horizontal: Perpendicular to LOS in the horizontal plane (for lateral maneuvers)
-        - los_vertical: Perpendicular to LOS in the vertical plane (for altitude maneuvers)
+        - los_horizontal: Perpendicular to LOS, roughly in horizontal plane (for lateral maneuvers)
+        - los_vertical: Perpendicular to LOS, roughly in vertical plane (for altitude maneuvers)
 
-        This enables direction-invariant control: "thrust along LOS" means the same thing
-        regardless of where in the world the engagement is happening.
+        CRITICAL: The three vectors must form an orthonormal basis to ensure that
+        action[0] (thrust along LOS) produces pure closing motion regardless of
+        engagement geometry. Previous implementation had a bug where the vectors
+        were not properly orthogonal, causing action effectiveness to vary with
+        elevation angle.
+
+        This enables direction-invariant control: "thrust toward target" produces
+        the same closing rate regardless of where in the world the engagement happens.
         """
         int_pos = np.array(self.interceptor_state['position'], dtype=np.float32)
         mis_pos = np.array(self.missile_state['position'], dtype=np.float32)
@@ -967,32 +973,27 @@ class InterceptEnvironment(gym.Env):
         # World up vector for reference
         world_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
-        # Horizontal component of LOS (project onto XY plane)
-        los_horizontal_proj = self._los_unit - np.dot(self._los_unit, world_up) * world_up
-        los_horizontal_norm = np.linalg.norm(los_horizontal_proj)
+        # Build orthonormal basis using cross products (Gram-Schmidt style)
+        # This ensures the three vectors are truly orthogonal
 
-        if los_horizontal_norm > 1e-6:
-            los_horizontal_unit = los_horizontal_proj / los_horizontal_norm
-            # Horizontal perpendicular: cross world_up with horizontal LOS
-            # This gives a vector perpendicular to LOS in the horizontal plane
-            self._los_horizontal = np.cross(world_up, los_horizontal_unit)
-            horiz_norm = np.linalg.norm(self._los_horizontal)
-            if horiz_norm > 1e-6:
-                self._los_horizontal = self._los_horizontal / horiz_norm
-            else:
-                self._los_horizontal = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+        # los_horizontal: perpendicular to LOS, in the horizontal-ish direction
+        # Cross product of los_unit x world_up gives a horizontal vector perpendicular to LOS
+        los_right = np.cross(self._los_unit, world_up)
+        los_right_norm = np.linalg.norm(los_right)
+
+        if los_right_norm > 1e-6:
+            # Normal case: LOS not vertical
+            self._los_horizontal = los_right / los_right_norm
         else:
-            # LOS is nearly vertical - use arbitrary horizontal reference
-            self._los_horizontal = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+            # LOS is nearly vertical (pointing straight up or down)
+            # Use arbitrary horizontal reference (X axis)
+            self._los_horizontal = np.array([1.0, 0.0, 0.0], dtype=np.float32)
 
-        # Vertical perpendicular: cross LOS with horizontal perpendicular
-        # This gives a vector perpendicular to LOS in the vertical plane
+        # los_vertical: perpendicular to both LOS and los_horizontal
+        # Cross product completes the orthonormal basis
+        # Note: los_unit x los_horizontal gives vector "above" LOS in the vertical plane
         self._los_vertical = np.cross(self._los_unit, self._los_horizontal)
-        vert_norm = np.linalg.norm(self._los_vertical)
-        if vert_norm > 1e-6:
-            self._los_vertical = self._los_vertical / vert_norm
-        else:
-            self._los_vertical = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        # This is already unit length since los_unit and los_horizontal are orthonormal
 
     def _transform_los_action_to_world(self, action: np.ndarray) -> np.ndarray:
         """

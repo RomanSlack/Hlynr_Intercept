@@ -1,14 +1,29 @@
 # HRL Line-of-Sight Frame Implementation Plan
 
-## Status Update (November 30, 2025) - V2: Full LOS Frame
+## Status Update (December 1, 2025) - V3: LOS Frame Bug Fix
 
-### Implementation Complete
+### CRITICAL BUG FIX: Orthonormal Basis Construction
 
-**CRITICAL UPDATE**: LOS frame now includes BOTH observations AND actions.
-- Observations: Direction-invariant geometry (range, LOS rates, off-axis angle)
-- Actions: LOS-relative thrust (along LOS, perpendicular horizontal, perpendicular vertical)
+**Bug Found**: The LOS frame vectors were NOT properly orthogonal!
 
-This makes the entire control loop direction-invariant - the same policy works from any approach direction.
+The previous implementation computed `los_horizontal` as:
+```python
+# BUGGY: This is NOT perpendicular to los_unit!
+los_horizontal_proj = los_unit - dot(los_unit, world_up) * world_up
+los_horizontal = cross(world_up, los_horizontal_proj / norm)
+```
+
+**Why This Was Wrong**: `los_horizontal_proj` is the projection of LOS onto the XY plane, not a perpendicular vector. The resulting basis was non-orthogonal, causing:
+- Action[0] (thrust along LOS) effectiveness varied with elevation angle
+- High elevation: closing rate ~88 m/s (thrust "leaked" perpendicular)
+- Low elevation: closing rate ~229 m/s (thrust went toward target)
+
+**The Fix**: Use proper cross-product orthonormal basis:
+```python
+# CORRECT: Cross product gives truly perpendicular vector
+los_horizontal = normalize(cross(los_unit, world_up))
+los_vertical = cross(los_unit, los_horizontal)  # Already unit
+```
 
 ### Training History
 
@@ -19,7 +34,8 @@ This makes the entire control loop direction-invariant - the same policy works f
 | 360° body-frame rotation-invariant | 63m | 0% | Better but not learning |
 | 360° body-frame all specialists retrained | 49.67m | 2% (1/50) | Slight improvement, still poor |
 | 360° LOS obs only (no LOS actions) | 425m mean, 82m best | 0% | Observations alone not enough |
-| **360° Full LOS (obs + actions)** | TBD | TBD | **Current approach - needs training** |
+| 360° Full LOS v1 (buggy basis) | 356m mean, 49.53m best | 2% (1/50) | Non-orthogonal basis bug |
+| **360° Full LOS v2 (fixed basis)** | TBD | TBD | **RETRAIN WITH BUG FIX** |
 
 ### Root Cause Analysis
 
