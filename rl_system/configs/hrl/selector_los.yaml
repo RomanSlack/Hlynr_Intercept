@@ -1,0 +1,64 @@
+# Selector Policy Training Configuration - LOS Frame
+# High-level policy for option selection (SEARCH, TRACK, TERMINAL)
+# MUST USE observation_mode: "los_frame" to match LOS-trained specialists
+#
+# OBJECTIVE: Learn when to switch between specialists
+
+# Inherit base settings
+parent_config: ../../config.yaml
+
+# Selector-specific training
+training:
+  total_timesteps: 500000  # 500k steps for proper selector learning
+  n_envs: 8  # More parallel environments
+  n_steps: 1024  # Medium rollouts for discrete actions
+  batch_size: 128
+
+  # Learning parameters
+  learning_rate: 0.0003
+  gamma: 0.995  # Higher gamma for strategic decisions
+  gae_lambda: 0.97
+
+  # Entropy for option exploration
+  ent_coef: 0.02  # Higher entropy to explore all options
+  ent_coef_final: 0.005
+  ent_decay_steps: 400000
+
+  # Network architecture (smaller for 7D abstract state -> 3 discrete actions)
+  net_arch: [256, 256]
+  use_lstm: false  # MLP sufficient for abstract state
+  use_layer_norm: true
+  frame_stack: 1  # Selector uses 7D abstract state, no frame stacking
+
+  # Evaluation settings
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 50000
+
+# Environment settings - MUST match specialist training
+environment:
+  # LOS FRAME OBSERVATIONS - must match specialists
+  observation_mode: "los_frame"
+
+  # 360° SPHERICAL SPAWNS
+  missile_spawn:
+    position_mode: "spherical"
+    radius_min: 800.0
+    radius_max: 1500.0
+    azimuth_range: [0, 360]
+    elevation_range: [15, 60]
+    velocity_mode: "toward_target"
+    speed_min: 80.0
+    speed_max: 150.0
+    position: [[800, 800, 800], [1500, 1500, 1500]]
+    velocity: [[-60, -60, -30], [-100, -100, -50]]
+
+  # PROXIMITY FUZE
+  proximity_fuze_enabled: true
+  proximity_kill_radius: 50.0
+
+# HRL settings
+hrl:
+  enabled: true
+  decision_interval_steps: 100  # Selector decides every 100 steps (1Hz)
+  enable_forced_transitions: true  # Safety overrides for critical situations

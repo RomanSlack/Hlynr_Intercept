@@ -1,0 +1,84 @@
+# Terminal Specialist - LOS Frame (Observations + Actions)
+#
+# FULL LOS-FRAME IMPLEMENTATION:
+# Both observations AND actions are in Line-of-Sight reference frame.
+# This makes the entire control loop direction-invariant.
+#
+# LOS OBSERVATION SPACE (26D):
+# [0]: Range to target (normalized) - how far?
+# [1]: Range rate / closing speed (positive = closing)
+# [2]: LOS azimuth rate - horizontal bearing change
+# [3]: LOS elevation rate - vertical bearing change
+# [4]: Off-axis angle cos (1.0 = on collision course)
+# [5]: Lead angle cos (LOS vs target velocity)
+# [6-8]: Own velocity [speed, climb_rate, horiz_speed]
+# [12]: Fuel fraction
+# [17-19]: Ground radar [range, closing, LOS_rate]
+#
+# LOS ACTION SPACE (6D):
+# [0]: Thrust along LOS (positive = toward target)
+# [1]: Thrust perpendicular horizontal (lateral correction)
+# [2]: Thrust perpendicular vertical (altitude correction)
+# [3-5]: Angular rates (body-relative, unchanged)
+#
+# PROPORTIONAL NAVIGATION INTUITION:
+# - To close distance: action[0] > 0
+# - To zero LOS rate (collision course): action[1,2] = -N * obs[2,3]
+# - The policy learns optimal N (navigation gain) and timing
+#
+# Target: Sub-50m precision with full 360° coverage
+
+parent_config: ../../config.yaml
+
+training:
+  total_timesteps: 3000000  # 3M steps
+  n_envs: 16
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false
+
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.01
+
+  net_arch: [512, 512, 256]
+  use_lstm: false
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 500000
+
+environment:
+  max_steps: 2000
+
+  # LOS FRAME OBSERVATIONS - direction-invariant
+  observation_mode: "los_frame"
+
+  # PROXIMITY FUZE: 50m kill radius
+  proximity_fuze_enabled: true
+  proximity_kill_radius: 50.0
+
+  # SPHERICAL SPAWN: Full 360° coverage
+  missile_spawn:
+    position_mode: "spherical"
+    radius_min: 600.0
+    radius_max: 1200.0
+    azimuth_range: [0, 360]
+    elevation_range: [15, 60]
+    velocity_mode: "toward_target"
+    speed_min: 80.0
+    speed_max: 150.0
+    # Fallback box
+    position: [[600, 600, 600], [1200, 1200, 1200]]
+    velocity: [[-60, -60, -30], [-100, -100, -50]]
+
+curriculum:
+  enabled: true
+  initial_radius: 200.0
+  final_radius: 50.0
+  curriculum_steps: 2500000
+  precision_mode: true

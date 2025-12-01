@@ -154,9 +154,16 @@ class InterceptEnvironment(gym.Env):
         if self.use_radar_curriculum and self.radar_curriculum_config:
             initial_beam_width = self.radar_curriculum_config.get('initial_beam_width', 120.0)
 
-        # Rotation-invariant observations: Transform all vectors to body frame
-        # This allows the model to generalize to missiles from any direction
+        # Observation mode configuration:
+        # - "world_frame": Original XYZ in world coordinates (direction-dependent, original behavior)
+        # - "body_frame": XYZ in interceptor body frame (partially direction-invariant)
+        # - "los_frame": Line-of-sight based (fully direction-invariant, best for 360° coverage)
+        self.observation_mode = self.config.get('observation_mode', 'world_frame')
+
+        # Backward compatibility: rotation_invariant=True maps to body_frame mode
         self.rotation_invariant = self.config.get('rotation_invariant', False)
+        if self.rotation_invariant and self.observation_mode == 'world_frame':
+            self.observation_mode = 'body_frame'
 
         self.observation_generator = Radar26DObservation(
             max_range=self.max_range,
@@ -167,7 +174,8 @@ class InterceptEnvironment(gym.Env):
             simulation_dt=self.dt,
             ground_radar_config=ground_radar_config,
             radar_beam_width=initial_beam_width,
-            rotation_invariant=self.rotation_invariant
+            rotation_invariant=self.rotation_invariant,
+            observation_mode=self.observation_mode
         )
 
         # Set initial curriculum parameters for radar (perfect detection at start)
@@ -194,6 +202,12 @@ class InterceptEnvironment(gym.Env):
         self.current_wind = None
         self.steps = 0
         self.total_fuel_used = 0
+
+        # LOS frame vectors for action transformation (updated each step)
+        # These define the coordinate frame for LOS-relative actions
+        self._los_unit = None          # Unit vector pointing from interceptor to missile
+        self._los_horizontal = None    # Unit vector perpendicular to LOS in horizontal plane
+        self._los_vertical = None      # Unit vector perpendicular to LOS in vertical plane
 
         # Track last detection info for reward calculation
         self.last_detection_info = None
@@ -552,6 +566,10 @@ class InterceptEnvironment(gym.Env):
         self._episode_min_distance = self._prev_distance
         self._crossed_threshold = False
 
+        # Initialize LOS frame for LOS-relative action transformation
+        if self.observation_mode == "los_frame":
+            self._update_los_frame()
+
         info = {
             'missile_pos': self.missile_state['position'].copy(),
             'interceptor_pos': self.interceptor_state['position'].copy(),
@@ -565,12 +583,22 @@ class InterceptEnvironment(gym.Env):
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict]:
         """Execute one environment step."""
         self.steps += 1
-        
+
+        # LOS-relative action transformation
+        # When observation_mode is "los_frame", actions are interpreted as:
+        # - action[0]: thrust along LOS (toward target)
+        # - action[1]: thrust perpendicular to LOS (horizontal)
+        # - action[2]: thrust perpendicular to LOS (vertical)
+        # These are transformed to world-frame thrust before physics
+        if self.observation_mode == "los_frame":
+            self._update_los_frame()
+            action = self._transform_los_action_to_world(action)
+
         # Apply safety constraints
         clamped_action, clamp_info = self.safety_clamp.apply(
             action, self.interceptor_state['fuel']
         )
-        
+
         # Update interceptor physics
         if self.interceptor_state['active']:
             self._update_interceptor(clamped_action)
@@ -909,6 +937,105 @@ class InterceptEnvironment(gym.Env):
             if physics_time > max_time:
                 print(f"Warning: Physics computation took {physics_time:.2f}ms (exceeds {max_time}ms threshold)")
     
+    def _update_los_frame(self):
+        """
+        Update the LOS (Line-of-Sight) coordinate frame vectors.
+
+        Called at the start of each step to establish the frame for action transformation.
+        The LOS frame is defined as:
+        - los_unit: Points from interceptor toward missile (along LOS)
+        - los_horizontal: Perpendicular to LOS in the horizontal plane (for lateral maneuvers)
+        - los_vertical: Perpendicular to LOS in the vertical plane (for altitude maneuvers)
+
+        This enables direction-invariant control: "thrust along LOS" means the same thing
+        regardless of where in the world the engagement is happening.
+        """
+        int_pos = np.array(self.interceptor_state['position'], dtype=np.float32)
+        mis_pos = np.array(self.missile_state['position'], dtype=np.float32)
+
+        # Relative position from interceptor to missile
+        rel_pos = mis_pos - int_pos
+        range_to_target = np.linalg.norm(rel_pos)
+
+        if range_to_target > 1e-6:
+            # LOS unit vector (points toward target)
+            self._los_unit = rel_pos / range_to_target
+        else:
+            # Fallback if on top of target
+            self._los_unit = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+        # World up vector for reference
+        world_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+
+        # Horizontal component of LOS (project onto XY plane)
+        los_horizontal_proj = self._los_unit - np.dot(self._los_unit, world_up) * world_up
+        los_horizontal_norm = np.linalg.norm(los_horizontal_proj)
+
+        if los_horizontal_norm > 1e-6:
+            los_horizontal_unit = los_horizontal_proj / los_horizontal_norm
+            # Horizontal perpendicular: cross world_up with horizontal LOS
+            # This gives a vector perpendicular to LOS in the horizontal plane
+            self._los_horizontal = np.cross(world_up, los_horizontal_unit)
+            horiz_norm = np.linalg.norm(self._los_horizontal)
+            if horiz_norm > 1e-6:
+                self._los_horizontal = self._los_horizontal / horiz_norm
+            else:
+                self._los_horizontal = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+        else:
+            # LOS is nearly vertical - use arbitrary horizontal reference
+            self._los_horizontal = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+
+        # Vertical perpendicular: cross LOS with horizontal perpendicular
+        # This gives a vector perpendicular to LOS in the vertical plane
+        self._los_vertical = np.cross(self._los_unit, self._los_horizontal)
+        vert_norm = np.linalg.norm(self._los_vertical)
+        if vert_norm > 1e-6:
+            self._los_vertical = self._los_vertical / vert_norm
+        else:
+            self._los_vertical = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+
+    def _transform_los_action_to_world(self, action: np.ndarray) -> np.ndarray:
+        """
+        Transform LOS-relative action to world-frame action.
+
+        LOS-relative action space:
+        - action[0]: Thrust along LOS (positive = toward target)
+        - action[1]: Thrust perpendicular to LOS in horizontal plane (lateral correction)
+        - action[2]: Thrust perpendicular to LOS in vertical plane (vertical correction)
+        - action[3:6]: Angular rates (unchanged, body-relative)
+
+        This transformation enables direction-invariant learning:
+        The same action "thrust toward target" works from any approach direction.
+
+        For proportional navigation guidance, the policy can learn:
+        - action[0] > 0: Close the distance
+        - action[1], action[2]: Correct based on LOS rates to achieve collision course
+        """
+        if self._los_unit is None:
+            # LOS frame not yet initialized - return action unchanged
+            return action
+
+        world_action = action.copy()
+
+        # Transform thrust components from LOS frame to world frame
+        # thrust_world = thrust_los * los_unit + thrust_horiz * los_horizontal + thrust_vert * los_vertical
+        thrust_los = action[0]      # Along LOS (toward target)
+        thrust_horiz = action[1]    # Perpendicular horizontal
+        thrust_vert = action[2]     # Perpendicular vertical
+
+        world_thrust = (
+            thrust_los * self._los_unit +
+            thrust_horiz * self._los_horizontal +
+            thrust_vert * self._los_vertical
+        )
+
+        world_action[0:3] = world_thrust
+
+        # Angular commands remain unchanged (body-relative)
+        # action[3:6] are angular rates in body frame
+
+        return world_action
+
     def _update_missile(self):
         """Update missile state with enhanced ballistic trajectory."""
         self._update_missile_state(self.missile_state)

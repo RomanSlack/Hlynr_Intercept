@@ -1,0 +1,76 @@
+# Track Specialist - LOS Frame (Observations + Actions)
+#
+# FULL LOS-FRAME IMPLEMENTATION:
+# Both observations AND actions are in Line-of-Sight reference frame.
+# This makes the entire control loop direction-invariant.
+#
+# LOS OBSERVATION SPACE (26D):
+# [0]: Range to target (normalized)
+# [1]: Range rate / closing speed (positive = closing)
+# [2-3]: LOS azimuth/elevation rates
+# [4]: Off-axis angle cos (1.0 = collision course)
+# [5]: Lead angle cos
+# [6-8]: Own velocity [speed, climb_rate, horiz_speed]
+#
+# LOS ACTION SPACE (6D):
+# [0]: Thrust along LOS (toward target)
+# [1-2]: Thrust perpendicular (lateral/vertical correction)
+# [3-5]: Angular rates
+#
+# Target: Full 360° directional coverage for target tracking
+
+parent_config: ../../config.yaml
+
+training:
+  total_timesteps: 3000000  # 3M steps
+  n_envs: 16
+  n_steps: 2048
+  batch_size: 512
+  use_subproc: false
+
+  learning_rate: 0.0003
+  gamma: 0.995  # Higher gamma for long tracking phases
+  gae_lambda: 0.97
+
+  # Entropy (track needs balanced exploration)
+  ent_coef: 0.01
+  ent_coef_final: 0.002
+  ent_decay_steps: 2500000
+
+  net_arch: [512, 512, 256]
+  use_lstm: true  # LSTM helps with temporal tracking patterns
+  lstm_hidden_dim: 256
+  use_layer_norm: true
+  use_orthogonal_init: true
+  frame_stack: 4
+
+  eval_freq: 25000
+  n_eval_episodes: 20
+  checkpoint_freq: 500000
+
+environment:
+  max_steps: 2000
+
+  # LOS FRAME OBSERVATIONS - direction-invariant
+  observation_mode: "los_frame"
+
+  # SPHERICAL SPAWN: Full 360° coverage
+  missile_spawn:
+    position_mode: "spherical"
+    radius_min: 800.0
+    radius_max: 1500.0
+    azimuth_range: [0, 360]
+    elevation_range: [15, 60]
+    velocity_mode: "toward_target"
+    speed_min: 80.0
+    speed_max: 150.0
+    # Fallback box
+    position: [[800, 800, 800], [1500, 1500, 1500]]
+    velocity: [[-60, -60, -30], [-100, -100, -50]]
+
+curriculum:
+  enabled: true
+  initial_radius: 200.0
+  final_radius: 100.0
+  curriculum_steps: 2500000
+  precision_mode: false

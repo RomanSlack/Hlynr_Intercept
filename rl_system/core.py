@@ -243,14 +243,25 @@ class GroundRadarStation:
 
 
 class Radar26DObservation:
-    """26-dimensional radar observation space with ground radar support."""
+    """26-dimensional radar observation space with ground radar support.
+
+    Supports three observation modes:
+    - "world_frame": Original XYZ coordinates in world frame (default)
+    - "body_frame": XYZ coordinates transformed to interceptor body frame
+    - "los_frame": Line-of-sight based observations (direction-invariant)
+
+    LOS frame uses relative geometry (range, LOS rates, closing velocity) instead
+    of absolute coordinates, making it naturally invariant to approach direction.
+    This is the standard approach in missile guidance literature.
+    """
 
     def __init__(self, max_range: float = 10000.0, max_velocity: float = 1000.0,
                  radar_range: float = 5000.0, min_detection_range: float = 50.0,
                  sensor_delay_ms: float = 30.0, simulation_dt: float = 0.01,
                  ground_radar_config: Optional[Dict[str, Any]] = None,
                  radar_beam_width: float = 60.0,
-                 rotation_invariant: bool = False):
+                 rotation_invariant: bool = False,
+                 observation_mode: str = "world_frame"):
         self.max_range = max_range
         self.max_velocity = max_velocity
         self.radar_range = radar_range  # Onboard radar range
@@ -258,10 +269,18 @@ class Radar26DObservation:
         self.radar_beam_width = radar_beam_width  # Beam width in degrees (curriculum-adjusted)
         self.rng = np.random.default_rng()
 
-        # Rotation-invariant mode: Transform all vectors to body frame
-        # This makes observations independent of absolute world orientation,
-        # allowing the model to generalize to missiles from any direction
-        self.rotation_invariant = rotation_invariant
+        # Observation mode: "world_frame", "body_frame", or "los_frame"
+        # - world_frame: Original XYZ in world coordinates (direction-dependent)
+        # - body_frame: XYZ in interceptor body frame (partially invariant)
+        # - los_frame: Line-of-sight based (fully direction-invariant)
+        self.observation_mode = observation_mode
+
+        # Backward compatibility: rotation_invariant=True maps to body_frame mode
+        if rotation_invariant and observation_mode == "world_frame":
+            self.observation_mode = "body_frame"
+
+        # For backward compatibility
+        self.rotation_invariant = (self.observation_mode == "body_frame")
 
         # Curriculum parameters (set externally by environment)
         self.onboard_detection_reliability = 1.0  # 0-1, probability multiplier for detection
@@ -762,22 +781,98 @@ class Radar26DObservation:
             radar_rel_pos = filtered_rel_pos
             radar_rel_vel = filtered_rel_vel
 
-            # ROTATION-INVARIANT MODE: Transform to body frame
-            # This makes observations independent of absolute world orientation
-            if self.rotation_invariant:
+            # Computed values from Kalman-filtered data (used by all modes)
+            radar_range = np.linalg.norm(radar_rel_pos)
+            closing_speed = -np.dot(radar_rel_pos, radar_rel_vel) / (radar_range + 1e-6)
+
+            # Get interceptor forward vector (used by multiple modes)
+            int_forward = get_forward_vector(int_quat)
+
+            if self.observation_mode == "los_frame":
+                # === LOS FRAME MODE ===
+                # Direction-invariant observations based on line-of-sight geometry
+                # This is the standard approach in missile guidance literature
+
+                # [0] Range to target (normalized)
+                obs[0] = np.clip(radar_range / self.max_range, 0.0, 1.0)
+
+                # [1] Range rate / closing speed (negative = closing)
+                obs[1] = np.clip(closing_speed / self.max_velocity, -1.0, 1.0)
+
+                # LOS unit vector
+                if radar_range > 1e-6:
+                    los_unit = radar_rel_pos / radar_range
+                else:
+                    los_unit = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+                # LOS angular rate calculation
+                # omega_los = (v_rel - v_closing * los_unit) / range
+                los_tangent_vel = radar_rel_vel - closing_speed * los_unit
+                los_rate_vec = los_tangent_vel / (radar_range + 1e-6)
+                los_rate_magnitude = np.linalg.norm(los_rate_vec)
+
+                # Decompose LOS rate into azimuth and elevation components
+                # Use world up vector for reference
+                world_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+
+                # Horizontal plane (perpendicular to world up)
+                los_horizontal = los_unit - np.dot(los_unit, world_up) * world_up
+                los_horizontal_norm = np.linalg.norm(los_horizontal)
+                if los_horizontal_norm > 1e-6:
+                    los_horizontal = los_horizontal / los_horizontal_norm
+                else:
+                    los_horizontal = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+                # Azimuth direction (perpendicular to LOS in horizontal plane)
+                azimuth_dir = np.cross(world_up, los_horizontal)
+                azimuth_dir_norm = np.linalg.norm(azimuth_dir)
+                if azimuth_dir_norm > 1e-6:
+                    azimuth_dir = azimuth_dir / azimuth_dir_norm
+
+                # Elevation direction (perpendicular to LOS in vertical plane)
+                elevation_dir = np.cross(los_unit, azimuth_dir)
+
+                # [2] LOS azimuth rate (rad/s, normalized)
+                max_los_rate = 0.5  # rad/s - typical max for engagement
+                los_azimuth_rate = np.dot(los_rate_vec, azimuth_dir)
+                obs[2] = np.clip(los_azimuth_rate / max_los_rate, -1.0, 1.0)
+
+                # [3] LOS elevation rate (rad/s, normalized)
+                los_elevation_rate = np.dot(los_rate_vec, elevation_dir)
+                obs[3] = np.clip(los_elevation_rate / max_los_rate, -1.0, 1.0)
+
+                # [4] Off-axis angle (angle between interceptor velocity and LOS)
+                int_vel_magnitude = np.linalg.norm(int_vel)
+                if int_vel_magnitude > 1e-6:
+                    int_vel_unit = int_vel / int_vel_magnitude
+                    off_axis_cos = np.dot(int_vel_unit, los_unit)
+                    obs[4] = off_axis_cos  # cos(angle), 1.0 = on collision course
+                else:
+                    obs[4] = 0.0
+
+                # [5] Lead angle (angle between LOS and target velocity direction)
+                target_vel = radar_rel_vel + int_vel  # Approximate target velocity in world frame
+                target_vel_magnitude = np.linalg.norm(target_vel)
+                if target_vel_magnitude > 1e-6:
+                    target_vel_unit = target_vel / target_vel_magnitude
+                    lead_angle_cos = np.dot(target_vel_unit, -los_unit)  # -LOS points at target
+                    obs[5] = lead_angle_cos
+                else:
+                    obs[5] = 0.0
+
+            elif self.observation_mode == "body_frame":
+                # === BODY FRAME MODE ===
                 # Transform relative position to body frame [forward, right, up]
                 body_rel_pos = world_to_body_frame(radar_rel_pos, int_quat)
                 body_rel_vel = world_to_body_frame(radar_rel_vel, int_quat)
                 obs[0:3] = np.clip(body_rel_pos / self.max_range, -1.0, 1.0)
                 obs[3:6] = np.clip(body_rel_vel / self.max_velocity, -1.0, 1.0)
+
             else:
+                # === WORLD FRAME MODE (default) ===
                 # Original world-frame observations
                 obs[0:3] = np.clip(radar_rel_pos / self.max_range, -1.0, 1.0)
                 obs[3:6] = np.clip(radar_rel_vel / self.max_velocity, -1.0, 1.0)
-
-            # Computed values from Kalman-filtered data
-            radar_range = np.linalg.norm(radar_rel_pos)
-            closing_speed = -np.dot(radar_rel_pos, radar_rel_vel) / (radar_range + 1e-6)
 
             # [13] Time to intercept estimate (from filtered data)
             if closing_speed > 0:
@@ -798,7 +893,6 @@ class Radar26DObservation:
 
             # [16] Off-axis angle (target angle from interceptor forward axis)
             if radar_range > 1e-6:
-                int_forward = get_forward_vector(int_quat)
                 to_target = radar_rel_pos / radar_range
                 obs[16] = np.dot(int_forward, to_target)
             else:
@@ -816,7 +910,16 @@ class Radar26DObservation:
             obs[16] = 0.0  # No off-axis angle
 
         # [6-8] Interceptor's own velocity (perfect internal knowledge)
-        if self.rotation_invariant:
+        if self.observation_mode == "los_frame":
+            # In LOS frame, express velocity as [speed, climb_rate, sideslip]
+            int_speed = np.linalg.norm(int_vel)
+            obs[6] = np.clip(int_speed / self.max_velocity, 0.0, 1.0)
+            # Vertical (climb) rate
+            obs[7] = np.clip(int_vel[2] / self.max_velocity, -1.0, 1.0)
+            # Horizontal speed
+            horizontal_speed = np.linalg.norm(int_vel[:2])
+            obs[8] = np.clip(horizontal_speed / self.max_velocity, 0.0, 1.0)
+        elif self.observation_mode == "body_frame":
             # In body frame, velocity is expressed as [forward_speed, right_speed, up_speed]
             body_vel = world_to_body_frame(int_vel, int_quat)
             obs[6:9] = np.clip(body_vel / self.max_velocity, -1.0, 1.0)
@@ -824,10 +927,9 @@ class Radar26DObservation:
             obs[6:9] = np.clip(int_vel / self.max_velocity, -1.0, 1.0)
 
         # [9-11] Interceptor's own orientation
-        if self.rotation_invariant:
-            # In rotation-invariant mode, absolute orientation is meaningless
-            # Instead, store angular rates or just zeros (orientation is implicit in body frame)
-            # We use zeros since all vectors are already in body frame
+        if self.observation_mode in ("los_frame", "body_frame"):
+            # In LOS/body frame, absolute orientation is meaningless
+            # Instead, store pitch and heading rate estimates (zeros for now)
             obs[9:12] = 0.0
         else:
             # Original: absolute euler angles
@@ -843,18 +945,36 @@ class Radar26DObservation:
             ground_radar_pos = ground_rel_pos.copy()
             ground_radar_vel = ground_rel_vel.copy()
 
-            # [17-19] Ground radar relative position
-            if self.rotation_invariant:
+            if self.observation_mode == "los_frame":
+                # In LOS frame, ground radar provides redundant range/rate measurements
+                ground_range = np.linalg.norm(ground_radar_pos)
+                ground_closing = -np.dot(ground_radar_pos, ground_radar_vel) / (ground_range + 1e-6)
+
+                # [17] Ground radar range
+                obs[17] = np.clip(ground_range / self.max_range, 0.0, 1.0)
+
+                # [18] Ground radar closing speed
+                obs[18] = np.clip(ground_closing / self.max_velocity, -1.0, 1.0)
+
+                # [19] Ground radar LOS rate magnitude
+                if ground_range > 1e-6:
+                    ground_los_unit = ground_radar_pos / ground_range
+                    ground_tangent_vel = ground_radar_vel - ground_closing * ground_los_unit
+                    ground_los_rate = np.linalg.norm(ground_tangent_vel) / ground_range
+                    obs[19] = np.clip(ground_los_rate / 0.5, 0.0, 1.0)  # max 0.5 rad/s
+                else:
+                    obs[19] = 0.0
+
+                # [20-22] Reserved for future use (consistency check, etc.)
+                obs[20:23] = 0.0
+
+            elif self.observation_mode == "body_frame":
                 body_ground_pos = world_to_body_frame(ground_radar_pos, int_quat)
                 obs[17:20] = np.clip(body_ground_pos / self.max_range, -1.0, 1.0)
-            else:
-                obs[17:20] = np.clip(ground_radar_pos / self.max_range, -1.0, 1.0)
-
-            # [20-22] Ground radar relative velocity
-            if self.rotation_invariant:
                 body_ground_vel = world_to_body_frame(ground_radar_vel, int_quat)
                 obs[20:23] = np.clip(body_ground_vel / self.max_velocity, -1.0, 1.0)
             else:
+                obs[17:20] = np.clip(ground_radar_pos / self.max_range, -1.0, 1.0)
                 obs[20:23] = np.clip(ground_radar_vel / self.max_velocity, -1.0, 1.0)
 
             # [23] Ground radar quality

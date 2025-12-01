@@ -1,157 +1,164 @@
 # HRL Line-of-Sight Frame Implementation Plan
 
-## Status Update (November 30, 2025)
+## Status Update (November 30, 2025) - V2: Full LOS Frame
 
-### What We Tried
+### Implementation Complete
+
+**CRITICAL UPDATE**: LOS frame now includes BOTH observations AND actions.
+- Observations: Direction-invariant geometry (range, LOS rates, off-axis angle)
+- Actions: LOS-relative thrust (along LOS, perpendicular horizontal, perpendicular vertical)
+
+This makes the entire control loop direction-invariant - the same policy works from any approach direction.
+
+### Training History
 
 | Approach | Best Min Distance | Sub-50m Rate | Notes |
 |----------|------------------|--------------|-------|
 | **Single-octant (baseline)** | **19.87m** ✅ | 14% (7/50) | Works but only from one direction |
 | 360° world-frame | 310m | 0% | Catastrophic failure |
 | 360° body-frame rotation-invariant | 63m | 0% | Better but not learning |
-| 360° all specialists retrained | 49.67m | 2% (1/50) | Slight improvement, still poor |
+| 360° body-frame all specialists retrained | 49.67m | 2% (1/50) | Slight improvement, still poor |
+| 360° LOS obs only (no LOS actions) | 425m mean, 82m best | 0% | Observations alone not enough |
+| **360° Full LOS (obs + actions)** | TBD | TBD | **Current approach - needs training** |
 
-### Root Cause
+### Root Cause Analysis
 
-Current observations use **absolute XYZ coordinates** (world-frame or body-frame). A missile from +X looks completely different from one from -X, even with body-frame transform. The model memorizes patterns for one direction and can't generalize.
+The previous LOS implementation only changed **observations** to be direction-invariant. But the **action space** was still world-frame thrust vectors `[thrust_x, thrust_y, thrust_z]`.
 
-### Literature Solution
+**The Problem**: With LOS observations but world-frame actions, the model must learn an implicit mapping:
+- "I see range closing at X rate, LOS rotating at Y rate" → "I should thrust in world direction [a,b,c]"
+- This mapping changes depending on WHERE in the world the engagement happens
+- This defeats the purpose of direction-invariant observations!
 
-Research papers use **Line-of-Sight (LOS) frame** observations:
-- Only relative geometry matters (range, bearing rate, closing velocity)
-- Naturally invariant to approach direction
-- Same technique used in proportional navigation since 1950s
+**The Solution**: Transform actions to LOS-relative frame:
+- `action[0]`: Thrust along LOS (toward target)
+- `action[1]`: Thrust perpendicular to LOS (horizontal correction)
+- `action[2]`: Thrust perpendicular to LOS (vertical correction)
+
+Now the same action "thrust toward target with lateral correction" produces the same result regardless of world orientation.
 
 ---
 
-## Implementation Plan
+## Implementation Details
 
-### Phase 1: LOS Observation Space
-
-Replace current 26D observations with LOS-based observations:
-
-**Current (direction-dependent):**
+### LOS Observation Space (26D, same as before)
 ```
-[0-2]: Relative position XYZ (world or body frame)
-[3-5]: Relative velocity XYZ
-[6-8]: Interceptor velocity XYZ
-[9-11]: Interceptor orientation (euler angles)
-...
-```
-
-**New (direction-invariant):**
-```
-[0]: Range (distance to target)
-[1]: Range rate (closing velocity, negative = closing)
-[2]: LOS azimuth rate (bearing change rate, horizontal)
-[3]: LOS elevation rate (bearing change rate, vertical)
-[4]: Off-axis angle (angle between interceptor velocity and LOS)
-[5]: Lead angle (angle between LOS and target velocity)
+[0]: Range to target (normalized, 0-1)
+[1]: Range rate (positive = closing, normalized)
+[2]: LOS azimuth rate (horizontal bearing change rate)
+[3]: LOS elevation rate (vertical bearing change rate)
+[4]: Off-axis angle cos (1.0 = on collision course)
+[5]: Lead angle cos (LOS vs target velocity direction)
 [6]: Interceptor speed (magnitude)
-[7]: Target speed estimate (magnitude)
-[8]: Time-to-intercept estimate
-[9]: Fuel fraction
-[10-11]: Interceptor pitch/yaw rates (for control feedback)
-[12-15]: Ground radar equivalents (range, range rate, LOS rates)
-[16-17]: Quality metrics (radar lock, fusion confidence)
+[7]: Vertical climb rate
+[8]: Horizontal speed
+[9-11]: Reserved (zeros in LOS mode)
+[12]: Fuel fraction
+[13-16]: TTI, quality, closing rate, off-axis
+[17-19]: Ground radar (range, closing, LOS rate)
+[20-25]: Quality metrics
 ```
 
-**Key properties:**
-- All scalars or angles relative to LOS
-- Same observation for same geometry, regardless of world orientation
-- ~18D instead of 26D (simpler)
+### LOS Action Space (6D)
+```
+[0]: Thrust along LOS (positive = toward target)
+[1]: Thrust perpendicular to LOS in horizontal plane (lateral correction)
+[2]: Thrust perpendicular to LOS in vertical plane (altitude correction)
+[3-5]: Angular rates (body-relative, unchanged)
+```
 
-### Phase 2: Modify `core.py`
+### Transformation Logic
 
-Add new observation mode `los_frame`:
+The environment maintains three orthogonal unit vectors defining the LOS frame:
+- `los_unit`: Points from interceptor toward missile (along LOS)
+- `los_horizontal`: Perpendicular to LOS in the horizontal plane
+- `los_vertical`: Perpendicular to LOS in the vertical plane
 
+Action transformation:
 ```python
-def compute_los_observations(self, interceptor, missile, ...):
-    # Geometry
-    rel_pos = missile_pos - interceptor_pos
-    range_to_target = np.linalg.norm(rel_pos)
-    los_unit = rel_pos / (range_to_target + 1e-6)
-
-    # Range rate (closing velocity)
-    rel_vel = missile_vel - interceptor_vel
-    range_rate = np.dot(rel_vel, los_unit)
-
-    # LOS angular rates
-    los_cross_vel = rel_vel - range_rate * los_unit
-    los_rate = np.linalg.norm(los_cross_vel) / (range_to_target + 1e-6)
-
-    # Decompose into azimuth/elevation rates
-    # ... (project onto horizontal and vertical planes)
-
-    # Off-axis angle
-    int_vel_unit = interceptor_vel / (np.linalg.norm(interceptor_vel) + 1e-6)
-    off_axis = np.arccos(np.clip(np.dot(int_vel_unit, los_unit), -1, 1))
-
-    # Time to intercept
-    tti = range_to_target / (-range_rate + 1e-6) if range_rate < 0 else 999
-
-    return np.array([range_to_target, range_rate, los_az_rate, los_el_rate, ...])
+world_thrust = (
+    action[0] * los_unit +
+    action[1] * los_horizontal +
+    action[2] * los_vertical
+)
 ```
 
-### Phase 3: Config Flag
+### Proportional Navigation Intuition
 
-```yaml
-environment:
-  observation_mode: "los_frame"  # Options: "world_frame", "body_frame", "los_frame"
+The policy can learn proportional navigation (PN) directly:
+- **To close distance**: `action[0] > 0` (thrust along LOS)
+- **To achieve collision course**: `action[1,2] = -N * obs[2,3]` (thrust perpendicular to cancel LOS rotation)
+- **N (navigation gain)**: The policy learns optimal N for different engagement phases
+
+This is exactly how real missile guidance works!
+
+---
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `rl_system/core.py` | LOS observation computation (already done) |
+| `rl_system/environment.py` | Added `_update_los_frame()` and `_transform_los_action_to_world()` |
+| `rl_system/configs/hrl/search_los.yaml` | Updated docs for LOS actions |
+| `rl_system/configs/hrl/track_los.yaml` | Updated docs for LOS actions |
+| `rl_system/configs/hrl/terminal_los.yaml` | Updated docs for LOS actions |
+| `rl_system/configs/hrl/selector_los.yaml` | Uses LOS mode |
+| `rl_system/configs/eval_360_los.yaml` | Evaluation config for LOS models |
+
+---
+
+## Training Commands
+
+```bash
+# Train Search specialist with full LOS frame
+python scripts/train_hrl_pretrain.py --agent search --config configs/hrl/search_los.yaml
+
+# Train Track specialist
+python scripts/train_hrl_pretrain.py --agent track --config configs/hrl/track_los.yaml
+
+# Train Terminal specialist
+python scripts/train_hrl_pretrain.py --agent terminal --config configs/hrl/terminal_los.yaml
+
+# Train Selector (after specialists complete)
+python scripts/train_hrl_selector.py \
+  --config configs/hrl/selector_los.yaml \
+  --specialist-dir checkpoints/hrl/specialists/
+
+# Evaluate
+python scripts/evaluate_hrl.py \
+  --config configs/eval_360_los.yaml \
+  --selector checkpoints/hrl/selector/<timestamp>/final/model.zip \
+  --search checkpoints/hrl/specialists/search/<timestamp>/final/model.zip \
+  --track checkpoints/hrl/specialists/track/<timestamp>/final/model.zip \
+  --terminal checkpoints/hrl/specialists/terminal/<timestamp>/final/model.zip \
+  --episodes 50 --seed 44
 ```
-
-### Phase 4: Retrain All Specialists
-
-With LOS observations, train fresh:
-1. Search specialist (3M steps)
-2. Track specialist (3M steps)
-3. Terminal specialist (3M steps)
-4. Selector (500k steps)
-
-### Phase 5: Evaluate on 360° Spawns
-
-Should now generalize to any approach direction.
 
 ---
 
 ## Expected Outcome
 
-- **Direction invariance**: Same observation for same relative geometry
-- **Simpler learning**: Fewer dimensions, more meaningful features
-- **Proven approach**: Used in real missile guidance systems
-- **Full 360° coverage** with single trained model
-
----
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `rl_system/core.py` | Add `compute_los_observations()` method |
-| `rl_system/environment.py` | Add `observation_mode` config option |
-| `rl_system/configs/*.yaml` | Add `observation_mode: los_frame` |
+With full LOS frame (observations + actions):
+- **Perfect direction invariance**: Same observation AND action produces same result from any direction
+- **Natural PN learning**: Action space directly supports proportional navigation
+- **Simpler credit assignment**: "Thrust toward target" is action[0], not a complex world-frame vector
+- **Full 360° coverage**: Single trained model should work from any approach direction
 
 ---
 
 ## References
 
-- [MDPI: Study on RL-Based Missile Guidance Law](https://www.mdpi.com/2076-3417/10/18/6567) - Uses LOS rate + velocity as inputs
+- [MDPI: Study on RL-Based Missile Guidance Law](https://www.mdpi.com/2076-3417/10/18/6567)
 - [MIT: Reinforcement Metalearning for Interception](https://dspace.mit.edu/bitstream/handle/1721.1/145416/2004.09978.pdf)
 - [Tandfonline: Deep Recurrent RL for Intercept Guidance](https://www.tandfonline.com/doi/full/10.1080/08839514.2024.2355023)
+- Zarchan, P. "Tactical and Strategic Missile Guidance" - Proportional Navigation theory
 
 ---
 
-## Timeline Estimate
+## Working Checkpoint Reference (Single-Octant Best)
 
-- Phase 1-3 (Implementation): 2-3 hours
-- Phase 4 (Training): ~2 hours (3 specialists × 35 min + selector)
-- Phase 5 (Evaluation): 10 minutes
-
----
-
-## Working Checkpoint Reference (Current Best)
-
-Until LOS is implemented, this single-octant config achieves 19.87m:
+For comparison, the single-octant config achieves 19.87m:
 
 ```bash
 python scripts/evaluate_hrl.py \
