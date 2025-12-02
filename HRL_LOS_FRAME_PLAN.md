@@ -1,10 +1,74 @@
 # HRL Line-of-Sight Frame Implementation Plan
 
-## Status Update (December 1, 2025) - V3: LOS Frame Bug Fix
+## Status Update (December 2, 2025) - V5: Interceptor Velocity in World Frame
 
-### CRITICAL BUG FIX: Orthonormal Basis Construction
+### CRITICAL BUG FIX: Interceptor Velocity Was in World Frame!
 
-**Bug Found**: The LOS frame vectors were NOT properly orthogonal!
+**Bug Found**: After V4 fix, performance still showed massive azimuth bias:
+- Q1 (0-90°): **162.6m mean**, 60% sub-150m
+- Q2 (90-180°): 389.1m mean, 0% sub-150m
+- Q3 (-180,-90°): 511.0m mean, 0% sub-150m
+- Q4 (-90,0°): 403.2m mean, 0% sub-150m
+
+The model ONLY worked from the original training octant (Q1).
+
+**Root Cause**: Lines 925-928 in `core.py` were using world-frame velocity:
+```python
+# WRONG - world frame leakage!
+obs[7] = int_vel[2] / max_velocity      # World Z (climb rate)
+obs[8] = norm(int_vel[:2]) / max_velocity  # World XY (horizontal)
+```
+
+**The Fix**: Project interceptor velocity onto LOS frame axes:
+```python
+# CORRECT - LOS-relative velocity
+vel_lateral = dot(int_vel, los_horizontal)
+vel_vertical = dot(int_vel, los_vertical)
+obs[7] = vel_lateral / max_velocity
+obs[8] = vel_vertical / max_velocity
+```
+
+Now obs[6:8] = [speed, lateral_vel, vertical_vel] in LOS frame, matching action[0:3] = [thrust_along, thrust_lateral, thrust_vertical].
+
+---
+
+## Status Update (December 2, 2025) - V4: Observation-Action Frame Mismatch Fix
+
+### Previous Bug Fix: Observation and Action Frames Were Misaligned!
+
+**Bug Found**: The observation code (`core.py`) and action code (`environment.py`) used DIFFERENT coordinate frames!
+
+**In `core.py` (observations)** - WRONG:
+```python
+# Used projection onto horizontal plane (NOT perpendicular to LOS)
+los_horizontal = los_unit - dot(los_unit, world_up) * world_up
+azimuth_dir = cross(world_up, los_horizontal)
+elevation_dir = cross(los_unit, azimuth_dir)
+```
+
+**In `environment.py` (actions)** - CORRECT:
+```python
+# Used proper orthonormal basis
+los_horizontal = normalize(cross(los_unit, world_up))
+los_vertical = cross(los_unit, los_horizontal)
+```
+
+**Why This Broke Everything**: The policy sees LOS rates decomposed into azimuth/elevation axes, then outputs actions in a DIFFERENT los_horizontal/los_vertical frame. The mapping between "LOS rate in direction X" and "thrust in direction X" was inconsistent depending on engagement geometry.
+
+**The Fix**: Aligned `core.py` to use identical frame construction as `environment.py`:
+```python
+# BOTH files now use:
+los_horizontal = normalize(cross(los_unit, world_up))
+los_vertical = cross(los_unit, los_horizontal)
+```
+
+---
+
+## Status Update (December 1, 2025) - V3: Action Frame Bug Fix
+
+### Previous Bug Fix: Orthonormal Basis Construction in Actions
+
+**Bug Found**: The LOS frame vectors in environment.py were NOT properly orthogonal!
 
 The previous implementation computed `los_horizontal` as:
 ```python

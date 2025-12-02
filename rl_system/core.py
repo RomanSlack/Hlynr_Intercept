@@ -812,25 +812,32 @@ class Radar26DObservation:
                 los_rate_magnitude = np.linalg.norm(los_rate_vec)
 
                 # Decompose LOS rate into azimuth and elevation components
-                # Use world up vector for reference
+                # CRITICAL: Use the SAME orthonormal basis as action transformation!
+                # The action code in environment.py uses:
+                #   los_horizontal = normalize(cross(los_unit, world_up))
+                #   los_vertical = cross(los_unit, los_horizontal)
+                # We must match this exactly for observation-action alignment.
                 world_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
-                # Horizontal plane (perpendicular to world up)
-                los_horizontal = los_unit - np.dot(los_unit, world_up) * world_up
-                los_horizontal_norm = np.linalg.norm(los_horizontal)
-                if los_horizontal_norm > 1e-6:
-                    los_horizontal = los_horizontal / los_horizontal_norm
+                # los_horizontal: perpendicular to LOS, roughly horizontal
+                # Cross product gives vector perpendicular to both LOS and world_up
+                los_right = np.cross(los_unit, world_up)
+                los_right_norm = np.linalg.norm(los_right)
+                if los_right_norm > 1e-6:
+                    los_horizontal = los_right / los_right_norm
                 else:
+                    # LOS is nearly vertical - use arbitrary horizontal reference
                     los_horizontal = np.array([1.0, 0.0, 0.0], dtype=np.float32)
 
-                # Azimuth direction (perpendicular to LOS in horizontal plane)
-                azimuth_dir = np.cross(world_up, los_horizontal)
-                azimuth_dir_norm = np.linalg.norm(azimuth_dir)
-                if azimuth_dir_norm > 1e-6:
-                    azimuth_dir = azimuth_dir / azimuth_dir_norm
+                # los_vertical: perpendicular to both LOS and los_horizontal
+                # This completes the orthonormal basis
+                los_vertical = np.cross(los_unit, los_horizontal)
 
-                # Elevation direction (perpendicular to LOS in vertical plane)
-                elevation_dir = np.cross(los_unit, azimuth_dir)
+                # Now decompose LOS rate into these axes
+                # azimuth_dir = los_horizontal (lateral motion)
+                # elevation_dir = los_vertical (vertical motion)
+                azimuth_dir = los_horizontal
+                elevation_dir = los_vertical
 
                 # [2] LOS azimuth rate (rad/s, normalized)
                 max_los_rate = 0.5  # rad/s - typical max for engagement
@@ -911,14 +918,38 @@ class Radar26DObservation:
 
         # [6-8] Interceptor's own velocity (perfect internal knowledge)
         if self.observation_mode == "los_frame":
-            # In LOS frame, express velocity as [speed, climb_rate, sideslip]
+            # In LOS frame, express velocity in LOS-relative coordinates
+            # CRITICAL: Must use same frame as action transformation for consistency!
+            # Using world-frame components (int_vel[2], int_vel[:2]) breaks direction invariance.
             int_speed = np.linalg.norm(int_vel)
             obs[6] = np.clip(int_speed / self.max_velocity, 0.0, 1.0)
-            # Vertical (climb) rate
-            obs[7] = np.clip(int_vel[2] / self.max_velocity, -1.0, 1.0)
-            # Horizontal speed
-            horizontal_speed = np.linalg.norm(int_vel[:2])
-            obs[8] = np.clip(horizontal_speed / self.max_velocity, 0.0, 1.0)
+
+            # Project interceptor velocity onto LOS frame axes
+            # Use true_rel_pos (always available) to define LOS direction for velocity projection
+            # This is fine because we're projecting the interceptor's own velocity (perfect knowledge)
+            # onto the LOS frame - we just need the direction, not the radar measurement
+            true_range_for_vel = np.linalg.norm(true_rel_pos)
+            if true_range_for_vel > 1e-6:
+                los_unit_vel = true_rel_pos / true_range_for_vel
+            else:
+                los_unit_vel = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+            world_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+            los_right_vel = np.cross(los_unit_vel, world_up)
+            los_right_norm = np.linalg.norm(los_right_vel)
+            if los_right_norm > 1e-6:
+                los_horizontal_vel = los_right_vel / los_right_norm
+            else:
+                los_horizontal_vel = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+            los_vertical_vel = np.cross(los_unit_vel, los_horizontal_vel)
+
+            # [7] Velocity component along los_horizontal (lateral)
+            vel_lateral = np.dot(int_vel, los_horizontal_vel)
+            obs[7] = np.clip(vel_lateral / self.max_velocity, -1.0, 1.0)
+
+            # [8] Velocity component along los_vertical (vertical relative to LOS)
+            vel_vertical = np.dot(int_vel, los_vertical_vel)
+            obs[8] = np.clip(vel_vertical / self.max_velocity, -1.0, 1.0)
         elif self.observation_mode == "body_frame":
             # In body frame, velocity is expressed as [forward_speed, right_speed, up_speed]
             body_vel = world_to_body_frame(int_vel, int_quat)
