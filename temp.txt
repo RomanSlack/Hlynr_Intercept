@@ -4,3 +4,57 @@ python scripts/evaluate_hrl.py       --selector checkpoints/hrl/selector/2025112
 
 
 Rest:
+ Summary: Critical Bug Fixed
+
+  I found and fixed a critical bug in the LOS frame implementation that explains why 49/50 episodes failed despite similar action distributions:
+
+  The Problem
+
+  The LOS frame vectors (los_unit, los_horizontal, los_vertical) were NOT orthogonal. The previous code computed los_horizontal incorrectly:
+
+  # BUGGY CODE:
+  los_horizontal_proj = los_unit - dot(los_unit, world_up) * world_up  # XY projection of LOS
+  los_horizontal = cross(world_up, los_horizontal_proj)  # NOT perpendicular to los_unit!
+
+  Why This Caused Failures
+
+  When the basis is non-orthogonal:
+  - action[0] (thrust along LOS) didn't produce pure closing motion
+  - Effectiveness varied with elevation angle:
+    - Low elevation (~20°): ~229 m/s closing rate → SUCCESS
+    - High elevation (~50°): ~88 m/s closing rate → FAILURE (NEVER_CLOSE)
+
+  This explains why 13 episodes succeeded while 12 "never got close" - they had higher elevation angles where the buggy basis leaked thrust sideways instead of toward the target.
+
+  The Fix
+
+  Proper orthonormal basis using cross products:
+
+  # FIXED CODE:
+  los_horizontal = normalize(cross(los_unit, world_up))  # Truly perpendicular to LOS
+  los_vertical = cross(los_unit, los_horizontal)         # Completes orthonormal basis
+
+  Next Steps
+
+  You need to retrain all models with the fixed LOS frame:
+
+  # Train specialists in parallel (can run these simultaneously)
+  python scripts/train_hrl_pretrain.py --agent search --config configs/hrl/search_los.yaml
+  python scripts/train_hrl_pretrain.py --agent track --config configs/hrl/track_los.yaml
+  python scripts/train_hrl_pretrain.py --agent terminal --config configs/hrl/terminal_los.yaml
+
+  # Then train selector
+  python scripts/train_hrl_selector.py \
+    --config configs/hrl/selector_los.yaml \
+    --specialist-dir checkpoints/hrl/specialists/
+
+  # Evaluate
+  python scripts/evaluate_hrl.py \
+    --config configs/eval_360_los.yaml \
+    --selector checkpoints/hrl/selector/<new_timestamp>/final/model.zip \
+    --search checkpoints/hrl/specialists/search/<new_timestamp>/final/model.zip \
+    --track checkpoints/hrl/specialists/track/<new_timestamp>/final/model.zip \
+    --terminal checkpoints/hrl/specialists/terminal/<new_timestamp>/final/model.zip \
+    --episodes 50 --seed 44
+
+  With the fix, action[0] will now produce consistent closing rates regardless of engagement geometry, which should dramatically improve precision across all approach directions.

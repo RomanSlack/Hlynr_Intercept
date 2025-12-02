@@ -18,6 +18,16 @@
 # [3-5]: Angular rates
 #
 # Target: Full 360° directional coverage for target tracking
+#
+# ARCHITECTURE NOTE (Dec 1, 2025):
+# Switched from LSTM to MLP. Rationale:
+# - Frame stacking (4 frames) already provides temporal context
+# - LOS rates in observation space encode velocity/acceleration
+# - LSTM adds 3-5x training time with no proven benefit for this task
+# - Literature (MDPI, MIT papers) uses MLP for similar guidance tasks
+# - Best results (19.87m precision) achieved with MLP models
+# - LSTM mainly helps with partial observability / unknown target maneuvers,
+#   which we handle via LOS frame observations instead
 
 parent_config: ../../config.yaml
 
@@ -38,8 +48,8 @@ training:
   ent_decay_steps: 2500000
 
   net_arch: [512, 512, 256]
-  use_lstm: true  # LSTM helps with temporal tracking patterns
-  lstm_hidden_dim: 256
+  use_lstm: false  # MLP + frame_stack is sufficient; LSTM adds 3-5x training time with no proven benefit
+  # lstm_hidden_dim: 256  # Disabled - see notes below
   use_layer_norm: true
   use_orthogonal_init: true
   frame_stack: 4
