@@ -925,31 +925,37 @@ class Radar26DObservation:
             obs[6] = np.clip(int_speed / self.max_velocity, 0.0, 1.0)
 
             # Project interceptor velocity onto LOS frame axes
-            # Use true_rel_pos (always available) to define LOS direction for velocity projection
-            # This is fine because we're projecting the interceptor's own velocity (perfect knowledge)
-            # onto the LOS frame - we just need the direction, not the radar measurement
-            true_range_for_vel = np.linalg.norm(true_rel_pos)
-            if true_range_for_vel > 1e-6:
-                los_unit_vel = true_rel_pos / true_range_for_vel
+            # Use RADAR-DERIVED position (filtered_rel_pos) to maintain radar-only principle
+            # When no radar lock, use Kalman prediction or fallback to speed-only
+            if measurement_available or self.kalman_filter.initialized:
+                # Have radar data - use filtered position for LOS direction
+                vel_los_range = np.linalg.norm(filtered_rel_pos)
+                if vel_los_range > 1e-6:
+                    los_unit_vel = filtered_rel_pos / vel_los_range
+                else:
+                    los_unit_vel = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+
+                world_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+                los_right_vel = np.cross(los_unit_vel, world_up)
+                los_right_norm = np.linalg.norm(los_right_vel)
+                if los_right_norm > 1e-6:
+                    los_horizontal_vel = los_right_vel / los_right_norm
+                else:
+                    los_horizontal_vel = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+                los_vertical_vel = np.cross(los_unit_vel, los_horizontal_vel)
+
+                # [7] Velocity component along los_horizontal (lateral)
+                vel_lateral = np.dot(int_vel, los_horizontal_vel)
+                obs[7] = np.clip(vel_lateral / self.max_velocity, -1.0, 1.0)
+
+                # [8] Velocity component along los_vertical (vertical relative to LOS)
+                vel_vertical = np.dot(int_vel, los_vertical_vel)
+                obs[8] = np.clip(vel_vertical / self.max_velocity, -1.0, 1.0)
             else:
-                los_unit_vel = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-
-            world_up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
-            los_right_vel = np.cross(los_unit_vel, world_up)
-            los_right_norm = np.linalg.norm(los_right_vel)
-            if los_right_norm > 1e-6:
-                los_horizontal_vel = los_right_vel / los_right_norm
-            else:
-                los_horizontal_vel = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-            los_vertical_vel = np.cross(los_unit_vel, los_horizontal_vel)
-
-            # [7] Velocity component along los_horizontal (lateral)
-            vel_lateral = np.dot(int_vel, los_horizontal_vel)
-            obs[7] = np.clip(vel_lateral / self.max_velocity, -1.0, 1.0)
-
-            # [8] Velocity component along los_vertical (vertical relative to LOS)
-            vel_vertical = np.dot(int_vel, los_vertical_vel)
-            obs[8] = np.clip(vel_vertical / self.max_velocity, -1.0, 1.0)
+                # No radar lock - velocity direction unknown relative to target
+                # Use sentinel or zero to indicate "no LOS reference available"
+                obs[7] = 0.0
+                obs[8] = 0.0
         elif self.observation_mode == "body_frame":
             # In body frame, velocity is expressed as [forward_speed, right_speed, up_speed]
             body_vel = world_to_body_frame(int_vel, int_quat)
