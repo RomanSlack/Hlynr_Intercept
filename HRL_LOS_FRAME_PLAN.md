@@ -1,5 +1,41 @@
 # HRL Line-of-Sight Frame Implementation Plan
 
+## Status Update (December 2, 2025) - V7: Reward Function Overhaul
+
+### Reward Function Improvements for Aggressive Pursuit
+
+**Problem Found**: Terminal specialist standalone test revealed:
+- Model outputs only ~50% thrust toward target (action[0] ≈ 0.5)
+- Closing rate insufficient (~1.3m/step vs needed ~2m/step)
+- Interceptor and missile fly roughly parallel, never converging
+- Model learned fuel-conservative policy that doesn't actually intercept
+
+**Root Cause**: Per-step rewards too weak:
+- Distance delta reward was only `0.5 * delta` at far range
+- No reward for **closing velocity** (speed toward target)
+- No reward for **pursuit alignment** (velocity pointing at target)
+
+**The Fix**: Enhanced reward shaping (precision mode):
+```python
+# 1. CLOSING VELOCITY REWARD - teaches "go fast toward target"
+closing_velocity = distance_delta / dt  # m/s
+reward += clip(closing_velocity / 100.0, -0.5, 2.0) * 0.5
+
+# 2. STRONGER DISTANCE GRADIENT
+if distance < 50m:   reward += delta * 5.0  # Precision phase
+elif distance < 150m: reward += delta * 3.0  # Terminal
+elif distance < 500m: reward += delta * 1.5  # Medium
+else:                 reward += delta * 0.8  # Far
+
+# 3. PURSUIT ANGLE REWARD - encourages proportional navigation
+pursuit_alignment = dot(velocity_unit, los_unit)  # -1 to +1
+reward += pursuit_alignment * 0.3
+```
+
+All rewards use radar-derived quantities (LOS, range rate) - maintains realism.
+
+---
+
 ## Status Update (December 2, 2025) - V6: Interceptor Initial Velocity Bias
 
 ### CRITICAL BUG FIX: Interceptor Launched Toward Q1 Only!

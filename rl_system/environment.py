@@ -1197,25 +1197,56 @@ class InterceptEnvironment(gym.Env):
                 return reward
 
             # Per-step rewards in precision mode
-            # Strong gradient toward target, especially at close range
+            # AGGRESSIVE pursuit rewards to encourage closing quickly
             prev_distance = getattr(self, '_prev_distance', distance)
-            distance_delta = prev_distance - distance
+            distance_delta = prev_distance - distance  # positive = getting closer
 
-            # Graduated per-step rewards based on distance
+            # === CLOSING VELOCITY REWARD ===
+            # Reward for high closing rate (realistic - derived from radar range rate)
+            # This teaches the model that it needs to be moving FAST toward target
+            closing_velocity = distance_delta / self.dt  # m/s closing rate
+            # Normalize: 100 m/s closing is good, 200+ m/s is excellent
+            closing_reward = np.clip(closing_velocity / 100.0, -0.5, 2.0) * 0.5
+            reward += closing_reward
+
+            # === DISTANCE REDUCTION REWARD ===
+            # Stronger gradient - every meter counts, especially close in
             if distance < 50.0:
-                # Very close: strong gradient for final approach
+                # Very close: maximum gradient for precision
+                reward += distance_delta * 5.0
+                # Strong bonus for being very close
+                reward += np.exp(-distance / 10.0) * 1.0
+            elif distance < 150.0:
+                # Close range: high gradient for terminal phase
                 reward += distance_delta * 3.0
-                # Bonus for staying very close
-                reward += np.exp(-distance / 10.0) * 0.5
-            elif distance < 200.0:
-                # Close range: moderate gradient
+            elif distance < 500.0:
+                # Medium range: moderate gradient
                 reward += distance_delta * 1.5
             else:
-                # Far range: weak gradient
-                reward += distance_delta * 0.5
+                # Far range: still meaningful gradient
+                reward += distance_delta * 0.8
+
+            # === PURSUIT ANGLE REWARD ===
+            # Reward for velocity pointing toward target (uses LOS from radar)
+            # This encourages proportional navigation behavior
+            int_vel = np.array(self.interceptor_state['velocity'])
+            int_pos = np.array(self.interceptor_state['position'])
+            mis_pos = np.array(self.missile_state['position'])
+
+            int_speed = np.linalg.norm(int_vel)
+            if int_speed > 1.0 and distance > 10.0:
+                # LOS unit vector (toward target)
+                los_unit = (mis_pos - int_pos) / distance
+                # Velocity unit vector
+                vel_unit = int_vel / int_speed
+                # Dot product: 1.0 = perfect pursuit, -1.0 = fleeing
+                pursuit_alignment = np.dot(vel_unit, los_unit)
+                # Reward good alignment, penalize bad alignment
+                pursuit_reward = pursuit_alignment * 0.3
+                reward += pursuit_reward
 
             # Small time penalty to encourage efficiency
-            reward -= 0.3
+            reward -= 0.2
 
             # Store distance for next step
             self._prev_distance = distance
@@ -1248,9 +1279,17 @@ class InterceptEnvironment(gym.Env):
 
         # Per-step rewards (standard mode)
         prev_distance = getattr(self, '_prev_distance', distance)
-        distance_delta = prev_distance - distance
+        distance_delta = prev_distance - distance  # positive = getting closer
 
-        if distance < 500.0:
+        # Closing velocity reward (same as precision mode)
+        closing_velocity = distance_delta / self.dt
+        closing_reward = np.clip(closing_velocity / 100.0, -0.5, 2.0) * 0.3
+        reward += closing_reward
+
+        # Distance reduction with stronger gradient
+        if distance < 200.0:
+            reward += distance_delta * 2.0
+        elif distance < 500.0:
             reward += distance_delta * 1.0
         else:
             reward += distance_delta * 0.5
