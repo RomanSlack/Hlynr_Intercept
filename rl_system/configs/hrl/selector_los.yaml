@@ -40,6 +40,14 @@ environment:
   # LOS FRAME OBSERVATIONS - must match specialists
   observation_mode: "los_frame"
 
+  # INTERCEPTOR SPAWN: Launch toward threat (direction-invariant)
+  interceptor_spawn:
+    position: [[0, 0, 0], [50, 50, 10]]
+    velocity_mode: "toward_missile"
+    speed_min: 50.0
+    speed_max: 100.0
+    velocity: [[20, 20, 40], [40, 40, 80]]  # Fallback only
+
   # 360° SPHERICAL SPAWNS
   missile_spawn:
     position_mode: "spherical"

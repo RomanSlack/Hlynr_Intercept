@@ -1,8 +1,36 @@
 # HRL Line-of-Sight Frame Implementation Plan
 
+## Status Update (December 2, 2025) - V6: Interceptor Initial Velocity Bias
+
+### CRITICAL BUG FIX: Interceptor Launched Toward Q1 Only!
+
+**Bug Found**: After V5 fix, performance STILL showed massive azimuth bias:
+- Q1 (0-90°): **152.8m mean**, 60% sub-150m
+- Q2-Q4: ~400-500m mean, 0% sub-150m
+
+All top 10 closest approaches were from Q1. The LOS frame fixes were correct, but something else was biased.
+
+**Root Cause**: Base config `interceptor_spawn.velocity: [[20,20,40],[40,40,80]]` means:
+- Interceptor ALWAYS launches with positive X, positive Y velocity
+- This points toward Q1 (where X>0, Y>0)
+- When missile spawns from Q3 (X<0, Y<0), interceptor launches AWAY from it!
+
+**The Fix**: Added `velocity_mode: "toward_missile"` for interceptor spawn:
+```yaml
+interceptor_spawn:
+  position: [[0, 0, 0], [50, 50, 10]]
+  velocity_mode: "toward_missile"  # NEW
+  speed_min: 50.0
+  speed_max: 100.0
+```
+
+Environment code now points interceptor initial velocity toward the threat, just like real missile defense.
+
+---
+
 ## Status Update (December 2, 2025) - V5: Interceptor Velocity in World Frame
 
-### CRITICAL BUG FIX: Interceptor Velocity Was in World Frame!
+### Previous Bug Fix: Interceptor Velocity Was in World Frame!
 
 **Bug Found**: After V4 fix, performance still showed massive azimuth bias:
 - Q1 (0-90°): **162.6m mean**, 60% sub-150m

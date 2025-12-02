@@ -443,7 +443,28 @@ class InterceptEnvironment(gym.Env):
         int_vel_min, int_vel_max = self.interceptor_spawn_range['velocity']
 
         interceptor_pos = np.random.uniform(int_pos_min, int_pos_max).astype(np.float32)
-        interceptor_vel = np.random.uniform(int_vel_min, int_vel_max).astype(np.float32)
+
+        # Check for velocity_mode (similar to missile spawn)
+        int_velocity_mode = self.interceptor_spawn_range.get('velocity_mode', 'box')
+        int_speed_min = self.interceptor_spawn_range.get('speed_min', np.linalg.norm(int_vel_min))
+        int_speed_max = self.interceptor_spawn_range.get('speed_max', np.linalg.norm(int_vel_max))
+
+        if int_velocity_mode == 'toward_missile' and self.missile_states:
+            # Point interceptor velocity toward missile (realistic launch)
+            # This ensures no directional bias - interceptor always launches toward threat
+            target_pos = self.missile_states[0]['position']
+            to_missile = target_pos - interceptor_pos
+            to_missile_dist = np.linalg.norm(to_missile)
+
+            if to_missile_dist > 1e-6:
+                to_missile_unit = to_missile / to_missile_dist
+                desired_speed = np.random.uniform(int_speed_min, int_speed_max)
+                interceptor_vel = (to_missile_unit * desired_speed).astype(np.float32)
+            else:
+                interceptor_vel = np.random.uniform(int_vel_min, int_vel_max).astype(np.float32)
+        else:
+            # Box spawn (original behavior)
+            interceptor_vel = np.random.uniform(int_vel_min, int_vel_max).astype(np.float32)
 
         # Initialize minimum distance tracking for all missiles (now that interceptor position is known)
         if self.volley_mode:
