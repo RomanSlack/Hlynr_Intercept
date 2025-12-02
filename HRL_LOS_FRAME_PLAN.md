@@ -1,5 +1,50 @@
 # HRL Line-of-Sight Frame Implementation Plan
 
+## Status Update (December 2, 2025) - V8: Forward Thrust Reward
+
+### BREAKTHROUGH: PN Policy Proves Environment Works!
+
+**Critical Discovery**: Hardcoded proportional navigation policy achieves **100% success rate**:
+```
+Pure Pursuit (N=0): 100% success, 48.9m mean (all within kill radius!)
+PN (N=2-5): 94-96% success, ~50m mean
+```
+
+This proves:
+1. LOS frame transformation is working correctly
+2. Observation-action alignment is correct
+3. Physics simulation supports interception from any 360° direction
+4. **The trained model is the problem**, not the environment
+
+### Root Cause: Model Learning Conservative Policy
+
+The trained model outputs only ~50% thrust because:
+- Reward for distance improvement is achievable at lower thrust
+- No explicit incentive for aggressive thrust toward target
+- Model finds local optimum where partial thrust gives some reward without "risk"
+
+### The Fix (V8): Forward Thrust Reward
+
+Added explicit reward for positive forward thrust (action[0]):
+```python
+# Store original LOS-frame action before transformation
+self._los_action = action.copy() if self.observation_mode == "los_frame" else None
+
+# In reward calculation:
+if self._los_action is not None:
+    forward_thrust = self._los_action[0]  # Range: -1 to +1
+    # At max thrust (1.0): reward = 0.4
+    # At half thrust (0.5): reward = 0.2
+    # At zero thrust: reward = 0.0
+    # Negative thrust: penalty
+    thrust_reward = forward_thrust * 0.4
+    reward += thrust_reward
+```
+
+This directly rewards the behavior we want: aggressive thrust toward target.
+
+---
+
 ## Status Update (December 2, 2025) - V7: Reward Function Overhaul
 
 ### Reward Function Improvements for Aggressive Pursuit

@@ -564,6 +564,7 @@ class InterceptEnvironment(gym.Env):
         # Reset counters
         self.steps = 0
         self.total_fuel_used = 0
+        self._los_action = None  # Reset LOS action storage
         
         # Compute initial observation using radar detection (with ground radar)
         obs = self.observation_generator.compute_radar_detection(
@@ -604,6 +605,9 @@ class InterceptEnvironment(gym.Env):
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict]:
         """Execute one environment step."""
         self.steps += 1
+
+        # Store original LOS-frame action for reward shaping (before transformation)
+        self._los_action = action.copy() if self.observation_mode == "los_frame" else None
 
         # LOS-relative action transformation
         # When observation_mode is "los_frame", actions are interpreted as:
@@ -1244,6 +1248,20 @@ class InterceptEnvironment(gym.Env):
                 # Reward good alignment, penalize bad alignment
                 pursuit_reward = pursuit_alignment * 0.3
                 reward += pursuit_reward
+
+            # === FORWARD THRUST REWARD ===
+            # In LOS frame, action[0] is thrust toward target
+            # We want to encourage aggressive thrust, not conservative half-thrust
+            # This addresses the issue where models learn ~50% thrust policies
+            if self._los_action is not None:
+                forward_thrust = self._los_action[0]  # Range: -1 to +1
+                # Reward positive forward thrust (toward target)
+                # At max thrust (1.0): reward = 0.4
+                # At half thrust (0.5): reward = 0.2
+                # At zero thrust: reward = 0.0
+                # At negative thrust: penalty
+                thrust_reward = forward_thrust * 0.4
+                reward += thrust_reward
 
             # Small time penalty to encourage efficiency
             reward -= 0.2
