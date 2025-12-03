@@ -4,13 +4,20 @@ python scripts/evaluate_hrl.py       --selector checkpoints/hrl/selector/2025112
 
 
 Rest:
-  # Train specialists (can run in parallel)
-  python scripts/train_hrl_pretrain.py --agent search --config configs/hrl/search_los.yaml
-  python scripts/train_hrl_pretrain.py --agent track --config configs/hrl/track_los.yaml
-  python scripts/train_hrl_pretrain.py --agent terminal --config configs/hrl/terminal_los.yaml
 
-  # Then train selector
-  python scripts/train_hrl_selector.py \
-    --config configs/hrl/selector_los.yaml \
-    --specialist-dir checkpoints/hrl/specialists/
+  # Full HRL evaluation
+  python scripts/evaluate_hrl.py \
+    --config configs/eval_360_los.yaml \
+    --selector checkpoints/hrl/selector/<timestamp>/final/model.zip \
+    --search checkpoints/hrl/specialists/search/<timestamp>/final/model.zip \
+    --track checkpoints/hrl/specialists/track/<timestamp>/final/model.zip \
+    --terminal checkpoints/hrl/specialists/terminal/<timestamp>/final/model.zip \
+    --episodes 50 --seed 44
+
+  # Terminal standalone test (quick validation)
+  python scripts/evaluate_terminal_standalone.py \
+    --config configs/eval_terminal_standalone.yaml \
+    --model checkpoints/hrl/specialists/terminal/<timestamp>/final/model.zip \
+    --episodes 50 --seed 44
+
 
