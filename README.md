@@ -1,7 +1,7 @@
 # Hlynr Intercept – Radar-Based Missile Defense Simulator
 
 <div align="center">
-<img src="images/Screenshot from 2025-11-03 20-19-00.png" width="300">
+<img src="images/title_1_glowing.png" width="500">
 </div>
 A production-ready RL environment for training interceptor missiles using realistic radar-only observations. Based on PAC-3/THAAD interceptor specifications, this system trains agents that have **no direct knowledge** of incoming threats and must rely entirely on simulated radar sensors - just like real-world missile defense systems.
 
