@@ -2,7 +2,7 @@
 
 <div align="center">
 <img src="images/title_1_glowing.png" width="500">
-</div>
+</div> 
 A production-ready RL environment for training interceptor missiles using realistic radar-only observations. Based on PAC-3/THAAD interceptor specifications, this system trains agents that have **no direct knowledge** of incoming threats and must rely entirely on simulated radar sensors - just like real-world missile defense systems.
 
 ## Overview
