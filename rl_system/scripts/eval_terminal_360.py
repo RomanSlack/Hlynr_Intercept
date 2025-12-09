@@ -93,7 +93,15 @@ def main():
             )
             min_dist = min(min_dist, dist)
 
+            # Debug: print distance every 100 steps for first episode
+            if ep == 0 and step % 100 == 0:
+                print(f"  step {step}: dist={dist:.1f}m")
+
             if done or truncated:
+                if ep < 3:  # Debug first 3 episodes
+                    mis_z = env.missile_state['position'][2]
+                    int_z = env.interceptor_state['position'][2]
+                    print(f"  -> Ended step {step}: done={done} trunc={truncated} dist={dist:.1f}m min={min_dist:.1f}m | mis_z={mis_z:.1f} int_z={int_z:.1f}")
                 break
 
         min_distances.append(min_dist)

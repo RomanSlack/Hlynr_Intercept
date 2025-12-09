@@ -14,10 +14,14 @@ Rest:
     --terminal checkpoints/hrl/specialists/terminal/<timestamp>/final/model.zip \
     --episodes 50 --seed 44
 
-  # Terminal standalone test (quick validation)
-  python scripts/evaluate_terminal_standalone.py \
-    --config configs/eval_terminal_standalone.yaml \
-    --model checkpoints/hrl/specialists/terminal/<timestamp>/final/model.zip \
-    --episodes 50 --seed 44
+
+
+
+
+
+cd ~/Hlynr_Intercept/rl_system && python scripts/eval_terminal_360.py \
+      --model checkpoints/hrl/specialists/terminal/20251202_185304_3000000steps/best/best_model.zip \
+      --config configs/eval_360_los_no_fuze.yaml \
+      --episodes 50 --seed 44
 
 

@@ -1,0 +1,115 @@
+# Evaluation Config - 360° Spawns with LOS Frame Observations
+# Use with models trained on observation_mode: "los_frame"
+#
+# LOS frame observations are direction-invariant - same relative geometry
+# produces same observations regardless of approach azimuth.
+
+environment:
+  dt: 0.01
+  max_steps: 2000
+  max_range: 10000.0
+  max_velocity: 1000.0
+  target_position: [0, 0, 0]
+
+  # LOS FRAME MODE - must match training
+  observation_mode: "los_frame"
+
+  # PROXIMITY FUZE
+  proximity_fuze_enabled: false
+  proximity_kill_radius: 50.0
+
+  # Interceptor spawns - launch toward threat (direction-invariant)
+  interceptor_spawn:
+    position: [[0, 0, 0], [50, 50, 10]]
+    velocity_mode: "toward_missile"
+    speed_min: 50.0
+    speed_max: 100.0
+    velocity: [[20, 20, 40], [40, 40, 80]]  # Fallback only
+
+  # 360° SPHERICAL SPAWNS
+  missile_spawn:
+    position_mode: "spherical"
+    radius_min: 800.0
+    radius_max: 1500.0
+    azimuth_range: [0, 360]
+    elevation_range: [15, 60]
+    velocity_mode: "toward_target"
+    speed_min: 80.0
+    speed_max: 150.0
+    position: [[800, 800, 800], [1500, 1500, 1500]]
+    velocity: [[-60, -60, -30], [-100, -100, -50]]
+
+  gravity: [0, 0, -9.81]
+  drag_coefficient: 0.3
+  air_density: 1.225
+
+  wind:
+    velocity: [5.0, 0.0, 0.0]
+    variability: 0.1
+
+  radar_range: 5000.0
+  radar_noise: 0.02
+  radar_quality: 1.0
+  radar_beam_width: 120.0
+  min_detection_range: 50.0
+
+  ground_radar:
+    enabled: true
+    position: [0, 0, 100]
+    max_range: 20000.0
+    min_elevation_angle: 5.0
+    max_elevation_angle: 85.0
+    range_accuracy: 10.0
+    velocity_accuracy: 2.0
+    base_quality: 0.95
+    weather_sensitivity: 0.2
+    max_datalink_range: 50000.0
+    datalink_packet_loss: 0.05
+    ground_sensor_delay_ms: 50.0
+
+  missile_evasion: false
+
+  # Curriculum - MUST be under environment for eval script to see it
+  curriculum:
+    enabled: false  # Disable curriculum termination - we want to see true min distance
+    initial_radius: 5.0
+    final_radius: 5.0
+    curriculum_steps: 1
+    precision_mode: true  # Don't terminate on threshold crossing
+
+training:
+  total_timesteps: 1000000
+  n_envs: 8
+  n_steps: 2048
+  batch_size: 256
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  ent_coef: 0.01
+  net_arch: [512, 512, 256]
+  use_lstm: false
+  frame_stack: 4
+  use_layer_norm: true
+  use_orthogonal_init: true
+  eval_freq: 50000
+  n_eval_episodes: 10
+  checkpoint_freq: 50000
+
+physics_enhancements:
+  enabled: true
+  atmospheric_model:
+    enabled: true
+  sensor_delays:
+    enabled: false
+  mach_effects:
+    enabled: false
+  thrust_dynamics:
+    enabled: false
+  domain_randomization:
+    enabled: false
+  enhanced_wind:
+    enabled: false
+
+hrl:
+  enabled: false
+  decision_interval_steps: 100
