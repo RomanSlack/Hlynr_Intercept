@@ -1,0 +1,582 @@
+Paper Outline
+Communication:
+(Roman + Quinn) Reaching out to professionals in field
+* Automate email or message to professionals introducing project and problem
+* Asking specifically about how to write a good paper.
+* Setup quick call to introduce.
+
+
+
+
+* Bonus Challenge (Get in contact with video game people on missiles).
+
+
+
+Outline: (Dec 30th)
+
+
+(Quinn) Problem we are trying to solve:
+* (Figure out what a good model is)
+* The problem we are trying to solve
+* Our motivation for solving it
+* What existing work doesn’t have
+
+
+(Quinn) Past Research
+* 2D missile intercept
+* Omniscient intercept
+* Non-realistic simulations
+* HRL for non missile tasks
+* Ground radar + Missile Radar
+
+
+(Roman) What did we implement differently to achieve this (Methodology)
+* HRL architecture
+* Environment/scenario construction
+* Reward structure engineering
+
+
+(Claude + Roman) Evaluation Metrics (Missile Metrics)
+* Mean Intercept Range
+* Success rate (Volley + Solo)
+* Time to intercept
+* Fuel usage
+* Sim-to-sim or sim-to-real considerations
+
+
+Results
+        Abstraction
+
+
+
+
+
+
+Figure We Want:
+* Hook image
+* Time-to-impact vs reaction time graph
+* 1 screenshot from unity
+* System architecture diagram for HRL
+* Comparison Tables
+* Intercept trajectory comparison - baseline PPO vs HRL paths 3d
+* LOS + 360deg equation / Visual
+* Terminal guidance time series showing corrective actions when switching.
+
+
+Supplemental Stuff:
+* Training data
+
+
+
+
+
+
+
+
+.bib
+@article{Zhao2023_airdefense,
+  author       = {Minrui Zhao and Gang Wang and Qiang Fu and Xiangke Guo and Tengda Li},
+  title        = {Deep Reinforcement Learning-Based Air Defense Decision-Making Using Potential Games},
+  journal      = {Advanced Intelligent Systems},
+  volume       = {5},
+  number       = {10},
+  pages        = {2300151},
+  year         = {2023},
+  doi          = {10.1002/aisy.202300151},
+  url          = {https://onlinelibrary.wiley.com/doi/full/10.1002/aisy.202300151}
+}
+
+
+@article{Yan2022_HRL_missile,
+  author       = {M. Yan and R. Yang and Y. Zhang and L. Yue and D. Hu},
+  title        = {A Hierarchical Reinforcement Learning Method for Missile Evasion and Guidance},
+  journal      = {Scientific Reports},
+  volume       = {12},
+  number       = {1},
+  pages        = {18888},
+  year         = {2022},
+  doi          = {10.1038/s41598-022-21756-6},
+  url          = {https://www.nature.com/articles/s41598-022-21756-6}
+}
+
+
+@article{Gong2023_Curriculum3Body,
+  author       = {Xiaopeng Gong and Wanchun Chen and Zhongyuan Chen},
+  title        = {Intelligent Game Strategies in Target-Missile-Defender Engagement via Curriculum-Based Deep Reinforcement Learning},
+  journal      = {Aerospace},
+  volume       = {10},
+  number       = {2},
+  pages        = {133},
+  year         = {2023},
+  url          = {https://www.mdpi.com/2226-4310/10/2/133}
+}
+
+
+Research Phase
+What do we have:
+1. Unity Environment
+2. PPO training layer
+3. Inference Layer
+4. Logging layer + tensorboard
+5. Inference -> Json
+6. Base PPO model and checkpoints
+
+What we want:
+1. Single Policy Hierarchical RL training (90% accuracy)
+2. Realistic Physics (Missiles, Environment, Radar)
+3. Professional Unity environment (Radar visualization)
+4. Benchmarking Suite (System to easily benchmark policy and iterations)
+
+
+Mission Statement
+Hlynr – Missile-Defense Path-Finding Simulator
+RL ICBM Defense & Sandbox: Prototype AI decision logic for short-range intercepts against incoming missiles. Useful sandbox for fast heuristics, RL, and visualization under extreme time constraints.
+
+
+Collaborators:
+Roman Slack (RIT Rochester)
+Quinn Hasse (UW Madison)
+
+
+What are we solving?
+Deter Missile strikes on the US and allies.
+
+
+Mission Statement?
+Implementing a novel approach to training a RL policy to deter and defend against ICBM’s, in a physically realisable gym.
+* Single Policy Hierarchical RL strategy + Others
+* Gamified testing environment
+* Anomalous events during training
+
+
+
+
+Implement and develop separately in stages and confer and collaborate on problems and issues.
+
+
+Deliverables:
+1. Academic Paper
+2. Article
+3. GitHub Project (+ GitHub Web Page)
+4. Hugging Face Upload
+5. Video
+   1. YouTube
+   2. LinkedIn
+6. Technical Document
+7. Environment (Python)
+
+
+8. (End Game) Game like representation + Environment GUI
+
+
+Timeline:
+
+
+1. Research (Important to keep track of links for paper in the future) (day 1 - 3)
+2. Building the gym (day 3 - x)
+
+
+Bulk of the work
+3. Picking algorithms & design experiments (day 7 - 10)
+4. Iterative training (Fine-tuning the policy) (day 10 - 17)
+5. Evaluation & metric tuning (day 16 - x)
+
+
+End Game
+6. Full training cycle (Potentially >$100)
+7. Visualization
+8. Compiling Result
+9. Draft paper (Finish day >35)
+
+
+
+
+Research / Resources
+Papers / Articles:
+
+
+
+
+Romans
+_______
+
+
+Romans Notes:
+https://docs.google.com/document/d/1GA_wBr2jJZ0-sSFGomO4G5ntfJ_jPZS9ncWLaEHpSO4/edit?usp=sharing
+
+
+_______
+(7/10) 1. Reinforcement Learning in Missile Guidance: A New Era of Tactical Precision
+https://www.researchgate.net/publication/378723134_Reinforcement_Learning_in_Missile_Guidance_A_New_Era_of_Tactical_Precision
+(9/10) 2. Deep Reinforcement Learning‐Based Air Defense Decision‐Making Using Potential Games
+https://www.researchgate.net/publication/374900596_Deep_Reinforcement_Learning-Based_Air_Defense_Decision-Making_Using_Potential_Games
+(10/10) 3. A hierarchical reinforcement learning method for missile evasion and guidance
+ https://www.nature.com/articles/s41598-022-21756-6
+(7/10) 4. Curriculum learning-based missile guidance law for intercepting maneuvering targets with high-speed
+ https://www.sciencedirect.com/science/article/abs/pii/S0952197625009480
+(5/10) 5. Intercept Guidance of Maneuvering Targets with Deep RL
+https://www.researchgate.net/publication/373905954_Intercept_Guidance_of_Maneuvering_Targets_with_Deep_Reinforcement_Learning
+(6/10) 6. BVR Gym: An RL Environment for Beyond-Visual-Range Air Combat
+ https://arxiv.org/abs/2403.17533
+https://github.com/xcwoid/BVRGym
+(9/10) 7. Intelligent Game Strategies in Target-Missile-Defender Engagement via Curriculum RL
+ https://www.mdpi.com/2226-4310/10/2/133
+
+
+Non-Papers Below (No Rating)
+__________________
+
+
+9. DARPA GARD Program Overview
+https://idstch.com/threats/darpas-gard-program-building-resilient-machine-learning-to-counter-adversarial-attacks/#:~:text=The%20Guaranteeing%20AI%20Robustness%20against%20Deception%20(GARD)%20program%20aims%20to,not%20just%20narrow%2C%20specialized%20threats.
+10. The Risk of Using AI in Nuclear Command and Control (Nuclear Threat Initiative, 2023)
+https://www.nti.org/area/ai-tech/#:~:text=Nuclear%20facilities%20and%20weapons%20systems,control%20systems%20could%20be%20compromised.
+11. Intelligent Decision-Making System of Air Defense Resource Allocation via Hierarchical Reinforcement Learning
+https://onlinelibrary.wiley.com/doi/10.1155/2024/7777050
+12. DARPA AIR (Artificial Intelligence Reinforcements) Program – Lockheed Martin
+https://www.darpa.mil/research/programs/artificial-intelligence-reinforcements
+13. APS Study on Missile Defense: “Countering the Threat of Hypersonic and Ballistic Missiles” (2022)
+https://www.aps.org/publications/reports/strategic-ballistic-missile-defense
+14. European Defence Fund 2024 Work Programme – AI, Autonomy, and Simulation Emphasis
+https://defence-industry-space.ec.europa.eu/edf-work-programme-2024_en
+15. GitHub Project: Missile Guidance and Kalman Filtering (Academic)
+https://github.com/magnaprog/Missile-Guidance-Kalman-Filter
+
+
+
+
+
+
+Quinns
+________________________________________
+
+
+Quinn Notes:
+https://1drv.ms/o/c/59f6e875169a9a77/EiZMzUyXx6pElY7JqwHtLhIBaB3J3lztrkpf6Il-X-pf2w
+
+
+(8/10) Terminal Adaptive Guidance for Autonomous Hypersonic Strike Weapons via Reinforcement Learning
+https://arxiv.org/pdf/2110.00634
+
+
+(9/10) Integrated and Adaptive Guidance and Control for Endoatmospheric Missiles via Reinforcement Learning
+https://arxiv.org/pdf/2109.03880
+
+
+(6/10) Deep Learning-Based Situation Awareness for Multiple-Missile Evasion
+https://arxiv.org/pdf/2402.10101
+
+
+(7/10) Missile Guidance with Assisted Deep Reinforcement Learning for Head-On Interception
+https://link.springer.com/content/pdf/10.1007/s40747-021-00577-6.pdf
+
+
+(7/10) A Deep RL-Based Cooperative Guidance Strategy Under Uncontrollable Velocity
+https://www.mdpi.com/2226-4310/12/5/411
+
+
+(6/10) Fractional-Order Sliding-Mode Guidance Law for Intercepting Hypersonic Vehicles
+https://www.mdpi.com/2226-4310/9/2/53
+
+
+(6/10) Robust Sliding-Mode Control for Air-to-Air Missile
+https://arxiv.org/pdf/2411.06754
+
+
+(6/10) Active Target Defense Differential Game with a Fast Defender
+https://arxiv.org/pdf/1502.02747
+
+
+(6/10) Saturated Super-Twisting Sliding-Mode Missile Guidance
+https://www.sciencedirect.com/science/article/pii/S1000936121003836
+
+
+(7/10) Isaac Gym: High-Performance GPU-Based Physics Simulation for Robot Learning
+https://arxiv.org/pdf/2108.10470
+
+
+(7/10) Tunnel: Training Environment for High-Performance Reinforcement Learning
+https://arxiv.org/pdf/2505.01953
+
+
+(5/10) Weapon Sensor Overview for Long-Range Missile Defense
+https://www.mdpi.com/1424-8220/22/24/9871
+
+
+(7/10) Impact-Time-Control Cooperative Guidance Law Design
+https://www.mdpi.com/2226-4310/8/8/231
+
+
+(6/10) Time-Varying Sliding-Mode 3-D Guidance Against Maneuvering Targets
+https://doi.org/10.1016/S10009361%2821%2900222-3
+__________________________
+
+
+Tutorials:
+
+
+AI Learns to play Flappy Bird!
+Notes / Thoughts
+Policy (RL):
+In reinforcement learning, a policy is a strategy that defines the agent's behavior by mapping observed states to actions. It can be deterministic (specific action per state) or stochastic (probability distribution over actions).
+
+
+
+
+_____________________________________________________________________
+
+
+
+
+Need to define RL in the paper ( [Sutton and Barto(2018)].)
+
+
+Possible three-agent simulation: target, missile (attacker), and missile defender.
+        Probably just 2 as the target will be stationary (Still variable however)
+
+
+Lots of papers linking game theory and such
+
+
+Could have weekly virtual hackathon for the project so it isn't so anonymous
+
+
+Should implement multi agent policy for edge case solving and improved accuracy
+
+
+Should have a simulation of catastrophic event where the system fails
+
+
+Conduct a cost analysis to determine how much to defend the entire US etc…
+
+
+Conduct an analysis on how many nodes the system needs to defend the US or any target
+
+
+Reinforce the policy on mitigating nuclear fallout from the upper atmosphere (separate policy if needed)
+
+
+Possibly reach out to community at Stevens to give some HS students a OP College piece Just for fun, (Dr Smith contact)
+
+
+Randomized physics for each episode for air density, target mass, thrust changes, etc.
+
+
+Add a first person missile cam replay for fun w webGL (or Unity / UE5) or something, demo material for outreach
+
+
+
+
+
+
+
+
+
+
+How is this Novel?
+How to make the paper novel (As in unique and worth doing)?
+
+
+Possible Ideas:
+* Adversarial Multi-Agent Framework
+   * Defender and attacker agents train in a minimax/self-play setting, simulating realistic offense–defense dynamics.
+
+   * Sensor-Spoofing & Jamming Modules
+   * Built-in adversarial noise generators (radar spoofing, delayed/occluded signals) to stress-test policy robustness.
+
+      * Sparse-Reward, Long-Horizon Challenge
+      * Reward only on confirmed intercepts (and penalties on false launches), forcing hierarchical or auxiliary credit assignment strategies.
+
+         * False-Alert & Abort Scenarios
+
+            * Benchmarks include decoy sequences and require agents to “stand down” when confidence drops, measuring abort-recovery time.
+
+               * Sim-to-Real Transfer Elements
+
+                  * Randomized physics parameters (drag, sensor latency) and domain-randomization to narrow the sim-real gap.
+
+                     * Comprehensive Benchmark Suite
+
+                        * Standard Gym API with versioned scenarios, baseline implementations (PPO/SAC), and leaderboards for intercept accuracy, latency, and false-positive rate.
+
+                           * Stopping-Time & Confidence Metrics
+
+                              * Track decision latency, Q-value entropy, and percentage of engagements reversed mid-flight for nuanced performance analysis.
+
+                                 * Modular, Open-Source Design
+
+                                    * Plug-and-play architecture enabling researchers to swap in new RL algorithms, alternative sensor models, or novel reward functions.
+
+Phases
+Phase 1:
+
+
+A simple PPO policy for pathfinding to a moving point on 2DOF.
+                                       * CleanRL
+                                       * Gymnasium
+                                       * Pytorch
+Deadline: June 27th (Friday Night).
+
+
+
+
+Phase 2:
+
+
+3DOF, 4D (X,Y,Z,Time) Build a simple physics environment, implement an algorithm of your choice to optimize for destruction of the adversary. Adversary has simple evasion algorithm (Non-AI), still needs to generally go towards a point,
+
+
+                                       1. Agent (With Policy)
+                                       2. Adversary (No AI)
+                                       3. Target (Static point adversary is aiming for)
+                                       4. Physics Environment
+                                       5. Checkpoint system
+                                       6. Togglable headless training system.
+
+
+Deadline: June 29th (Sunday Night):
+
+
+
+Phase 3:
+6DOF movement, realistic physics (wind, gravity, drag), and true-to-scale time and space. Introduce curriculum learning with modular scenario templates (easy to impossible), and enrich adversary behavior with improved evasion. Implement logging for later Unity integration and design a more nuanced reward function based on interception proximity.
+If time permits: enable multi-interceptor support (not multi-agent).
+                                       1. 6DOF
+                                       2. Wind physics
+                                       3. IRL Values for speed and gravity, drag
+                                       4. Realistic environment (Scale)
+                                       5. Realistic Time (Sped up)
+                                       6. Curriculum Learning (Start with easy scenario and work up to advanced scenario) (Modular)
+                                       7. Adversary has proper simple evasion algorithm
+                                       8. Build Scenario templates (Easy, Medium, Hard, Impossible) (Json files that affect the difficulty of the randomization (Wind, Adversary IQ, Adversary Speed))
+                                       9. Some sort of visualization logging (Togglable) (CSV or Json, ETC) (For use in Unity)
+                                       10. Realistic reward system (I.e. Reward curve for attacker proximity to target on interception)
+
+
+If there is time:
+                                       11. Allow for togglable multi interceptor mode (Not multi-agent , just allowing for multiple interceptors)
+
+
+
+
+
+
+
+
+
+
+Deadline: ~ July 6th (Sunday Night):
+
+
+
+
+Phase 4 (Working Parallel) and continuing:
+
+
+
+
+Get claude code to look at both branches and make new combined base branch for Phase 4,
+        Each of us to then make our own branch off of that and merge when large changes occur or when needed
+
+
+
+
+
+Main Changes from Current Phase 3:
+
+
+                                       1. RL Model becomes inference at visualization (Changed from training viz)
+                                       2. Radar (Switched from complete state presence)
+                                       3. Include advanced diagnostics during run
+
+
+
+
+
+
+MVP:
+Quinn has basic radar PPO implementation (Working), Inference ability for model,
+Roman needs to have full 3D custom missile sandbox (Fast, Easy to use and compatible with quinns)
+        Roman reference Quinns for variables
+
+
+
+
+Tasks:
+
+
+                                       1. (Roman) Environment
+
+
+
+
+
+
+                                       2. (Quinn) Training
+
+
+
+
+
+
+
+
+
+
+                                       1. Implement full simulation environment to test model on (No more visualization of training)
+                                       2. Full radar perception (Ground and from interceptor)(No cheating with complete state presence)
+                                       3. Full diagnostics of interceptor during flight in testing environment (Graphs, Charts, Time speed up Slow down)
+                                       4. In simulation environment allow for multiple missiles from multiple locations
+                                       5. Simulation environment must be compatible between Roman and Quinns infrastructures (Both build one then combine)
+Unity API Bridge Plan
+Hlynr Intercept – Minimal Plan
+Step 1: Unity Project Setup
+                                       * Create a new 3D Unity project
+
+                                       * Enable Rigidbody physics and Input System
+
+                                       * Add basic models (cylinders for missiles, plane for ground)
+
+Step 2: Missile Physics and Controls
+                                          * Write a MissileController script
+
+                                          * Implement 6DOF using Rigidbody (thrust + pitch/yaw/roll)
+
+                                          * Add camera follow behavior
+
+Step 3: Scene and Environment
+                                             * Add ground plane, skybox, and lighting
+
+                                             * Create attacker missile with straight-line motion
+
+                                             * Add shadows for visibility
+
+Step 4: Radar Simulation
+                                                * Attach radar script to interceptor and ground
+
+                                                * Use raycasts or overlap checks to simulate radar hits
+
+                                                * Output range and angle data
+
+Step 5: RL API Bridge
+                                                   * Unity opens socket or HTTP listener
+
+                                                   * Sends radar/position data
+
+                                                   * Receives action vector from external PPO model
+
+Step 6: Python Inference Script
+                                                      * Python client connects to Unity
+
+                                                      * Feeds PPO model with observations
+
+                                                      * Returns control actions to Unity
+
+Step 7: Test and Iterate
+                                                         * Verify interceptor moves correctly
+
+                                                         * Test radar input
+
+                                                         * Evaluate PPO inference control
+
+                                                         * Log performance for debugging

@@ -1,0 +1,113 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{parskip}
+\usepackage{float} % Added for the 'H' placement option
+\geometry{margin=1in}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+\usepackage{tabularx} % For auto-adjusting column widths
+\usepackage{booktabs} % For professional borders (toprule, midrule)
+\usepackage[table]{xcolor} % For row coloring
+\usepackage{ragged2e} % For better text wrapping in narrow columns
+
+\title{\textbf{Hlynr Intercept: Hierarchical Reinforcement Learning for Radar-Only Missile Guidance}}
+
+\author{
+\IEEEauthorblockN{Roman Slack}\\
+\textit{}\\
+romanslack1@gmail.com
+\and
+\IEEEauthorblockN{Quinn Hasse}\\
+\textit{University of Wisconsin--Madison}\\
+qhasse@wisc.edu
+\and
+\IEEEauthorblockN{Claude}\\
+\textit{AI}\\
+anthropic.com
+}
+
+
+\begin{document}
+
+\maketitle
+
+% --- START OF IMAGE INSERTION (The "Hook Image") ---
+
+% --- END OF IMAGE INSERTION ---
+
+\begin{abstract}
+Missile interception under realistic sensing constraints poses a long-horizon control task with sparse rewards and partial observability. Most reinforcement learning (RL) approaches assume perfect knowledge of the target state, a condition incompatible with real defensive systems. This work introduces \textit{Hlynr Intercept}, a hierarchical reinforcement learning (HRL) framework that learns search, track, and terminal guidance behaviors using only noisy and intermittent radar measurements. The environment incorporates six-degree-of-freedom dynamics, ISA-compliant aerodynamics, transonic drag, and Kalman-filtered radar tracking. We demonstrate that hierarchical specialization enables robust interception with realistic sensor loss, significantly outperforming monolithic PPO baselines in success rate, precision, and training efficiency. The results suggest that radar-only learning is feasible when it is decomposed into phase-specific behaviors and structured decision hierarchies.
+\end{abstract}
+
+\section{Introduction}
+
+Modern defensive interception requires decision-making under uncertainty, where vehicles must infer target motion using noisy, incomplete sensor data. Unlike academic control settings with full state observability, real missiles cannot access true target position or velocity; they rely solely on radar returns subject to noise, beam-width constraints, and intermittent lock loss. This limited observability fundamentally shapes the direction and control strategies.
+
+In the \textit{Hlynr Intercept} environment, the agent receives a 30-dimensional observation vector composed entirely of radar-derived data, including line-of-sight (LOS) rates, zero-effort-miss (ZEM) estimates, fusion confidence, and Kalman-filtered track quality. When radar lock is lost, many components degrade or become invalid, forcing the agent to actively reacquire target visibility rather than relying on idealized state information. This contrasts with common RL simulators that expose true kinematic states to the policy, leading to unrealistic and brittle behaviors.
+
+Thus, our core research question is:
+
+\begin{quote}
+\textbf{How can an interceptor learn robust guidance behaviors when only noisy, intermittent radar observations are available, and no ground-truth target state is ever provided?}
+\end{quote}
+
+This motivates the use of hierarchical reinforcement learning, where different policies address search, tracking, and precision terminal control. This decomposition mirrors traditional engineered systems that allocate subsystems to sensor acquisition, trajectory shaping, and final hit-to-kill guidance.
+
+
+\section{Problem Definition and Motivation}
+
+Missile interception presents a long-horizon control challenge in which an agent must detect, pursue, and accurately strike an adversarial target under tight aerodynamic and sensing constraints. Although recent research has applied reinforcement learning to guidance and air-defense decision tasks, most existing systems assume access to ground-truth kinematic measurements and do not consider the sensing restrictions of real defensive missiles. Radar uncertainty is rarely modeled, and agents typically receive perfect line-of-sight state information throughout the entire engagement.
+
+The core problem addressed in this work is, therefore,:
+
+\begin{quote}
+\textbf{How can an interceptor learn to search, track, and accurately intercept a target when it is given only noisy, intermittent radar observations, with no access to true target state?}
+\end{quote}
+
+This question is not answered by the current literature. Deep RL decision-making for air defense has been formulated using potential game theory \cite{Zhao2023_airdefense}, but these methods rely on fully observable state spaces and abstract away sensing limitations. Hierarchical PPO has been shown to enable missile guidance and evasion behaviors \cite{Yan2022_HRL_missile}, yet the hierarchical controller selects between policies trained with perfect knowledge of target kinematics. Curriculum-based strategies for three-body engagements \cite{Gong2023_Curriculum3Body} explore tactical complexity, but restrict interactions to simplified planar dynamics and do not model sensor lock loss, beam-width limitations, or aerodynamic effects.
+
+In realistic defensive systems, radar measurements suffer from range-dependent noise, lock failure, limited field of view, and processing delays. Furthermore, aerodynamic behavior at transonic speeds couples guidance decisions with physical feasibility. These constraints mean that terminal precision is impossible if earlier phases fail to establish and maintain high-quality radar tracking.
+
+\textbf{Motivation.} To operate under these conditions, a learning system must treat search, tracking, and terminal precision as distinct control regimes with separate objectives, sensing characteristics, and state uncertainty. A monolithic policy cannot easily solve all three phases with sparse rewards and unstable observations, motivating a hierarchical approach that assigns specialized agents to each behavioral region. Our work therefore seeks to develop a radar-only hierarchical architecture grounded in realistic physics and sensing models, rather than idealized full-state assumptions.
+
+\vspace{0.3em}
+\noindent In summary, we consider the following research objective:
+
+\begin{quote}
+\textbf{To design, train, and evaluate a hierarchical RL interception system that can operate solely on radar-derived data under realistic aerodynamic and sensing constraints.}
+\end{quote}
+
+
+\section{Related Work and Research Context}
+
+Hierarchical control has been proposed as a mechanism for managing long-range decision problems in aerospace engagement, where agents must reason across multiple temporal scales. Recent research has explored reinforcement learning for missile defense, but existing systems overwhelmingly assume access to ground-truth kinematic state, lack realistic radar degradation, or restrict engagements to low-dimensional planar motion.
+
+Deep RL–based decision making for air defense has been formulated as a potential game, where policies can converge toward cooperative equilibrium strategies between multiple defensive assets \cite{Zhao2023_airdefense}. This work demonstrates strong performance in multi-agent settings and leverages mathematical game structure to improve credit assignment. However, the environment exposes exact missile state variables and abstracts away sensing, making it incompatible with radar-only learning.
+
+More directly relevant, Yan et al.\ introduce a hierarchical PPO architecture that separates missile guidance from evasion behaviors, using a high-level controller to switch between two independently trained specialists \cite{Yan2022_HRL_missile}. Although the architecture strongly motivates policy switching for long-horizon engagement, their system leverages fully observable 4D kinematic states and disregards radar lock loss, sensor uncertainty, beam constraints, and aerodynamic delays. The approach informs our architectural design, but does not address realistic observation constraints.
+
+Curriculum learning has also been applied to attack–defense interactions in three-body engagements, allowing robust strategies to emerge under changing adversarial complexity \cite{Gong2023_Curriculum3Body}. These methods support scalable scenario generation and multi-agent tactical adaptation, but similarly operate in simplified 2D environments with omniscient state access and no physical radar simulation.
+
+In contrast, Hlynr Intercept introduces a hierarchical architecture that operates solely on radar-derived measurements with intermittent lock LOS, frame-stacked fusion confidence, zero-effort-miss (ZEM), line-of-sight (LOS) rates, and transonic aerodynamics. The partial observability and physical degradation of the system motivate a division of responsibilities into \textit{Search, Track, and Terminal} regimes, aligning reinforcement learning with the structure of real defensive guidance systems.
+
+\begin{quote}
+\textbf{To our knowledge, no prior work trains hierarchical interception policies using only intermittent radar observations under full 6-DOF and transonic dynamics.}
+\end{quote}
+
+This gap motivates our contribution: a radar-only hierarchical RL framework grounded in realistic sensing physics rather than idealized kinematic observability.
+
+\section{Case Study: Autonomous Research Coordination}
+
+
+\section{Data Structures}
+
+\section{Conclusion}
+\textit{[Opening paragraph referencing abstract/intro to be added]}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

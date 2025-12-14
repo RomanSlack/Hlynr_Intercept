@@ -1,0 +1,307 @@
+\section{Methodology}
+
+This section describes the technical architecture of \textit{Hlynr Intercept}, including the hierarchical policy structure, the radar-only observation design, and the reward formulation that enables learning under partial observability.
+
+\subsection{Hierarchical Reinforcement Learning Architecture}
+
+Missile interception naturally decomposes into distinct behavioral phases: initial search for radar acquisition, sustained tracking during closure, and precision terminal guidance. Rather than training a monolithic policy to handle all regimes simultaneously, we adopt a hierarchical reinforcement learning (HRL) framework with three specialist policies coordinated by a high-level selector.
+
+\subsubsection{Option Decomposition}
+
+We define three temporally-extended options corresponding to engagement phases:
+
+\begin{itemize}
+    \item \textbf{Search} ($o_0$): Wide-area scanning to acquire radar lock on the target. Active when lock quality is low or absent.
+    \item \textbf{Track} ($o_1$): Maintain radar lock while closing distance. Active when lock is established but target remains beyond terminal range.
+    \item \textbf{Terminal} ($o_2$): Precision guidance for final interception. Active when range falls below a critical threshold (200m).
+\end{itemize}
+
+\subsubsection{Selector Policy}
+
+The selector policy $\pi_{\text{sel}}$ operates at a reduced temporal cadence (1 Hz) and receives a compressed 7-dimensional state representation:
+
+\begin{equation}
+s_{\text{sel}} = [\text{lock\_quality}, \text{distance\_norm}, \text{fuel\_fraction}, \text{closing\_rate}, \text{off\_axis}, \text{time\_in\_phase}, \text{current\_option}]
+\end{equation}
+
+The selector outputs a discrete option $o \in \{0, 1, 2\}$, which activates the corresponding specialist policy until the next selector decision or a forced transition.
+
+\subsubsection{Specialist Policies}
+
+Each specialist policy $\pi_k$ for $k \in \{\text{search}, \text{track}, \text{terminal}\}$ is implemented as a recurrent neural network with LSTM layers to handle partial observability. Specialists receive the full 26-dimensional observation vector (described in Section~\ref{sec:obs_space}) and output continuous 6-dimensional actions:
+
+\begin{equation}
+a = [F_x, F_y, F_z, \omega_x, \omega_y, \omega_z]
+\end{equation}
+
+where $F$ denotes thrust commands in the line-of-sight (LOS) frame and $\omega$ denotes angular rate commands. Each specialist maintains independent LSTM hidden states, preserving temporal context specific to its behavioral regime.
+
+\subsubsection{Forced Transitions}
+
+To ensure physical consistency, we implement forced option transitions based on engagement state:
+
+\begin{itemize}
+    \item Lock quality exceeds 0.7 $\rightarrow$ transition from Search to Track
+    \item Lock quality falls below 0.3 $\rightarrow$ transition from Track to Search
+    \item Range falls below 200m $\rightarrow$ transition to Terminal (irreversible)
+\end{itemize}
+
+Hysteresis bands (0.1 width) and minimum dwell times (50ms for Search/Track, 30ms for Terminal) prevent rapid oscillation between options.
+
+\subsection{Environment Design}
+
+The simulation environment implements six-degree-of-freedom (6DOF) rigid body dynamics with realistic aerodynamic and sensing constraints.
+
+\subsubsection{Dynamics Model}
+
+The interceptor state evolves according to:
+
+\begin{equation}
+\dot{p} = v, \quad \dot{v} = \frac{1}{m}(F_{\text{thrust}} + F_{\text{drag}} + F_{\text{gravity}})
+\end{equation}
+
+where thrust is subject to first-order lag dynamics ($\tau = 100$ms) and gimbal limits ($\pm 45°$). Atmospheric density follows the International Standard Atmosphere (ISA) model with tropospheric lapse rate and stratospheric isothermal conditions. Drag coefficient varies with Mach number:
+
+\begin{equation}
+C_d(M) = \begin{cases}
+C_{d,0} & M < 0.8 \\
+C_{d,0}(1 + 2.5(M - 0.8)) & 0.8 \leq M \leq 1.2 \\
+2.5 \cdot C_{d,0} & M > 1.2
+\end{cases}
+\end{equation}
+
+This transonic drag rise significantly affects guidance authority during high-speed closure.
+
+\subsubsection{Observation Space}
+\label{sec:obs_space}
+
+The agent receives a 26-dimensional observation vector composed entirely of radar-derived and internal sensor measurements. Critically, no ground-truth target state is ever provided.
+
+\begin{table}[H]
+\centering
+\caption{Observation vector components}
+\label{tab:obs_space}
+\begin{tabular}{@{}clll@{}}
+\toprule
+Dims & Component & Source & Notes \\
+\midrule
+0--2 & Relative position & Radar & Normalized by max range \\
+3--5 & Relative velocity & Radar Doppler & Zero when lock lost \\
+6--8 & Own velocity & INS/GPS & Always available \\
+9--11 & Own orientation & IMU & Euler angles \\
+12 & Fuel fraction & Internal & $[0, 1]$ \\
+13 & Time to intercept & Computed & From radar track \\
+14 & Radar lock quality & Radar & $[0, 1]$ confidence \\
+15 & Closing rate & Radar & Range rate \\
+16--25 & Frame-stacked history & Buffer & Previous observations \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+When radar lock is lost, observations in dimensions 0--5 and 13--15 degrade to zero, forcing the agent to learn active reacquisition behaviors rather than relying on persistent state estimates.
+
+\subsubsection{Line-of-Sight Frame Transformation}
+
+A key design choice is expressing observations and actions in a line-of-sight (LOS) reference frame rather than world or body coordinates. The LOS frame aligns the $x$-axis with the target bearing, making the observation space invariant to absolute approach direction. This enables policies trained on one engagement geometry to generalize across arbitrary 360° approach angles without retraining.
+
+\subsubsection{Sensor Model}
+
+The environment simulates two radar sources:
+
+\begin{itemize}
+    \item \textbf{Onboard radar}: 5km range, 100Hz update rate, configurable beam width (60--120°)
+    \item \textbf{Ground radar}: 20km range, lower update rate, higher accuracy (modeling AN/TPY-2 class systems)
+\end{itemize}
+
+Radar measurements are corrupted by range-dependent Gaussian noise and processed through a Kalman filter to produce smoothed trajectory estimates. A configurable sensor delay (default 30ms) models realistic signal processing latency.
+
+\subsubsection{Domain Randomization}
+
+To improve policy robustness, we randomize physical parameters per episode:
+
+\begin{itemize}
+    \item Drag coefficient: $\pm 20\%$
+    \item Air density: $\pm 10\%$
+    \item Sensor delay: $\pm 50\%$
+    \item Wind gusts: Stochastic turbulence model
+\end{itemize}
+
+\subsection{Reward Structure}
+
+The reward function balances sparse terminal objectives with dense shaping signals to guide learning under long-horizon credit assignment.
+
+\subsubsection{Terminal Rewards}
+
+Episode-ending events receive large scalar rewards:
+
+\begin{equation}
+R_{\text{terminal}} = \begin{cases}
++5000 + R_{\text{time}} + R_{\text{fuel}} & \text{successful intercept} \\
+-1000 & \text{interceptor destroyed} \\
+-200 & \text{fuel exhausted} \\
+-100 & \text{timeout}
+\end{cases}
+\end{equation}
+
+where $R_{\text{time}}$ and $R_{\text{fuel}}$ provide bonuses for efficient interception.
+
+\subsubsection{Shaping Rewards}
+
+Per-step shaping rewards encourage progress toward interception:
+
+\textbf{Closing velocity reward:}
+\begin{equation}
+r_{\text{close}} = \text{clamp}\left(\frac{v_{\text{closing}}}{100}, -0.5, 2.0\right) \cdot 0.3
+\end{equation}
+
+\textbf{Multi-scale distance reduction:}
+\begin{equation}
+r_{\text{dist}} = \Delta d \cdot \begin{cases}
+2.0 & d < 200\text{m} \\
+1.0 & d < 500\text{m} \\
+0.5 & \text{otherwise}
+\end{cases}
+\end{equation}
+
+\textbf{Pursuit alignment:} Encourages proportional navigation-like behavior by rewarding alignment between velocity and line-of-sight vectors:
+\begin{equation}
+r_{\text{pursuit}} = (\hat{v} \cdot \hat{\text{LOS}}) \cdot 0.3
+\end{equation}
+
+\textbf{Time penalty:} A constant $-0.5$ per step discourages unnecessarily long engagements.
+
+\subsubsection{Hierarchical Reward Decomposition}
+
+The selector and specialists receive different reward signals:
+
+\begin{itemize}
+    \item \textbf{Strategic rewards} (selector): Mission-level outcomes---intercept success, fuel efficiency, time bonuses
+    \item \textbf{Tactical rewards} (specialists): Phase-specific objectives:
+    \begin{itemize}
+        \item Search: $+50$ for lock acquisition, $+10$ per 0.1 improvement in lock quality
+        \item Track: $+2$ per step at lock quality $> 0.8$, distance reduction bonus
+        \item Terminal: Exponential bonus up to $+20$ for miss distance $< 5$m
+    \end{itemize}
+\end{itemize}
+
+This decomposition allows specialists to optimize local objectives while the selector learns to sequence phases for global mission success.
+
+\subsection{Training Procedure}
+
+We employ Proximal Policy Optimization (PPO) with the following configuration:
+
+\begin{table}[H]
+\centering
+\caption{Training hyperparameters}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Parameter & Value \\
+\midrule
+Total timesteps & 10M \\
+Parallel environments & 16 \\
+Rollout length & 2048 steps \\
+Batch size & 256 \\
+Discount factor $\gamma$ & 0.997 \\
+GAE $\lambda$ & 0.97 \\
+Learning rate & $3 \times 10^{-4}$ (decaying) \\
+Network architecture & [512, 512, 256] MLP + LSTM \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Training proceeds in stages: (1) specialist pre-training with curriculum learning over intercept difficulty, (2) selector training with frozen specialists, and (3) optional joint fine-tuning. Curriculum learning progressively narrows the success threshold from 100m to 5m over the first 2M timesteps.
+
+
+\section{Evaluation Metrics}
+
+We evaluate policy performance using metrics that capture both mission success and operational efficiency. These metrics are designed to assess radar-only guidance under realistic constraints.
+
+\subsection{Primary Performance Metrics}
+
+\textbf{Mean Intercept Distance (MID):} The average closest-approach distance between interceptor and target across evaluation episodes. Lower values indicate more precise guidance.
+
+\begin{equation}
+\text{MID} = \frac{1}{N} \sum_{i=1}^{N} \min_t \| p_{\text{int}}^{(i)}(t) - p_{\text{tgt}}^{(i)}(t) \|
+\end{equation}
+
+\textbf{Success Rate:} The fraction of episodes achieving interception within a specified threshold. We report success at two thresholds:
+\begin{itemize}
+    \item \textbf{Proximity success} ($< 50$m): Sufficient for proximity-fused warheads
+    \item \textbf{Precision success} ($< 5$m): Required for hit-to-kill systems
+\end{itemize}
+
+\textbf{Volley Success Rate:} For multi-interceptor scenarios, the probability that at least one interceptor in a salvo achieves successful interception. This metric captures system-level effectiveness:
+
+\begin{equation}
+P_{\text{volley}}(n) = 1 - (1 - P_{\text{single}})^n
+\end{equation}
+
+assuming independent interceptor outcomes.
+
+\subsection{Efficiency Metrics}
+
+\textbf{Time to Intercept (TTI):} Elapsed time from launch to closest approach. Shorter times indicate more direct pursuit trajectories.
+
+\textbf{Fuel Efficiency:} Fraction of initial fuel remaining at intercept. Higher values suggest the policy avoids wasteful maneuvering:
+
+\begin{equation}
+\eta_{\text{fuel}} = \frac{m_{\text{fuel,final}}}{m_{\text{fuel,initial}}}
+\end{equation}
+
+\textbf{Thrust Integral:} Total thrust expenditure normalized by engagement duration, measuring control effort independent of trajectory length.
+
+\subsection{Radar-Specific Metrics}
+
+\textbf{Lock Loss Recovery Rate:} Fraction of radar lock losses successfully recovered before engagement timeout. This metric directly evaluates the Search phase effectiveness:
+
+\begin{equation}
+R_{\text{recovery}} = \frac{N_{\text{reacquired}}}{N_{\text{lost}}}
+\end{equation}
+
+\textbf{Mean Lock Quality:} Average radar confidence throughout the engagement, indicating tracking stability.
+
+\textbf{Time in Lock:} Percentage of engagement duration with valid radar track ($\text{lock\_quality} > 0.5$).
+
+\subsection{Hierarchical Behavior Metrics}
+
+\textbf{Phase Transition Count:} Number of option switches per episode. Excessive switching may indicate selector instability.
+
+\textbf{Phase Duration Distribution:} Time spent in each option (Search, Track, Terminal), revealing whether the hierarchical decomposition matches expected engagement structure.
+
+\textbf{Forced vs. Learned Transitions:} Ratio of physics-triggered transitions to selector-initiated transitions, measuring how much the selector relies on safety constraints versus learned switching.
+
+\subsection{Comparative Baselines}
+
+We compare the hierarchical architecture against:
+
+\begin{itemize}
+    \item \textbf{Flat PPO:} Monolithic policy without hierarchical decomposition
+    \item \textbf{Proportional Navigation (PN):} Classical guidance law using true LOS rate (upper bound with perfect sensing)
+    \item \textbf{Augmented PN:} PN with Kalman-filtered radar estimates (classical baseline under sensor constraints)
+\end{itemize}
+
+\subsection{Simulation-to-Reality Considerations}
+
+The current simulation operates at reduced speed and engagement ranges compared to operational systems:
+
+\begin{table}[H]
+\centering
+\caption{Simulation vs. operational parameters}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Parameter & Simulation & Operational (PAC-3 class) \\
+\midrule
+Interceptor speed & 200--400 m/s & Mach 5+ (1700+ m/s) \\
+Engagement range & 800--1500 m & 35--60+ km \\
+Terminal phase & 5--10 s & $< 500$ ms \\
+Miss threshold & 50 m / 5 m & $< 1$ m (hit-to-kill) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Transferable elements:} The hierarchical decision structure, phase transition logic, and pursuit geometry learned in simulation should transfer to higher-fidelity environments, as these depend on relative dynamics rather than absolute scales.
+
+\textbf{Non-transferable elements:} Absolute control gains, aerodynamic coefficients, and timing constants require re-tuning for operational speed regimes. The transonic drag model would need extension to hypersonic flow physics.
+
+Future work will evaluate sim-to-sim transfer by deploying trained policies in independent physics engines (e.g., JSBSim) to assess generalization beyond the training environment.
+
